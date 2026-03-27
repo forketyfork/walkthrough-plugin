@@ -890,12 +890,7 @@ fun WalkthroughItemContent(
                             .padding(start = 16.dp, top = 14.dp, end = 28.dp, bottom = 14.dp)
                             .verticalScroll(scrollState)
                     ) {
-                        Text(
-                            text = item.text,
-                            color = Color(0xFFF8FAFC),
-                            fontSize = 15.sp,
-                            lineHeight = 22.sp
-                        )
+                        MarkdownContent(item.text)
                     }
 
                     if (showScrollbar) {
