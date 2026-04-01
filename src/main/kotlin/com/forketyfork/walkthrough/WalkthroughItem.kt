@@ -118,6 +118,7 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
 
     val panel = JewelComposePanel {
         WalkthroughItemContent(
+            project = project,
             items = items,
             onItemDisplayed = { item ->
                 val popup = popupRef
@@ -736,6 +737,7 @@ private fun drawArrowHead(graphics: Graphics2D, end: Point2D.Float, endControl: 
 
 @Composable
 fun WalkthroughItemContent(
+    project: Project,
     items: List<WalkthroughItem>,
     onItemDisplayed: (WalkthroughItem) -> Unit,
     onClose: () -> Unit
@@ -890,7 +892,7 @@ fun WalkthroughItemContent(
                             .padding(start = 16.dp, top = 14.dp, end = 28.dp, bottom = 14.dp)
                             .verticalScroll(scrollState)
                     ) {
-                        MarkdownContent(item.text)
+                        MarkdownContent(project, item.text)
                     }
 
                     if (showScrollbar) {

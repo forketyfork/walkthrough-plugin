@@ -24,6 +24,13 @@ dependencies {
         // Add plugin dependencies for compilation here:
 
         composeUI()
+        bundledModule("intellij.platform.compose.markdown")
+        bundledModule("intellij.platform.jewel.markdown.core")
+        bundledModule("intellij.platform.jewel.markdown.ideLafBridgeStyling")
+        bundledModule("intellij.platform.jewel.markdown.extensions.autolink")
+        bundledModule("intellij.platform.jewel.markdown.extensions.gfmAlerts")
+        bundledModule("intellij.platform.jewel.markdown.extensions.gfmTables")
+        bundledModule("intellij.platform.jewel.markdown.extensions.gfmStrikethrough")
         bundledPlugin("com.intellij.mcpServer")
 
     }
