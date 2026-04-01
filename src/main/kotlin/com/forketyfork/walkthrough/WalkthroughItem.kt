@@ -15,11 +15,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
@@ -37,13 +38,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,6 +64,7 @@ import org.jetbrains.jewel.ui.component.Text
 import java.awt.BasicStroke
 import java.awt.Component
 import java.awt.Container
+import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
@@ -72,6 +72,8 @@ import java.awt.Point
 import java.awt.RenderingHints
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
+import java.awt.event.ContainerAdapter
+import java.awt.event.ContainerEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.geom.Path2D
@@ -80,6 +82,7 @@ import java.awt.geom.Rectangle2D
 import java.awt.Color as AwtColor
 import javax.swing.JComponent
 import javax.swing.JLayeredPane
+import javax.swing.JRootPane
 import javax.swing.SwingUtilities
 import javax.swing.Timer
 import kotlin.math.abs
@@ -90,18 +93,22 @@ import kotlin.math.sign
 import kotlin.math.sin
 
 private val PopupCornerRadius = 24.dp
-private val PopupTextMinWidth = 340.dp
-private val PopupTextMaxWidth = 640.dp
-private val PopupTextMaxHeight = 320.dp
+private val PopupTextMinHeight = 180.dp
 private const val PopupViewportPadding = 18
 private const val PopupLineSpacing = 10
-private val PopupFallbackSize = Dimension(460, 220)
+private val PopupFallbackSize = Dimension(560, 300)
 private const val PopupConnectorLayerOffset = 5
 private const val PopupAvoidAnimationDurationMs = 220
 private const val PopupAvoidAnimationTimerDelayMs = 16
 private const val PopupAvoidAnimationClientProperty = "walkthrough.popup.avoid.animation"
 private const val PopupDragHandleHeightPx = 64
 private const val PopupCloseButtonHitBoxPx = 60
+private const val PopupResizeHandleSizePx = 26
+private const val PopupMinimumWidthPx = 520
+private const val PopupMinimumHeightPx = 260
+private const val PopupArrowViewportInsetPx = 12f
+private const val PopupInteractionListenerClientProperty = "walkthrough.popup.interaction.listener"
+private const val PopupInteractionContainerListenerClientProperty = "walkthrough.popup.interaction.container.listener"
 
 data class WalkthroughItem(
     val text: String,
@@ -136,13 +143,15 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
         )
     }.apply {
         isOpaque = false
+        background = AwtColor(0, 0, 0, 0)
+        minimumSize = Dimension(PopupMinimumWidthPx, PopupMinimumHeightPx)
+        preferredSize = PopupFallbackSize
     }
     panelRef = panel
-    installPopupDragHandler(
+    installPopupInteractionHandler(
         panel = panel,
         popupProvider = { popupRef },
         editorProvider = { currentEditor },
-        lineProvider = { currentItem.line },
         onPopupMoved = { connectorRef?.repaintConnector() }
     )
 
@@ -157,6 +166,7 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
         .setLocateWithinScreenBounds(true)
         .createPopup()
         .also { createdPopup ->
+            makePopupHierarchyTransparent(createdPopup, panel)
             createdPopup.addListener(object : JBPopupListener {
                 override fun onClosed(event: LightweightWindowEvent) {
                     stopPopupAvoidAnimation(createdPopup)
@@ -206,9 +216,10 @@ private fun movePopupNearItem(
     panel.revalidate()
     panel.doLayout()
     popup.pack(true, true)
+    val popupContent = popup.content
 
     val popupSize = panel.preferredSize.usableSize()
-        ?: popup.content?.preferredSize.usableSize()
+        ?: popupContent.preferredSize.usableSize()
         ?: popup.size.usableSize()
         ?: PopupFallbackSize
 
@@ -217,11 +228,11 @@ private fun movePopupNearItem(
     val screenPoint = calculatePopupScreenPoint(editor, popupSize, item.line)
     if (popup.isVisible) {
         popup.setLocation(screenPoint)
-        popup.moveToFitScreen()
     } else {
         popup.showInScreenCoordinates(editor.contentComponent, screenPoint)
-        popup.moveToFitScreen()
+        makePopupHierarchyTransparent(popup, panel)
     }
+    popup.moveToFitScreen()
     onLocationChanged?.invoke()
     movePopupOutOfLineIfNeeded(popup, editor, item.line, onLocationChanged)
 }
@@ -229,16 +240,16 @@ private fun movePopupNearItem(
 private fun movePopupBy(
     popup: JBPopup,
     editor: Editor,
-    line: Int?,
     deltaX: Float,
     deltaY: Float,
     onLocationChanged: (() -> Unit)? = null
 ) {
     stopPopupAvoidAnimation(popup)
     val currentLocation = popupScreenLocation(popup) ?: return
+    val popupContent = popup.content
     val popupSize = popup.size.usableSize()
-        ?: popup.content?.size.usableSize()
-        ?: popup.content?.preferredSize.usableSize()
+        ?: popupContent.size.usableSize()
+        ?: popupContent.preferredSize.usableSize()
         ?: PopupFallbackSize
     val movedPoint = Point(
         currentLocation.x + deltaX.roundToInt(),
@@ -255,7 +266,6 @@ private fun movePopupBy(
     popup.setLocation(movedPoint)
     popup.moveToFitScreen()
     onLocationChanged?.invoke()
-    movePopupOutOfLineIfNeeded(popup, editor, line, onLocationChanged)
 }
 
 private fun Dimension?.usableSize(): Dimension? =
@@ -266,9 +276,10 @@ private fun popupScreenLocation(popup: JBPopup): Point? =
 
 private fun popupScreenBounds(popup: JBPopup): Rectangle2D.Float? {
     val location = popupScreenLocation(popup) ?: return null
+    val popupContent = popup.content
     val size = popup.size.usableSize()
-        ?: popup.content?.size.usableSize()
-        ?: popup.content?.preferredSize.usableSize()
+        ?: popupContent.size.usableSize()
+        ?: popupContent.preferredSize.usableSize()
         ?: return null
     return Rectangle2D.Float(location.x.toFloat(), location.y.toFloat(), size.width.toFloat(), size.height.toFloat())
 }
@@ -280,9 +291,10 @@ private fun movePopupOutOfLineIfNeeded(
     onLocationChanged: (() -> Unit)? = null
 ) {
     val currentLocation = popupScreenLocation(popup) ?: return
+    val popupContent = popup.content
     val popupSize = popup.size.usableSize()
-        ?: popup.content?.size.usableSize()
-        ?: popup.content?.preferredSize.usableSize()
+        ?: popupContent.size.usableSize()
+        ?: popupContent.preferredSize.usableSize()
         ?: return
     val adjustedLocation = avoidLineOverlap(currentLocation, popupSize, editor, line)
     if (adjustedLocation != currentLocation) {
@@ -323,76 +335,195 @@ private fun animatePopupTo(
         start()
     }
 
-    popup.content?.putClientProperty(PopupAvoidAnimationClientProperty, timer)
+    popup.content.putClientProperty(PopupAvoidAnimationClientProperty, timer)
 }
 
 private fun stopPopupAvoidAnimation(popup: JBPopup) {
-    (popup.content?.getClientProperty(PopupAvoidAnimationClientProperty) as? Timer)?.stop()
-    popup.content?.putClientProperty(PopupAvoidAnimationClientProperty, null)
+    val timer = popup.content.getClientProperty(PopupAvoidAnimationClientProperty) as? Timer
+    if (timer != null) {
+        timer.stop()
+    }
+    popup.content.putClientProperty(PopupAvoidAnimationClientProperty, null)
 }
 
-private fun installPopupDragHandler(
+private fun makePopupHierarchyTransparent(popup: JBPopup, panel: JComponent) {
+    makeComponentHierarchyTransparent(popup.content)
+    makeComponentHierarchyTransparent(panel)
+}
+
+private fun makeComponentHierarchyTransparent(component: Component?) {
+    var current = component
+    while (current is JComponent) {
+        if (current is JRootPane || current is JLayeredPane) {
+            break
+        }
+        current.isOpaque = false
+        current.background = AwtColor(0, 0, 0, 0)
+        current = current.parent
+    }
+}
+
+private enum class PopupInteractionMode {
+    Drag,
+    Resize
+}
+
+private fun installPopupInteractionHandler(
     panel: JComponent,
     popupProvider: () -> JBPopup?,
     editorProvider: () -> Editor,
-    lineProvider: () -> Int?,
     onPopupMoved: () -> Unit
 ) {
     var lastScreenPoint: Point? = null
-    var dragging = false
+    var interactionMode: PopupInteractionMode? = null
 
-    val dragListener = object : MouseAdapter() {
+    val interactionListener = object : MouseAdapter() {
         override fun mousePressed(event: MouseEvent) {
-            if (event.button != MouseEvent.BUTTON1 || !isWithinDragHandle(panel, event.component, event.point)) {
-                dragging = false
+            if (event.button != MouseEvent.BUTTON1) {
+                interactionMode = null
                 lastScreenPoint = null
                 return
             }
-            dragging = true
-            lastScreenPoint = event.locationOnScreen
+            interactionMode = when {
+                isWithinResizeHandle(panel, event.component, event.point) -> PopupInteractionMode.Resize
+                isWithinDragHandle(panel, event.component, event.point) -> PopupInteractionMode.Drag
+                else -> null
+            }
+            lastScreenPoint = interactionMode?.let { event.locationOnScreen }
         }
 
         override fun mouseDragged(event: MouseEvent) {
-            if (!dragging) {
-                return
-            }
+            val mode = interactionMode ?: return
             val popup = popupProvider() ?: return
             val previousScreenPoint = lastScreenPoint ?: event.locationOnScreen
             val currentScreenPoint = event.locationOnScreen
-            movePopupBy(
-                popup = popup,
-                editor = editorProvider(),
-                line = lineProvider(),
-                deltaX = (currentScreenPoint.x - previousScreenPoint.x).toFloat(),
-                deltaY = (currentScreenPoint.y - previousScreenPoint.y).toFloat(),
-                onLocationChanged = onPopupMoved
-            )
+            when (mode) {
+                PopupInteractionMode.Drag -> movePopupBy(
+                    popup = popup,
+                    editor = editorProvider(),
+                    deltaX = (currentScreenPoint.x - previousScreenPoint.x).toFloat(),
+                    deltaY = (currentScreenPoint.y - previousScreenPoint.y).toFloat(),
+                    onLocationChanged = onPopupMoved
+                )
+
+                PopupInteractionMode.Resize -> resizePopupBy(
+                    popup = popup,
+                    panel = panel,
+                    editor = editorProvider(),
+                    deltaX = (currentScreenPoint.x - previousScreenPoint.x).toFloat(),
+                    deltaY = (currentScreenPoint.y - previousScreenPoint.y).toFloat(),
+                    onLocationChanged = onPopupMoved
+                )
+            }
             lastScreenPoint = currentScreenPoint
         }
 
+        override fun mouseMoved(event: MouseEvent) {
+            updateInteractionCursor(panel, event.component, event.point)
+        }
+
         override fun mouseReleased(event: MouseEvent) {
-            dragging = false
+            interactionMode = null
             lastScreenPoint = null
+            updateInteractionCursor(panel, event.component, event.point)
+        }
+
+        override fun mouseExited(event: MouseEvent) {
+            if (interactionMode == null) {
+                event.component.cursor = Cursor.getDefaultCursor()
+                panel.cursor = Cursor.getDefaultCursor()
+            }
         }
     }
 
-    attachMouseListenersRecursively(panel, dragListener)
+    attachMouseListenersRecursively(panel, interactionListener)
 }
 
 private fun attachMouseListenersRecursively(component: Component, listener: MouseAdapter) {
-    component.addMouseListener(listener)
-    component.addMouseMotionListener(listener)
+    if (component is JComponent) {
+        if (component.getClientProperty(PopupInteractionListenerClientProperty) !== listener) {
+            component.addMouseListener(listener)
+            component.addMouseMotionListener(listener)
+            component.putClientProperty(PopupInteractionListenerClientProperty, listener)
+        }
+    } else {
+        component.addMouseListener(listener)
+        component.addMouseMotionListener(listener)
+    }
     if (component is Container) {
         component.components.forEach { child ->
             attachMouseListenersRecursively(child, listener)
         }
+        if (component is JComponent &&
+            component.getClientProperty(PopupInteractionContainerListenerClientProperty) == null
+        ) {
+            val containerListener = object : ContainerAdapter() {
+                override fun componentAdded(event: ContainerEvent) {
+                    attachMouseListenersRecursively(event.child, listener)
+                }
+            }
+            component.addContainerListener(containerListener)
+            component.putClientProperty(PopupInteractionContainerListenerClientProperty, containerListener)
+        }
     }
+}
+
+private fun updateInteractionCursor(panel: JComponent, component: Component, point: Point) {
+    val cursor = when {
+        isWithinResizeHandle(panel, component, point) -> Cursor.getPredefinedCursor(Cursor.SE_RESIZE_CURSOR)
+        isWithinDragHandle(panel, component, point) -> Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR)
+        else -> Cursor.getDefaultCursor()
+    }
+    component.cursor = cursor
+    panel.cursor = cursor
 }
 
 private fun isWithinDragHandle(panel: JComponent, component: Component, point: Point): Boolean {
     val pointInPanel = SwingUtilities.convertPoint(component, point, panel)
     return pointInPanel.y <= PopupDragHandleHeightPx &&
         pointInPanel.x <= panel.width - PopupCloseButtonHitBoxPx
+}
+
+private fun isWithinResizeHandle(panel: JComponent, component: Component, point: Point): Boolean {
+    val pointInPanel = SwingUtilities.convertPoint(component, point, panel)
+    return pointInPanel.x >= panel.width - PopupResizeHandleSizePx &&
+        pointInPanel.y >= panel.height - PopupResizeHandleSizePx
+}
+
+private fun resizePopupBy(
+    popup: JBPopup,
+    panel: JComponent,
+    editor: Editor,
+    deltaX: Float,
+    deltaY: Float,
+    onLocationChanged: (() -> Unit)? = null
+) {
+    stopPopupAvoidAnimation(popup)
+    val currentLocation = popupScreenLocation(popup) ?: return
+    val currentSize = popup.size.usableSize()
+        ?: popup.content.size.usableSize()
+        ?: popup.content.preferredSize.usableSize()
+        ?: panel.preferredSize.usableSize()
+        ?: PopupFallbackSize
+    val rootPane = SwingUtilities.getRootPane(editor.contentComponent)
+    val maxWidth = rootPane?.let { pane ->
+        val rootLocation = Point(0, 0).also { SwingUtilities.convertPointToScreen(it, pane) }
+        (rootLocation.x + pane.width - currentLocation.x - PopupViewportPadding).coerceAtLeast(PopupMinimumWidthPx)
+    } ?: Int.MAX_VALUE
+    val maxHeight = rootPane?.let { pane ->
+        val rootLocation = Point(0, 0).also { SwingUtilities.convertPointToScreen(it, pane) }
+        (rootLocation.y + pane.height - currentLocation.y - PopupViewportPadding).coerceAtLeast(PopupMinimumHeightPx)
+    } ?: Int.MAX_VALUE
+    val targetSize = Dimension(
+        (currentSize.width + deltaX.roundToInt()).coerceIn(PopupMinimumWidthPx, maxWidth),
+        (currentSize.height + deltaY.roundToInt()).coerceIn(PopupMinimumHeightPx, maxHeight)
+    )
+
+    panel.preferredSize = targetSize
+    panel.revalidate()
+    popup.setSize(targetSize)
+    popup.moveToFitScreen()
+    onLocationChanged?.invoke()
 }
 
 private fun cubicEaseInOut(progress: Float): Float =
@@ -444,6 +575,8 @@ private data class LineScreenGeometry(
     val topY: Float,
     val bottomY: Float,
     val centerY: Float,
+    val viewportLeftX: Float,
+    val viewportRightX: Float,
     val viewportTopY: Float,
     val viewportBottomY: Float
 )
@@ -476,6 +609,8 @@ private fun calculateLineScreenGeometry(editor: Editor, line: Int?): LineScreenG
     val contentOrigin = Point(0, 0).also {
         SwingUtilities.convertPointToScreen(it, editor.contentComponent)
     }
+    val viewportLeftX = contentOrigin.x + visibleArea.x.toFloat()
+    val viewportRightX = viewportLeftX + visibleArea.width
     val lineTopY = contentOrigin.y + lineEndPoint.y.toFloat()
     val lineBottomY = lineTopY + editor.lineHeight
     return LineScreenGeometry(
@@ -483,6 +618,8 @@ private fun calculateLineScreenGeometry(editor: Editor, line: Int?): LineScreenG
         topY = lineTopY,
         bottomY = lineBottomY,
         centerY = lineTopY + editor.lineHeight / 2f,
+        viewportLeftX = viewportLeftX,
+        viewportRightX = viewportRightX,
         viewportTopY = contentOrigin.y + visibleArea.y.toFloat(),
         viewportBottomY = contentOrigin.y + visibleArea.y.toFloat() + visibleArea.height
     )
@@ -526,7 +663,14 @@ private fun avoidLineOverlap(
 
 private fun calculateLineScreenPoint(editor: Editor, line: Int?): Point {
     val lineGeometry = calculateLineScreenGeometry(editor, line)
-    return Point(lineGeometry.anchorX.roundToInt(), lineGeometry.centerY.roundToInt())
+    val minX = lineGeometry.viewportLeftX + PopupArrowViewportInsetPx
+    val maxX = (lineGeometry.viewportRightX - PopupArrowViewportInsetPx).coerceAtLeast(minX)
+    val minY = lineGeometry.viewportTopY + PopupArrowViewportInsetPx
+    val maxY = (lineGeometry.viewportBottomY - PopupArrowViewportInsetPx).coerceAtLeast(minY)
+    return Point(
+        lineGeometry.anchorX.coerceIn(minX, maxX).roundToInt(),
+        lineGeometry.centerY.coerceIn(minY, maxY).roundToInt()
+    )
 }
 
 private class PopupConnectorOverlay(
@@ -559,7 +703,8 @@ private class PopupConnectorOverlay(
             detachFromLayeredPane()
             layeredPane = targetLayeredPane?.also { pane ->
                 pane.addComponentListener(layeredPaneResizeListener)
-                pane.add(this, Integer.valueOf(JLayeredPane.POPUP_LAYER - PopupConnectorLayerOffset))
+                pane.setLayer(this, JLayeredPane.POPUP_LAYER - PopupConnectorLayerOffset)
+                pane.add(this)
             }
         }
         refreshBounds()
@@ -579,11 +724,6 @@ private class PopupConnectorOverlay(
     }
 
     override fun visibleAreaChanged(event: VisibleAreaEvent) {
-        val currentEditor = editor
-        val currentItem = item
-        if (currentEditor != null && currentItem != null) {
-            movePopupOutOfLineIfNeeded(popup, currentEditor, currentItem.line, this::repaintConnector)
-        }
         repaintConnector()
     }
 
@@ -613,11 +753,8 @@ private class PopupConnectorOverlay(
 
         val g2 = graphics.create() as Graphics2D
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-        g2.color = AwtColor(255, 88, 88, 80)
-        g2.stroke = BasicStroke(9f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
-        g2.draw(connector.path)
         g2.color = AwtColor(255, 136, 136, 235)
-        g2.stroke = BasicStroke(3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
+        g2.stroke = BasicStroke(3.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
         g2.draw(connector.path)
         drawArrowHead(g2, connector.end, connector.endControl)
         g2.dispose()
@@ -627,7 +764,8 @@ private class PopupConnectorOverlay(
         layeredPane?.let { pane ->
             setBounds(0, 0, pane.width, pane.height)
             if (parent !== pane) {
-                pane.add(this, Integer.valueOf(JLayeredPane.POPUP_LAYER - PopupConnectorLayerOffset))
+                pane.setLayer(this, JLayeredPane.POPUP_LAYER - PopupConnectorLayerOffset)
+                pane.add(this)
             }
         }
     }
@@ -782,7 +920,7 @@ fun WalkthroughItemContent(
     CompositionLocalProvider(LocalScrollbarStyle provides scrollbarStyle) {
         Box(
             modifier = Modifier
-                .shadow(26.dp, shape, clip = false)
+                .fillMaxSize()
                 .clip(shape)
                 .drawWithCache {
                     val cornerRadius = CornerRadius(PopupCornerRadius.toPx(), PopupCornerRadius.toPx())
@@ -840,7 +978,9 @@ fun WalkthroughItemContent(
             )
 
             Column(
-                modifier = Modifier.padding(start = 18.dp, top = 16.dp, end = 58.dp, bottom = 16.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(start = 18.dp, top = 16.dp, end = 58.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Row(
@@ -877,8 +1017,9 @@ fun WalkthroughItemContent(
 
                 Box(
                     modifier = Modifier
-                        .widthIn(min = PopupTextMinWidth, max = PopupTextMaxWidth)
-                        .heightIn(max = PopupTextMaxHeight)
+                        .fillMaxWidth()
+                        .weight(1f, fill = true)
+                        .heightIn(min = PopupTextMinHeight)
                         .clip(RoundedCornerShape(18.dp))
                         .background(Color.White.copy(alpha = 0.08f))
                         .border(
@@ -889,6 +1030,7 @@ fun WalkthroughItemContent(
                 ) {
                     Box(
                         modifier = Modifier
+                            .fillMaxSize()
                             .padding(start = 16.dp, top = 14.dp, end = 28.dp, bottom = 14.dp)
                             .verticalScroll(scrollState)
                     ) {
@@ -947,12 +1089,10 @@ private fun AiBadge() {
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Text(
-            text = "DESTINATION AI",
+            text = "Walkthrough",
             color = Color.White,
             fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace,
-            letterSpacing = 1.2.sp
+            fontWeight = FontWeight.SemiBold
         )
     }
 }
