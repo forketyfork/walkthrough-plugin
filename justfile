@@ -24,6 +24,10 @@ lint:
 clean:
     ./gradlew clean
 
+# Publish plugin to JetBrains Marketplace (requires signing and publish env vars)
+publish:
+    ./gradlew publishPlugin
+
 # Install pre-commit hooks (requires Nix dev shell)
 hooks:
     pre-commit install

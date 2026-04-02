@@ -1,0 +1,133 @@
+name: Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Validate tag matches pluginVersion
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          VERSION=$(grep '^pluginVersion=' gradle.properties | cut -d= -f2)
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "::error::Tag v$TAG does not match pluginVersion=$VERSION in gradle.properties"
+            exit 1
+          fi
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Run checks
+        run: nix flake check
+
+      - name: Restore IntelliJ Platform cache
+        uses: actions/cache/restore@v5
+        with:
+          path: .intellijPlatform
+          key: ${{ runner.os }}-intellij-platform-${{ hashFiles('build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-intellij-platform-
+
+      - name: Restore Plugin Verifier cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ~/.cache/pluginVerifier
+          key: ${{ runner.os }}-plugin-verifier-${{ hashFiles('build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-plugin-verifier-
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+          cache-read-only: true
+
+      - name: Run detekt
+        run: ./gradlew detekt
+
+      - name: Build plugin
+        run: ./gradlew buildPlugin
+
+      - name: Verify plugin compatibility
+        run: ./gradlew verifyPlugin
+
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: walkthrough-plugin
+          path: build/distributions/*.zip
+
+  publish:
+    name: Publish
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Restore IntelliJ Platform cache
+        uses: actions/cache/restore@v5
+        with:
+          path: .intellijPlatform
+          key: ${{ runner.os }}-intellij-platform-${{ hashFiles('build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-intellij-platform-
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+          cache-read-only: true
+
+      - name: Publish plugin
+        run: ./gradlew publishPlugin
+        env:
+          CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
+          PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+
+      - name: Extract changelog
+        id: changelog
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} /^## \[/{if(found) exit} found" CHANGELOG.md)
+          {
+            echo "notes<<CHANGELOG_EOF"
+            echo "$NOTES"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body: ${{ steps.changelog.outputs.notes }}
+          files: build/distributions/*.zip

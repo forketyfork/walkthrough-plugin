@@ -10,7 +10,18 @@ plugins {
 }
 
 group = "com.forketyfork"
-version = "1.0-SNAPSHOT"
+version = providers.gradleProperty("pluginVersion").get()
+
+fun latestChangelog(): String {
+    val changelog = file("CHANGELOG.md")
+    if (!changelog.exists()) return "Initial version"
+    val lines = changelog.readLines()
+    val start = lines.indexOfFirst { it.matches(Regex("""^## \[\d+.*""")) }
+    if (start == -1) return "Initial version"
+    val end = lines.drop(start + 1).indexOfFirst { it.startsWith("## [") }
+    val section = if (end == -1) lines.drop(start + 1) else lines.subList(start + 1, start + 1 + end)
+    return section.joinToString("\n").trim().ifEmpty { "Initial version" }
+}
 
 repositories {
     mavenCentral()
@@ -46,15 +57,23 @@ intellijPlatform {
             sinceBuild = "261"
         }
 
-        changeNotes = """
-            Initial version
-        """.trimIndent()
+        changeNotes = latestChangelog()
     }
 
     caching {
         ides {
             enabled.set(true)
         }
+    }
+
+    signing {
+        certificateChain = providers.environmentVariable("CERTIFICATE_CHAIN")
+        privateKey = providers.environmentVariable("PRIVATE_KEY")
+        password = providers.environmentVariable("PRIVATE_KEY_PASSWORD")
+    }
+
+    publishing {
+        token = providers.environmentVariable("PUBLISH_TOKEN")
     }
 
     pluginVerification {
