@@ -1,4 +1,5 @@
 @file:OptIn(ExperimentalJewelApi::class)
+@file:Suppress("UnstableApiUsage")
 
 package com.forketyfork.walkthrough
 
@@ -57,50 +58,12 @@ internal fun MarkdownContent(
     markdown: String,
     modifier: Modifier = Modifier
 ) {
-    val baseTextStyle = remember(JewelTheme.instanceUuid) {
-        retrieveDefaultTextStyle().copy(
-            color = PopupMarkdownTextColor,
-            fontSize = 15.sp,
-            lineHeight = 22.sp
-        )
-    }
-    val editorTextStyle = remember(JewelTheme.instanceUuid) {
-        retrieveEditorTextStyle().copy(
-            color = PopupMarkdownCodeTextColor,
-            fontSize = 13.sp,
-            lineHeight = 20.sp
-        )
-    }
-    val markdownStyling = remember(JewelTheme.instanceUuid) {
-        createPopupMarkdownStyling(baseTextStyle, editorTextStyle)
-    }
-    val processor = remember {
-        MarkdownProcessor(
-            listOf(
-                GitHubAlertProcessorExtension,
-                GitHubTableProcessorExtension,
-                GitHubStrikethroughProcessorExtension(),
-                AutolinkProcessorExtension,
-            ),
-            MarkdownMode.Standalone,
-            parseEmbeddedHtml = true
-        )
-    }
-    val tableRenderer = remember(markdownStyling) {
-        GitHubTableRendererExtension(GfmTableStyling.create(), markdownStyling)
-    }
-    val alertRenderer = remember(markdownStyling) {
-        GitHubAlertRendererExtension(AlertStyling.create(), markdownStyling)
-    }
-    val blockRenderer = remember(markdownStyling, tableRenderer, alertRenderer) {
-        MarkdownBlockRenderer.create(
-            markdownStyling,
-            listOf(tableRenderer, alertRenderer, GitHubStrikethroughRendererExtension)
-        )
-    }
-    val codeHighlighter = remember(project) {
-        project.service<CodeHighlighterFactory>().createHighlighter()
-    }
+    val baseTextStyle = rememberPopupBaseTextStyle()
+    val editorTextStyle = rememberPopupEditorTextStyle()
+    val markdownStyling = rememberPopupMarkdownStyling(baseTextStyle, editorTextStyle)
+    val processor = rememberPopupMarkdownProcessor()
+    val blockRenderer = rememberPopupMarkdownBlockRenderer(markdownStyling)
+    val codeHighlighter = rememberPopupCodeHighlighter(project)
 
     ProvideMarkdownStyling(
         markdownStyling = markdownStyling,
@@ -119,6 +82,72 @@ internal fun MarkdownContent(
         )
     }
 }
+
+@Composable
+private fun rememberPopupBaseTextStyle(): TextStyle =
+    remember(JewelTheme.instanceUuid) {
+        retrieveDefaultTextStyle().copy(
+            color = PopupMarkdownTextColor,
+            fontSize = 15.sp,
+            lineHeight = 22.sp
+        )
+    }
+
+@Composable
+private fun rememberPopupEditorTextStyle(): TextStyle =
+    remember(JewelTheme.instanceUuid) {
+        retrieveEditorTextStyle().copy(
+            color = PopupMarkdownCodeTextColor,
+            fontSize = 13.sp,
+            lineHeight = 20.sp
+        )
+    }
+
+@Composable
+private fun rememberPopupMarkdownStyling(
+    baseTextStyle: TextStyle,
+    editorTextStyle: TextStyle
+): MarkdownStyling =
+    remember(JewelTheme.instanceUuid) {
+        createPopupMarkdownStyling(baseTextStyle, editorTextStyle)
+    }
+
+@Composable
+private fun rememberPopupMarkdownProcessor(): MarkdownProcessor =
+    remember {
+        MarkdownProcessor(
+            listOf(
+                GitHubAlertProcessorExtension,
+                GitHubTableProcessorExtension,
+                GitHubStrikethroughProcessorExtension(),
+                AutolinkProcessorExtension,
+            ),
+            MarkdownMode.Standalone,
+            parseEmbeddedHtml = true
+        )
+    }
+
+@Composable
+private fun rememberPopupMarkdownBlockRenderer(markdownStyling: MarkdownStyling): MarkdownBlockRenderer {
+    val tableRenderer = remember(markdownStyling) {
+        GitHubTableRendererExtension(GfmTableStyling.create(), markdownStyling)
+    }
+    val alertRenderer = remember(markdownStyling) {
+        GitHubAlertRendererExtension(AlertStyling.create(), markdownStyling)
+    }
+    return remember(markdownStyling, tableRenderer, alertRenderer) {
+        MarkdownBlockRenderer.create(
+            markdownStyling,
+            listOf(tableRenderer, alertRenderer, GitHubStrikethroughRendererExtension)
+        )
+    }
+}
+
+@Composable
+private fun rememberPopupCodeHighlighter(project: Project) =
+    remember(project) {
+        project.service<CodeHighlighterFactory>().createHighlighter()
+    }
 
 private fun createPopupMarkdownStyling(
     baseTextStyle: TextStyle,
