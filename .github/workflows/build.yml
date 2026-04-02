@@ -108,11 +108,13 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Restore IntelliJ Platform cache
+        id: verify-intellij-platform-cache
         uses: actions/cache/restore@v4
         with:
           path: .intellijPlatform
-          key: ${{ runner.os }}-intellij-platform-${{ hashFiles('build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-intellij-platform-verify-${{ hashFiles('build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
+            ${{ runner.os }}-intellij-platform-verify-
             ${{ runner.os }}-intellij-platform-
 
       - name: Restore Plugin Verifier cache
@@ -138,6 +140,13 @@ jobs:
 
       - name: Verify plugin compatibility
         run: ./gradlew verifyPlugin
+
+      - name: Save IntelliJ Platform cache
+        if: steps.verify-intellij-platform-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .intellijPlatform
+          key: ${{ steps.verify-intellij-platform-cache.outputs.cache-primary-key }}
 
       - name: Save Plugin Verifier cache
         if: steps.plugin-verifier-cache.outputs.cache-hit != 'true'
