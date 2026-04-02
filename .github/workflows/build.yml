@@ -35,6 +35,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Restore IntelliJ Platform cache
+        id: intellij-platform-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .intellijPlatform
+          key: ${{ runner.os }}-intellij-platform-${{ hashFiles('build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-intellij-platform-
+
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:
@@ -44,7 +53,8 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
         with:
-          cache-read-only: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Run detekt
         run: ./gradlew detekt
@@ -57,6 +67,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Restore IntelliJ Platform cache
+        id: intellij-platform-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .intellijPlatform
+          key: ${{ runner.os }}-intellij-platform-${{ hashFiles('build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-intellij-platform-
+
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:
@@ -66,7 +85,72 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
         with:
-          cache-read-only: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Build plugin
         run: ./gradlew buildPlugin
+
+      - name: Save IntelliJ Platform cache
+        if: github.ref == 'refs/heads/main' && steps.intellij-platform-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .intellijPlatform
+          key: ${{ steps.intellij-platform-cache.outputs.cache-primary-key }}
+
+  verify-plugin:
+    name: Verify Plugin
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Restore IntelliJ Platform cache
+        id: verify-intellij-platform-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .intellijPlatform
+          key: ${{ runner.os }}-intellij-platform-verify-${{ hashFiles('build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-intellij-platform-verify-
+            ${{ runner.os }}-intellij-platform-
+
+      - name: Restore Plugin Verifier cache
+        id: plugin-verifier-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/pluginVerifier
+          key: ${{ runner.os }}-plugin-verifier-${{ hashFiles('build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-plugin-verifier-
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+          cache-read-only: false
+
+      - name: Verify plugin compatibility
+        run: ./gradlew verifyPlugin
+
+      - name: Save IntelliJ Platform cache
+        if: steps.verify-intellij-platform-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .intellijPlatform
+          key: ${{ steps.verify-intellij-platform-cache.outputs.cache-primary-key }}
+
+      - name: Save Plugin Verifier cache
+        if: steps.plugin-verifier-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/pluginVerifier
+          key: ${{ steps.plugin-verifier-cache.outputs.cache-primary-key }}
