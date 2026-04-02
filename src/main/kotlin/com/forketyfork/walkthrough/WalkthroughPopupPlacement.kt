@@ -27,7 +27,7 @@ internal fun movePopupNearItem(
         ?: popup.size.usableSize()
         ?: WalkthroughPopupLayout.fallbackSize
 
-    popup.setSize(popupSize)
+    popup.size = popupSize
 
     val screenPoint = calculatePopupScreenPoint(editor, popupSize, item.line)
     if (popup.isVisible) {
@@ -155,8 +155,6 @@ internal fun stopPopupAvoidAnimation(popup: JBPopup) {
     val timer = popup.content.getClientProperty(
         WalkthroughPopupLayout.AVOID_ANIMATION_CLIENT_PROPERTY
     ) as? Timer
-    if (timer != null) {
-        timer.stop()
-    }
+    timer?.stop()
     popup.content.putClientProperty(WalkthroughPopupLayout.AVOID_ANIMATION_CLIENT_PROPERTY, null)
 }

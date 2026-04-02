@@ -40,6 +40,7 @@ private fun makeComponentHierarchyTransparent(component: Component?) {
             break
         }
         current.isOpaque = false
+        @Suppress("UseJBColor") // Fully transparent, theme-independent
         current.background = AwtColor(0, 0, 0, 0)
         current = current.parent
     }
@@ -207,7 +208,7 @@ private fun resizePopupBy(
 
     panel.preferredSize = targetSize
     panel.revalidate()
-    popup.setSize(targetSize)
+    popup.size = targetSize
     popup.moveToFitScreen()
     onLocationChanged?.invoke()
 }

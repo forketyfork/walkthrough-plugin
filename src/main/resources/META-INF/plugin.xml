@@ -5,7 +5,7 @@
 
     <!-- Public plugin name should be written in Title Case.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-name -->
-    <name>Walkthrough Plugin</name>
+    <name>Walkthrough</name>
 
     <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
     <vendor url="https://github.com/forketyfork/destination">forketyfork</vendor>
@@ -18,9 +18,9 @@
 
     <!-- Product and plugin compatibility requirements.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
-    <depends>com.intellij.modules.compose</depends>
-    <depends>com.intellij.mcpServer</depends>
     <dependencies>
+        <plugin id="com.intellij.modules.compose"/>
+        <plugin id="com.intellij.mcpServer"/>
         <module name="intellij.platform.compose.markdown"/>
     </dependencies>
 
@@ -30,11 +30,9 @@
         <mcpToolset implementation="com.forketyfork.walkthrough.ShowWalkthroughItemsToolset"/>
     </extensions>
 
-    <actions>
+    <actions resource-bundle="messages.WalkthroughBundle">
         <action id="com.forketyfork.walkthrough.ShowWalkthroughItemAction"
-                class="com.forketyfork.walkthrough.ShowWalkthroughItemAction"
-                text="Show Walkthrough Item"
-                description="Shows a walkthrough item above the current line">
+                class="com.forketyfork.walkthrough.ShowWalkthroughItemAction">
             <keyboard-shortcut keymap="$default" first-keystroke="control shift X"/>
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
         </action>

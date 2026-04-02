@@ -54,7 +54,7 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
                 val popup = popupRef
                 val panelComponent = panelRef
                 if (popup != null && panelComponent != null) {
-                    currentEditor = navigateToItem(project, currentEditor, item) ?: currentEditor
+                    currentEditor = navigateToItem(project, currentEditor, item)
                     movePopupNearItem(popup, panelComponent, currentEditor, item, ::repaintConnector)
                     connectorRef?.update(currentEditor, item)
                 }
@@ -63,6 +63,7 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
         )
     }.apply {
         isOpaque = false
+        @Suppress("UseJBColor") // Fully transparent, theme-independent
         background = AwtColor(0, 0, 0, 0)
         minimumSize = Dimension(
             WalkthroughPopupLayout.MINIMUM_WIDTH_PX,
@@ -107,7 +108,7 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
     movePopupNearItem(popup, panel, currentEditor, items.first(), ::repaintConnector)
 }
 
-private fun navigateToItem(project: Project, fallbackEditor: Editor, item: WalkthroughItem): Editor? {
+private fun navigateToItem(project: Project, fallbackEditor: Editor, item: WalkthroughItem): Editor {
     val fileEditorManager = FileEditorManager.getInstance(project)
     return item.file
         ?.let { relativePath -> openItemEditor(project, fileEditorManager, item, relativePath) }
