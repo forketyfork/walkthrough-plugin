@@ -50,6 +50,18 @@ intellijPlatform {
             Initial version
         """.trimIndent()
     }
+
+    caching {
+        ides {
+            enabled.set(true)
+        }
+    }
+
+    pluginVerification {
+        ides {
+            recommended()
+        }
+    }
 }
 
 tasks {
