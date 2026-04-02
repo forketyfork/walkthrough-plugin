@@ -37,7 +37,7 @@ jobs:
 
       - name: Restore IntelliJ Platform cache
         id: intellij-platform-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: .intellijPlatform
           key: ${{ runner.os }}-intellij-platform-${{ hashFiles('build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
@@ -51,7 +51,7 @@ jobs:
           java-version: '21'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v6
         with:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
@@ -69,7 +69,7 @@ jobs:
 
       - name: Restore IntelliJ Platform cache
         id: intellij-platform-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: .intellijPlatform
           key: ${{ runner.os }}-intellij-platform-${{ hashFiles('build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
@@ -83,7 +83,7 @@ jobs:
           java-version: '21'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v6
         with:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
@@ -93,7 +93,7 @@ jobs:
 
       - name: Save IntelliJ Platform cache
         if: github.ref == 'refs/heads/main' && steps.intellij-platform-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: .intellijPlatform
           key: ${{ steps.intellij-platform-cache.outputs.cache-primary-key }}
@@ -109,7 +109,7 @@ jobs:
 
       - name: Restore IntelliJ Platform cache
         id: verify-intellij-platform-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: .intellijPlatform
           key: ${{ runner.os }}-intellij-platform-verify-${{ hashFiles('build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
@@ -119,7 +119,7 @@ jobs:
 
       - name: Restore Plugin Verifier cache
         id: plugin-verifier-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/pluginVerifier
           key: ${{ runner.os }}-plugin-verifier-${{ hashFiles('build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
@@ -133,7 +133,7 @@ jobs:
           java-version: '21'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v6
         with:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
           cache-read-only: false
@@ -143,14 +143,14 @@ jobs:
 
       - name: Save IntelliJ Platform cache
         if: steps.verify-intellij-platform-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: .intellijPlatform
           key: ${{ steps.verify-intellij-platform-cache.outputs.cache-primary-key }}
 
       - name: Save Plugin Verifier cache
         if: steps.plugin-verifier-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: ~/.cache/pluginVerifier
           key: ${{ steps.plugin-verifier-cache.outputs.cache-primary-key }}
