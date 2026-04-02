@@ -1,0 +1,29 @@
+# Walkthrough Plugin - Development Commands
+
+# List all available commands
+default:
+    @just --list
+
+# Build the plugin
+build:
+    ./gradlew buildPlugin
+
+# Run the plugin in a sandboxed IDE instance
+run:
+    ./gradlew runIde
+
+# Verify the plugin (compatibility checks)
+verify:
+    ./gradlew verifyPlugin
+
+# Run Detekt static analysis
+lint:
+    ./gradlew detekt
+
+# Clean build artifacts
+clean:
+    ./gradlew clean
+
+# Install pre-commit hooks (requires Nix dev shell)
+hooks:
+    pre-commit install
