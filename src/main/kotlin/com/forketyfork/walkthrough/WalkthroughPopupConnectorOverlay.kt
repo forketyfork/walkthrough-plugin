@@ -40,7 +40,9 @@ internal object WalkthroughConnectorStyle {
     const val ARROW_SPREAD_DEGREES = 24.0
     const val ARROW_HEAD_LENGTH = 13.0
     const val STROKE_WIDTH = 3.5f
+    @Suppress("UseJBColor") // Decorative connector color painted on a glass pane overlay
     val strokeColor = AwtColor(255, 136, 136, 235)
+    @Suppress("UseJBColor") // Decorative connector color painted on a glass pane overlay
     val arrowFillColor = AwtColor(255, 102, 102, 215)
 }
 

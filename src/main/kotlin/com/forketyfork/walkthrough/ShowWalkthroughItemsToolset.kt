@@ -23,6 +23,8 @@ import kotlinx.coroutines.withContext
 private data class WalkthroughItemJson(val text: String?, val file: String?, val line: Int?)
 
 class ShowWalkthroughItemsToolset : McpToolset {
+    // Discovered and invoked via reflection by the MCP server framework
+    @Suppress("unused")
     @McpTool(name = "show_walkthrough_items")
     @McpDescription(
         "Shows walkthrough items with navigation support. " +

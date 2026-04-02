@@ -1,17 +1,20 @@
 package com.forketyfork.walkthrough
 
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 
 class ShowWalkthroughItemAction : AnAction() {
+    override fun getActionUpdateThread() = ActionUpdateThread.BGT
+
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
         val editor = e.getData(CommonDataKeys.EDITOR) ?: return
         showWalkthroughItems(
             project, editor, listOf(
                 WalkthroughItem(
-                    """## Walkthrough Plugin
+                    $$"""## Walkthrough
 
 This popup supports **rich Markdown** formatting:
 
@@ -22,7 +25,7 @@ This popup supports **rich Markdown** formatting:
 
 ```kotlin
 fun greet(name: String) {
-    println("Hello, ${'$'}name!")
+    println("Hello, $name!")
 }
 ```
 

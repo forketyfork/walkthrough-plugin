@@ -1,4 +1,5 @@
 @file:OptIn(ExperimentalJewelApi::class)
+// Jewel Markdown APIs are marked @ExperimentalJewelApi
 @file:Suppress("UnstableApiUsage")
 
 package com.forketyfork.walkthrough
@@ -144,6 +145,9 @@ private fun rememberPopupMarkdownBlockRenderer(markdownStyling: MarkdownStyling)
 }
 
 @Composable
+// CodeHighlighterFactory takes a Project constructor parameter, so it must be retrieved as a
+// project-level service despite its @Service annotation not specifying an explicit level
+@Suppress("IncorrectServiceRetrieving")
 private fun rememberPopupCodeHighlighter(project: Project) =
     remember(project) {
         project.service<CodeHighlighterFactory>().createHighlighter()
