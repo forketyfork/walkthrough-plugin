@@ -31,8 +31,6 @@ The plugin targets IntelliJ IDEA 252+ and uses **Jetbrains Compose** (via the Je
 
 - **`ShowWalkthroughItemsToolset`** — An MCP toolset (`McpToolset`) exposing one tool `show_walkthrough_items(items)` to MCP clients (e.g., Claude Desktop). Gets the active project from the coroutine context via `projectOrNull`, dispatches to the EDT via `withContext(Dispatchers.EDT)`, and calls the same `showWalkthroughItems` function.
 
-- **`MyToolWindowFactory`** — A demo tool window with a random-number button; not related to walkthrough items.
-
 ### MCP server integration
 
 The plugin depends on the bundled `com.intellij.mcpServer` plugin. Toolsets are registered in `plugin.xml` under `defaultExtensionNs="com.intellij.mcpServer"` with the `<mcpToolset>` extension point. Tool methods are discovered by reflection: annotate a suspend method with `@McpTool` and `@McpDescription`; annotate each parameter with `@McpDescription`. Use `mcpFail(message)` to return an error response.

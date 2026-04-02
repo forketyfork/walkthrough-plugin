@@ -24,14 +24,8 @@
         <module name="intellij.platform.compose.markdown"/>
     </dependencies>
 
-    <resource-bundle>messages.MyMessageBundle</resource-bundle>
     <!-- Extensions defined by the plugin.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
-    <extensions defaultExtensionNs="com.intellij">
-        <toolWindow id="MyToolWindow" factoryClass="com.forketyfork.walkthrough.MyToolWindowFactory"
-                    icon="AllIcons.Toolwindows.ToolWindowPalette"/>
-    </extensions>
-
     <extensions defaultExtensionNs="com.intellij.mcpServer">
         <mcpToolset implementation="com.forketyfork.walkthrough.ShowWalkthroughItemsToolset"/>
     </extensions>

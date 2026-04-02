@@ -1,0 +1,15 @@
+config:
+  validation: true
+
+complexity:
+  LongParameterList:
+    ignoreDefaultParameters: true
+
+naming:
+  FunctionNaming:
+    ignoreAnnotated:
+      - Composable
+
+style:
+  MagicNumber:
+    ignorePropertyDeclaration: true
