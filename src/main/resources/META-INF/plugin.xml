@@ -20,6 +20,9 @@
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
     <depends>com.intellij.modules.compose</depends>
     <depends>com.intellij.mcpServer</depends>
+    <dependencies>
+        <module name="intellij.platform.compose.markdown"/>
+    </dependencies>
 
     <resource-bundle>messages.MyMessageBundle</resource-bundle>
     <!-- Extensions defined by the plugin.
