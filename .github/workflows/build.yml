@@ -88,8 +88,17 @@ jobs:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
+      - name: Run tests
+        run: ./gradlew test
+
       - name: Build plugin
         run: ./gradlew buildPlugin
+
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: walkthrough-plugin
+          path: build/distributions/*.zip
 
       - name: Save IntelliJ Platform cache
         if: github.ref == 'refs/heads/main' && steps.intellij-platform-cache.outputs.cache-hit != 'true'

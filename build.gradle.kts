@@ -10,7 +10,18 @@ plugins {
 }
 
 group = "com.forketyfork"
-version = "1.0-SNAPSHOT"
+version = providers.gradleProperty("pluginVersion").get()
+
+fun latestChangelog(): String {
+    val changelog = file("CHANGELOG.md")
+    if (!changelog.exists()) return "Initial version"
+    val lines = changelog.readLines()
+    val start = lines.indexOfFirst { it.matches(Regex("""^## \[\d+.*""")) }
+    if (start == -1) return "Initial version"
+    val end = lines.drop(start + 1).indexOfFirst { it.startsWith("## [") }
+    val section = if (end == -1) lines.drop(start + 1) else lines.subList(start + 1, start + 1 + end)
+    return section.joinToString("\n").trim().ifEmpty { "Initial version" }
+}
 
 repositories {
     mavenCentral()
@@ -21,9 +32,13 @@ repositories {
 
 // Read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin.html
 dependencies {
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.opentest4j)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testRuntimeOnly(libs.junit4)
+
     intellijPlatform {
         intellijIdea("2026.1")
-        testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
 
         // Add plugin dependencies for compilation here:
 
@@ -46,15 +61,23 @@ intellijPlatform {
             sinceBuild = "261"
         }
 
-        changeNotes = """
-            Initial version
-        """.trimIndent()
+        changeNotes = latestChangelog()
     }
 
     caching {
         ides {
             enabled.set(true)
         }
+    }
+
+    signing {
+        certificateChain = providers.environmentVariable("CERTIFICATE_CHAIN")
+        privateKey = providers.environmentVariable("PRIVATE_KEY")
+        password = providers.environmentVariable("PRIVATE_KEY_PASSWORD")
+    }
+
+    publishing {
+        token = providers.environmentVariable("PUBLISH_TOKEN")
     }
 
     pluginVerification {
@@ -65,6 +88,10 @@ intellijPlatform {
 }
 
 tasks {
+    test {
+        useJUnitPlatform()
+    }
+
     // Set the JVM compatibility versions
     withType<JavaCompile> {
         sourceCompatibility = "21"

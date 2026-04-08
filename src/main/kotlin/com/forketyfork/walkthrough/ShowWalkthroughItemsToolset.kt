@@ -35,7 +35,9 @@ class ShowWalkthroughItemsToolset : McpToolset {
         @McpDescription(
             "JSON array of walkthrough items to display, e.g. " +
             "[{\"text\":\"Note 1\",\"file\":\"src/Foo.kt\",\"line\":10},{\"text\":\"Note 2\"}]. " +
-            "Each item requires 'text'; 'file' (path relative to project root) and 'line' (1-based) are optional."
+            "Each item requires 'text'; 'file' (path relative to project root) and 'line' (1-based) are optional. " +
+            "The 'line' value navigates the editor to that exact position, so it must be accurate. " +
+            "Verify line numbers by reading the actual file before calling this tool — do not estimate from diffs or memory."
         ) items: String
     ): String {
         val project = currentCoroutineContext().projectOrNull

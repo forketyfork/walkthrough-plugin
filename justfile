@@ -16,6 +16,10 @@ run:
 verify:
     ./gradlew verifyPlugin
 
+# Run unit tests
+test:
+    ./gradlew test
+
 # Run Detekt static analysis
 lint:
     ./gradlew detekt
@@ -23,6 +27,10 @@ lint:
 # Clean build artifacts
 clean:
     ./gradlew clean
+
+# Publish plugin to JetBrains Marketplace (requires signing and publish env vars)
+publish:
+    ./gradlew publishPlugin
 
 # Install pre-commit hooks (requires Nix dev shell)
 hooks:

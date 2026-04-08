@@ -46,12 +46,12 @@ import org.jetbrains.jewel.markdown.rendering.InlinesStyling
 import org.jetbrains.jewel.markdown.rendering.MarkdownBlockRenderer
 import org.jetbrains.jewel.markdown.rendering.MarkdownStyling
 
-private val PopupMarkdownTextColor = Color(0xFFF8FAFC)
-private val PopupMarkdownCodeTextColor = Color(0xFFE2E8F0)
-private val PopupMarkdownInlineCodeBackground = Color(0x33E879F9)
-private val PopupMarkdownLinkColor = Color(0xFF60A5FA)
-private val PopupMarkdownBlockBackground = Color(0x33000000)
-private val PopupMarkdownDividerColor = Color.White.copy(alpha = 0.16f)
+private val PopupMarkdownTextColor = WalkthroughColors.textPrimary
+private val PopupMarkdownCodeTextColor = WalkthroughColors.textCode
+private val PopupMarkdownInlineCodeBackground = WalkthroughColors.pink.copy(alpha = 0.2f)
+private val PopupMarkdownLinkColor = WalkthroughColors.blue
+private val PopupMarkdownBlockBackground = WalkthroughColors.blockBackground
+private val PopupMarkdownDividerColor = WalkthroughColors.divider
 
 @Composable
 internal fun MarkdownContent(

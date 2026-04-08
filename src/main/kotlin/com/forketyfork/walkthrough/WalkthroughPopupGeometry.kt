@@ -32,16 +32,19 @@ internal fun calculatePopupScreenPoint(editor: Editor, popupSize: Dimension, lin
     val linePoint = editor.visualPositionToXY(editor.offsetToVisualPosition(lineStartOffset))
 
     val viewportLineY = linePoint.y - visibleArea.y
+    val minY = WalkthroughPopupLayout.VIEWPORT_PADDING
     val maxY = (
         visibleArea.height - popupSize.height - WalkthroughPopupLayout.VIEWPORT_PADDING
-        ).coerceAtLeast(WalkthroughPopupLayout.VIEWPORT_PADDING)
+        ).coerceAtLeast(minY)
     val belowY = viewportLineY + editor.lineHeight + WalkthroughPopupLayout.LINE_SPACING
     val aboveY = viewportLineY - popupSize.height - WalkthroughPopupLayout.LINE_SPACING
+    val belowFits = belowY in minY..maxY
+    val aboveFits = aboveY in minY..maxY
 
     val targetY = when {
-        belowY <= maxY -> belowY
-        aboveY >= WalkthroughPopupLayout.VIEWPORT_PADDING -> aboveY
-        else -> viewportLineY.coerceIn(WalkthroughPopupLayout.VIEWPORT_PADDING, maxY)
+        belowFits -> belowY
+        aboveFits -> aboveY
+        else -> viewportLineY.coerceIn(minY, maxY)
     }
 
     val targetX = (
