@@ -4,6 +4,8 @@ import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.LogicalPosition
 import com.intellij.openapi.editor.ScrollType
 import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.FileEditorManagerEvent
+import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
@@ -28,16 +30,20 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
         }
     }
 
+    fun navigateToCurrentItem(item: WalkthroughItem) {
+        popupRef?.let { popup ->
+            currentEditor = navigateToItem(project, currentEditor, item)
+            popup.update(currentEditor, item)
+            popup.connectorHidden = false
+            movePopupNearItem(popup, currentEditor, item, ::repaintPopup)
+        }
+    }
+
     val panel = createWalkthroughPanel(
         project = project,
         items = items,
-        onItemDisplayed = { item ->
-            popupRef?.let { popup ->
-                currentEditor = navigateToItem(project, currentEditor, item)
-                popup.update(currentEditor, item)
-                movePopupNearItem(popup, currentEditor, item, ::repaintPopup)
-            }
-        },
+        onItemDisplayed = ::navigateToCurrentItem,
+        onNavigateToSource = ::navigateToCurrentItem,
         onClose = { popupRef?.cancel() }
     )
     makeComponentHierarchyTransparent(panel)
@@ -47,6 +53,16 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
         popupProvider = { popupRef },
         editorProvider = { currentEditor },
         onPopupMoved = ::repaintPopup
+    )
+
+    project.messageBus.connect(sessionDisposable).subscribe(
+        FileEditorManagerListener.FILE_EDITOR_MANAGER,
+        object : FileEditorManagerListener {
+            override fun selectionChanged(event: FileEditorManagerEvent) {
+                val selectedEditor = FileEditorManager.getInstance(project).selectedTextEditor
+                popupRef?.connectorHidden = selectedEditor !== currentEditor
+            }
+        }
     )
 
     val popup = WalkthroughPopupSurface(
@@ -63,6 +79,7 @@ private fun createWalkthroughPanel(
     project: Project,
     items: List<WalkthroughItem>,
     onItemDisplayed: (WalkthroughItem) -> Unit,
+    onNavigateToSource: (WalkthroughItem) -> Unit,
     onClose: () -> Unit
 ): JComponent =
     JewelComposePanel {
@@ -70,6 +87,7 @@ private fun createWalkthroughPanel(
             project = project,
             items = items,
             onItemDisplayed = onItemDisplayed,
+            onNavigateToSource = onNavigateToSource,
             onClose = onClose
         )
     }.apply {

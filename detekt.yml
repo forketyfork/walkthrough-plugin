@@ -4,6 +4,9 @@ config:
 complexity:
   LongParameterList:
     ignoreDefaultParameters: true
+  TooManyFunctions:
+    ignoreAnnotatedFunctions:
+      - Composable
 
 naming:
   FunctionNaming:
