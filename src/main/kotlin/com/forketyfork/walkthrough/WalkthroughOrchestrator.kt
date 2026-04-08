@@ -60,7 +60,7 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
         object : FileEditorManagerListener {
             override fun selectionChanged(event: FileEditorManagerEvent) {
                 val selectedEditor = FileEditorManager.getInstance(project).selectedTextEditor
-                popupRef?.connectorHidden = selectedEditor !== currentEditor
+                popupRef?.connectorHidden = selectedEditor?.document !== currentEditor.document
             }
         }
     )
