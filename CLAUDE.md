@@ -55,8 +55,9 @@ The plugin is also tested by running it in the IDE via `runIde`.
 ## Architecture
 
 The plugin targets IntelliJ IDEA 261+ and uses **JetBrains Compose** (via the Jewel library) for
-all UI. There is no Swing UI code — all panels and composables use `JewelComposePanel` as the
-Swing bridge.
+the walkthrough content UI. Compose content is hosted through `JewelComposePanel`, while
+layered-pane integration such as popup hosting and connector painting lives in small Swing helper
+components.
 
 ### Key classes
 
@@ -64,8 +65,12 @@ Swing bridge.
   constants.
 
 - **`WalkthroughOrchestrator.kt`** — The entry point: `showWalkthroughItems(project, editor, items)`
-  creates and positions a `JBPopup` with a Compose panel above the current caret line. Used by the
-  action and the MCP toolset.
+  creates and positions the walkthrough UI via `WalkthroughPopupSurface`, hosted on the editor
+  layered pane above the current caret line. Used by the action and the MCP toolset.
+
+- **`WalkthroughPopupSurface.kt`** — The Swing host that owns the popup surface inside the editor
+  layered pane, renders the connector on the same surface as the popup content, and keeps the UI
+  aligned with editor scrolling and resizing.
 
 - **`ShowWalkthroughItemAction`** — An `AnAction` (shortcut `Ctrl+Shift+X`, also in the editor
   context menu) that calls `showWalkthroughItems` with a fixed walkthrough item.
@@ -107,5 +112,6 @@ so the project does not depend on a machine-specific local IDE path.
 5. Stay focused on the requested task — avoid scope creep or unrelated changes.
 6. After making changes, verify the build and linting pass: `just lint && just build`
 7. Do not introduce new dependencies without asking first.
-8. All UI must use JetBrains Compose / Jewel — no Swing UI code.
+8. Keep user-facing walkthrough UI in JetBrains Compose / Jewel. If Swing hosting glue is needed,
+   keep it minimal and limited to integration layers such as popup surfaces or Compose bridges.
 9. Keep all external dependency versions in `gradle/libs.versions.toml` (Gradle version catalog).

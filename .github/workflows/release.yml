@@ -63,6 +63,9 @@ jobs:
       - name: Run detekt
         run: ./gradlew detekt
 
+      - name: Run tests
+        run: ./gradlew test
+
       - name: Build plugin
         run: ./gradlew buildPlugin
 
