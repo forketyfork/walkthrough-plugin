@@ -128,6 +128,7 @@ internal fun WalkthroughItemContent(
     project: Project,
     items: List<WalkthroughItem>,
     onItemDisplayed: (WalkthroughItem) -> Unit,
+    onNavigateToSource: (WalkthroughItem) -> Unit,
     onClose: () -> Unit
 ) {
     var currentIndex by remember { mutableStateOf(0) }
@@ -153,6 +154,7 @@ internal fun WalkthroughItemContent(
             animationState = animationState,
             onPrevious = { currentIndex-- },
             onNext = { currentIndex++ },
+            onNavigateToSource = { onNavigateToSource(item) },
             onClose = onClose
         )
     }
@@ -218,6 +220,7 @@ private fun WalkthroughPopupFrame(
     animationState: WalkthroughPopupAnimationState,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    onNavigateToSource: () -> Unit,
     onClose: () -> Unit
 ) {
     val shape = RoundedCornerShape(WalkthroughPopupContentStyle.cornerRadius)
@@ -233,6 +236,15 @@ private fun WalkthroughPopupFrame(
                 .padding(WalkthroughPopupContentStyle.closeButtonPadding),
             onClick = onClose
         )
+
+        if (item.file != null || item.line != null) {
+            GoToSourceButton(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(WalkthroughPopupContentStyle.closeButtonPadding),
+                onClick = onNavigateToSource
+            )
+        }
 
         Column(
             modifier = Modifier

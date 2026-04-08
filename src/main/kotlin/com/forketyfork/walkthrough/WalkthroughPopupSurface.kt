@@ -63,6 +63,11 @@ internal class WalkthroughPopupSurface(
     private var editor: Editor? = null
     private var item: WalkthroughItem? = null
     private var layeredPane: JLayeredPane? = null
+    var connectorHidden: Boolean = false
+        set(value) {
+            field = value
+            repaint()
+        }
     private val layeredPaneResizeListener = object : ComponentAdapter() {
         override fun componentResized(event: ComponentEvent) {
             refreshBounds()
@@ -125,6 +130,7 @@ internal class WalkthroughPopupSurface(
 
     override fun paintComponent(graphics: Graphics) {
         super.paintComponent(graphics)
+        if (connectorHidden) return
         val context = currentPaintContext() ?: return
         val targetPoint = Point(calculateLineScreenPoint(context.editor, context.item.line)).also {
             SwingUtilities.convertPointFromScreen(it, this)

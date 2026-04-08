@@ -20,7 +20,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.jetbrains.jewel.ui.component.Icon
 import org.jetbrains.jewel.ui.component.Text
+import org.jetbrains.jewel.ui.icons.AllIconsKeys
 
 private object WalkthroughWidgetStyle {
     val navigationSpacing = 10.dp
@@ -120,6 +122,29 @@ internal fun AiCloseButton(modifier: Modifier = Modifier, onClick: () -> Unit) {
             color = Color.White,
             fontWeight = FontWeight.Bold,
             fontSize = WalkthroughWidgetStyle.closeButtonTextSize
+        )
+    }
+}
+
+@Composable
+internal fun GoToSourceButton(modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(
+        modifier = modifier
+            .size(WalkthroughWidgetStyle.closeButtonSize)
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = WalkthroughWidgetStyle.CLOSE_BUTTON_BACKGROUND_ALPHA))
+            .border(
+                WalkthroughWidgetStyle.closeButtonBorderWidth,
+                Color.White.copy(alpha = WalkthroughWidgetStyle.CLOSE_BUTTON_BORDER_ALPHA),
+                CircleShape
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            key = AllIconsKeys.General.Locate,
+            contentDescription = "Go to source",
+            tint = Color.White
         )
     }
 }
