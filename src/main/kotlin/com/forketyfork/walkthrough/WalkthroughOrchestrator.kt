@@ -14,14 +14,16 @@ import org.jetbrains.jewel.bridge.JewelComposePanel
 import java.awt.Color as AwtColor
 import java.awt.Dimension
 import javax.swing.JComponent
+import javax.swing.SwingUtilities
 
 fun showWalkthroughItems(project: Project, editor: Editor, items: List<WalkthroughItem>) {
     if (items.isEmpty()) return
-    val sessionDisposable = Disposer.newDisposable("WalkthroughPopupSession")
+    val sessionDisposable = Disposer.newCheckedDisposable("WalkthroughPopupSession")
     Disposer.register(project, sessionDisposable)
 
     var popupRef: WalkthroughPopupSurface? = null
     var currentEditor = editor
+    var pendingNavigationId = 0
 
     fun repaintPopup() {
         popupRef?.let { popup ->
@@ -30,20 +32,30 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
         }
     }
 
-    fun navigateToCurrentItem(item: WalkthroughItem) {
-        popupRef?.let { popup ->
-            currentEditor = navigateToItem(project, currentEditor, item)
-            popup.update(currentEditor, item)
-            popup.connectorHidden = false
-            movePopupNearItem(popup, currentEditor, item, ::repaintPopup)
+    fun showItem(item: WalkthroughItem) {
+        val popup = popupRef ?: return
+        currentEditor = navigateToItem(project, currentEditor, item)
+        popup.update(currentEditor, item)
+        popup.connectorHidden = false
+        movePopupNearItem(popup, currentEditor, item, ::repaintPopup)
+    }
+
+    fun scheduleItemNavigation(item: WalkthroughItem) {
+        pendingNavigationId += 1
+        val navigationId = pendingNavigationId
+        SwingUtilities.invokeLater {
+            if (sessionDisposable.isDisposed || navigationId != pendingNavigationId) {
+                return@invokeLater
+            }
+            showItem(item)
         }
     }
 
     val panel = createWalkthroughPanel(
         project = project,
         items = items,
-        onItemDisplayed = ::navigateToCurrentItem,
-        onNavigateToSource = ::navigateToCurrentItem,
+        onItemDisplayed = ::scheduleItemNavigation,
+        onNavigateToSource = ::scheduleItemNavigation,
         onClose = { popupRef?.cancel() }
     )
     makeComponentHierarchyTransparent(panel)
@@ -67,7 +79,10 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
 
     val popup = WalkthroughPopupSurface(
         content = panel,
-        onCloseRequested = { Disposer.dispose(sessionDisposable) }
+        onCloseRequested = {
+            popupRef = null
+            Disposer.dispose(sessionDisposable)
+        }
     )
     popupRef = popup
     Disposer.register(sessionDisposable, popup)
