@@ -12,7 +12,6 @@ import androidx.compose.foundation.ScrollbarStyle
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,7 +21,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
@@ -45,7 +43,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -58,37 +55,37 @@ private object WalkthroughPopupContentStyle {
     val scrollbarMinHeight = 28.dp
     val scrollbarThickness = 6.dp
     const val SCROLLBAR_HOVER_DURATION_MS = 300
-    val scrollbarUnhoverColor = Color(0x66818CF8)
-    val scrollbarHoverColor = Color(0xFFE879F9)
+    val scrollbarUnhoverColor = WalkthroughColors.scrollbarIndigo
+    val scrollbarHoverColor = WalkthroughColors.pink
     const val ANIMATION_START = 0f
     const val ANIMATION_END = 1f
     const val GRADIENT_ANIMATION_DURATION_MS = 5400
     const val GLOW_ANIMATION_DURATION_MS = 3200
     val backgroundGradientColors = listOf(
-        Color(0xFF160326),
-        Color(0xFF3D0A68),
-        Color(0xFF7C1B9A),
-        Color(0xFF1D4ED8)
+        WalkthroughColors.veryDarkPurple,
+        WalkthroughColors.darkPurple,
+        WalkthroughColors.magenta,
+        WalkthroughColors.navyBlue
     )
     const val BACKGROUND_START_X_SHIFT = 0.7f
     const val BACKGROUND_START_Y_SHIFT = 0.2f
     const val BACKGROUND_END_X_SHIFT = 0.5f
     const val BACKGROUND_END_Y_SHIFT = 1.1f
     val glowGradientColors = listOf(
-        Color(0x66F0ABFC),
-        Color(0x55C084FC),
+        WalkthroughColors.lightPink.copy(alpha = 0.4f),
+        WalkthroughColors.glowLavender,
         Color.Transparent
     )
     const val GLOW_CENTER_BASE_X = 0.18f
     const val GLOW_CENTER_SHIFT_X = 0.62f
     const val GLOW_CENTER_Y = 0.2f
     const val GLOW_RADIUS_FACTOR = 0.95f
-    val overlayColor = Color(0x9A0A0114)
+    val overlayColor = WalkthroughColors.overlay
     val borderGradientColors = listOf(
-        Color(0xFFA855F7),
-        Color(0xFFE879F9),
-        Color(0xFF60A5FA),
-        Color(0xFFA855F7)
+        WalkthroughColors.purple,
+        WalkthroughColors.pink,
+        WalkthroughColors.blue,
+        WalkthroughColors.purple
     )
     const val BORDER_GRADIENT_START_SHIFT = 1f
     const val BORDER_ALPHA = 0.9f
@@ -106,7 +103,7 @@ private object WalkthroughPopupContentStyle {
     const val HEADER_BORDER_ALPHA = 0.08f
     val headerPaddingHorizontal = 8.dp
     val headerPaddingVertical = 6.dp
-    val metaTextColor = Color(0xFFE9D5FF)
+    val metaTextColor = WalkthroughColors.textMeta
     val metaTextSize = 12.sp
     val bodyCornerRadius = 18.dp
     const val BODY_BACKGROUND_ALPHA = 0.08f
@@ -119,34 +116,6 @@ private object WalkthroughPopupContentStyle {
     val scrollbarPaddingEnd = 6.dp
     val scrollbarPaddingTop = 10.dp
     val scrollbarPaddingBottom = 10.dp
-    val navigationSpacing = 10.dp
-    val badgeGradientColors = listOf(
-        Color(0xFFA855F7),
-        Color(0xFFE879F9),
-        Color(0xFF60A5FA)
-    )
-    val badgePaddingHorizontal = 12.dp
-    val badgePaddingVertical = 6.dp
-    val badgeTextSize = 11.sp
-    val closeButtonSize = 30.dp
-    const val CLOSE_BUTTON_BACKGROUND_ALPHA = 0.12f
-    val closeButtonBorderWidth = 1.dp
-    const val CLOSE_BUTTON_BORDER_ALPHA = 0.18f
-    val closeButtonTextSize = 13.sp
-    val navPrimaryGradientColors = listOf(
-        Color(0xFFA855F7),
-        Color(0xFFE879F9),
-        Color(0xFF7C3AED)
-    )
-    val navSecondaryGradientColors = listOf(
-        Color.White.copy(alpha = 0.12f),
-        Color.White.copy(alpha = 0.08f)
-    )
-    val navPrimaryBorderColor = Color(0xFFF0ABFC)
-    const val NAV_TEXT_DISABLED_ALPHA = 0.45f
-    val navHorizontalPadding = 14.dp
-    val navVerticalPadding = 8.dp
-    val navTextSize = 13.sp
 }
 
 private data class WalkthroughPopupAnimationState(
@@ -191,6 +160,14 @@ internal fun WalkthroughItemContent(
 
 @Composable
 private fun rememberPopupAnimationState(): WalkthroughPopupAnimationState {
+    if (WalkthroughDebugOptions.disablePopupContentAnimation) {
+        return remember {
+            WalkthroughPopupAnimationState(
+                gradientShift = WalkthroughPopupContentStyle.ANIMATION_START,
+                glowShift = WalkthroughPopupContentStyle.ANIMATION_START
+            )
+        }
+    }
     val transition = rememberInfiniteTransition()
     val gradientShift by transition.animateFloat(
         initialValue = WalkthroughPopupContentStyle.ANIMATION_START,
@@ -430,122 +407,5 @@ private fun ColumnScope.WalkthroughPopupBody(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun WalkthroughPopupNavigation(
-    currentIndex: Int,
-    lastIndex: Int,
-    onPrevious: () -> Unit,
-    onNext: () -> Unit
-) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(WalkthroughPopupContentStyle.navigationSpacing),
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.wrapContentWidth()
-    ) {
-        AiNavButton(
-            label = "Previous",
-            enabled = currentIndex > 0,
-            emphasized = false,
-            onClick = onPrevious
-        )
-        AiNavButton(
-            label = "Next",
-            enabled = currentIndex < lastIndex,
-            emphasized = true,
-            onClick = onNext
-        )
-    }
-}
-
-@Composable
-private fun AiBadge() {
-    Box(
-        modifier = Modifier
-            .clip(CircleShape)
-            .background(brush = Brush.linearGradient(WalkthroughPopupContentStyle.badgeGradientColors))
-            .padding(
-                horizontal = WalkthroughPopupContentStyle.badgePaddingHorizontal,
-                vertical = WalkthroughPopupContentStyle.badgePaddingVertical
-            )
-    ) {
-        Text(
-            text = "Walkthrough",
-            color = Color.White,
-            fontSize = WalkthroughPopupContentStyle.badgeTextSize,
-            fontWeight = FontWeight.SemiBold
-        )
-    }
-}
-
-@Composable
-private fun AiCloseButton(modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Box(
-        modifier = modifier
-            .size(WalkthroughPopupContentStyle.closeButtonSize)
-            .clip(CircleShape)
-            .background(Color.White.copy(alpha = WalkthroughPopupContentStyle.CLOSE_BUTTON_BACKGROUND_ALPHA))
-            .border(
-                WalkthroughPopupContentStyle.closeButtonBorderWidth,
-                Color.White.copy(alpha = WalkthroughPopupContentStyle.CLOSE_BUTTON_BORDER_ALPHA),
-                CircleShape
-            )
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "✕",
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            fontSize = WalkthroughPopupContentStyle.closeButtonTextSize
-        )
-    }
-}
-
-@Composable
-private fun AiNavButton(
-    label: String,
-    enabled: Boolean,
-    emphasized: Boolean,
-    onClick: () -> Unit
-) {
-    val backgroundBrush = if (emphasized) {
-        Brush.linearGradient(WalkthroughPopupContentStyle.navPrimaryGradientColors)
-    } else {
-        Brush.linearGradient(WalkthroughPopupContentStyle.navSecondaryGradientColors)
-    }
-    val borderColor = if (emphasized) {
-        WalkthroughPopupContentStyle.navPrimaryBorderColor
-    } else {
-        Color.White.copy(alpha = WalkthroughPopupContentStyle.CLOSE_BUTTON_BORDER_ALPHA)
-    }
-    val textStyle = if (emphasized) {
-        TextStyle(fontWeight = FontWeight.Bold)
-    } else {
-        TextStyle(fontWeight = FontWeight.Medium)
-    }
-
-    Box(
-        modifier = Modifier
-            .clip(CircleShape)
-            .background(backgroundBrush, CircleShape)
-            .border(WalkthroughPopupContentStyle.closeButtonBorderWidth, borderColor, CircleShape)
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(
-                horizontal = WalkthroughPopupContentStyle.navHorizontalPadding,
-                vertical = WalkthroughPopupContentStyle.navVerticalPadding
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            color = Color.White.copy(
-                alpha = if (enabled) 1f else WalkthroughPopupContentStyle.NAV_TEXT_DISABLED_ALPHA
-            ),
-            fontSize = WalkthroughPopupContentStyle.navTextSize,
-            style = textStyle
-        )
     }
 }

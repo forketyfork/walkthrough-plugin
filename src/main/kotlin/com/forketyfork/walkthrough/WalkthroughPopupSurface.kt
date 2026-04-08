@@ -1,22 +1,25 @@
 package com.forketyfork.walkthrough
 
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.event.VisibleAreaEvent
 import com.intellij.openapi.editor.event.VisibleAreaListener
-import com.intellij.openapi.ui.popup.JBPopup
 import java.awt.BasicStroke
 import java.awt.Color as AwtColor
+import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.Point
 import java.awt.RenderingHints
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
+import java.awt.event.KeyEvent
 import java.awt.geom.Path2D
 import java.awt.geom.Point2D
 import java.awt.geom.Rectangle2D
 import javax.swing.JComponent
 import javax.swing.JLayeredPane
+import javax.swing.KeyStroke
 import javax.swing.SwingUtilities
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -26,7 +29,6 @@ import kotlin.math.sign
 import kotlin.math.sin
 
 internal object WalkthroughConnectorStyle {
-    const val LAYER_OFFSET = 5
     const val BORDER_INSET = 20f
     const val START_PULL_FACTOR = 0.32f
     const val START_PULL_MINIMUM = 72f
@@ -40,36 +42,50 @@ internal object WalkthroughConnectorStyle {
     const val ARROW_SPREAD_DEGREES = 24.0
     const val ARROW_HEAD_LENGTH = 13.0
     const val STROKE_WIDTH = 3.5f
-    @Suppress("UseJBColor") // Decorative connector color painted on a glass pane overlay
+
+    @Suppress("UseJBColor")
     val strokeColor = AwtColor(255, 136, 136, 235)
-    @Suppress("UseJBColor") // Decorative connector color painted on a glass pane overlay
+
+    @Suppress("UseJBColor")
     val arrowFillColor = AwtColor(255, 102, 102, 215)
 }
 
 private data class ConnectorPaintContext(
     val editor: Editor,
     val item: WalkthroughItem,
-    val pane: JLayeredPane,
     val popupBounds: Rectangle2D.Float
 )
 
-internal class PopupConnectorOverlay(
-    private val popup: JBPopup
-) : JComponent(), VisibleAreaListener {
+internal class WalkthroughPopupSurface(
+    val content: JComponent,
+    private val onCloseRequested: () -> Unit
+) : JComponent(), VisibleAreaListener, Disposable {
     private var editor: Editor? = null
     private var item: WalkthroughItem? = null
     private var layeredPane: JLayeredPane? = null
     private val layeredPaneResizeListener = object : ComponentAdapter() {
         override fun componentResized(event: ComponentEvent) {
             refreshBounds()
+            editor?.let(::moveToFitScreen)
+            repaint()
         }
     }
 
     init {
         isOpaque = false
+        layout = null
+        add(content)
+        content.isVisible = false
+        content.setBounds(0, 0, 0, 0)
+        content.registerKeyboardAction(
+            { cancel() },
+            KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+            JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT
+        )
     }
 
-    override fun contains(x: Int, y: Int): Boolean = false
+    override fun contains(x: Int, y: Int): Boolean =
+        content.isVisible && content.bounds.contains(x, y)
 
     fun update(editor: Editor, item: WalkthroughItem) {
         if (this.editor !== editor) {
@@ -83,7 +99,7 @@ internal class PopupConnectorOverlay(
             detachFromLayeredPane()
             layeredPane = targetLayeredPane?.also { pane ->
                 pane.addComponentListener(layeredPaneResizeListener)
-                pane.setLayer(this, JLayeredPane.POPUP_LAYER - WalkthroughConnectorStyle.LAYER_OFFSET)
+                pane.setLayer(this, JLayeredPane.POPUP_LAYER)
                 pane.add(this)
             }
         }
@@ -91,7 +107,8 @@ internal class PopupConnectorOverlay(
         repaint()
     }
 
-    fun dispose() {
+    override fun dispose() {
+        stopPopupAvoidAnimation(this)
         editor?.scrollingModel?.removeVisibleAreaListener(this)
         editor = null
         item = null
@@ -99,6 +116,9 @@ internal class PopupConnectorOverlay(
     }
 
     override fun visibleAreaChanged(event: VisibleAreaEvent) {
+        if (event.oldRectangle == event.newRectangle) {
+            return
+        }
         refreshBounds()
         repaint()
     }
@@ -106,24 +126,14 @@ internal class PopupConnectorOverlay(
     override fun paintComponent(graphics: Graphics) {
         super.paintComponent(graphics)
         val context = currentPaintContext() ?: return
-        val targetPointOnScreen = calculateLineScreenPoint(context.editor, context.item.line)
-        val popupOrigin = Point(
-            context.popupBounds.x.roundToInt(),
-            context.popupBounds.y.roundToInt()
-        ).also {
-            SwingUtilities.convertPointFromScreen(it, context.pane)
+        val targetPoint = Point(calculateLineScreenPoint(context.editor, context.item.line)).also {
+            SwingUtilities.convertPointFromScreen(it, this)
         }
-        val targetPoint = Point(targetPointOnScreen).also {
-            SwingUtilities.convertPointFromScreen(it, context.pane)
-        }
-        val popupRect = Rectangle2D.Float(
-            popupOrigin.x.toFloat(),
-            popupOrigin.y.toFloat(),
-            context.popupBounds.width,
-            context.popupBounds.height
-        )
         val arrowTarget = Point2D.Float(targetPoint.x.toFloat(), targetPoint.y.toFloat())
-        val connector = buildConnector(nearestBorderAnchor(popupRect, arrowTarget), arrowTarget)
+        val connector = buildConnector(
+            nearestBorderAnchor(context.popupBounds, arrowTarget),
+            arrowTarget
+        )
 
         val graphics2D = graphics.create() as Graphics2D
         try {
@@ -145,25 +155,39 @@ internal class PopupConnectorOverlay(
     }
 
     fun refreshBounds() {
-        layeredPane?.let { pane ->
-            setBounds(0, 0, pane.width, pane.height)
-            if (parent !== pane) {
-                pane.setLayer(this, JLayeredPane.POPUP_LAYER - WalkthroughConnectorStyle.LAYER_OFFSET)
-                pane.add(this)
-            }
+        val pane = layeredPane ?: return
+        setBounds(0, 0, pane.width, pane.height)
+        if (parent !== pane) {
+            pane.setLayer(this, JLayeredPane.POPUP_LAYER)
+            pane.add(this)
         }
     }
 
-    private fun currentPaintContext(): ConnectorPaintContext? =
-        editor?.let { currentEditor ->
-            item?.let { currentItem ->
-                layeredPane?.let { pane ->
-                    popupScreenBounds(popup)?.let { popupBounds ->
-                        ConnectorPaintContext(currentEditor, currentItem, pane, popupBounds)
-                    }
-                }
-            }
+    fun cancel() {
+        onCloseRequested()
+    }
+
+    private fun currentPaintContext(): ConnectorPaintContext? {
+        val currentEditor = editor
+        val currentItem = item
+        val popupBounds = content.bounds.takeIf { bounds ->
+            content.isVisible && bounds.width > 0 && bounds.height > 0
         }
+        return if (currentEditor != null && currentItem != null && popupBounds != null) {
+            ConnectorPaintContext(
+                editor = currentEditor,
+                item = currentItem,
+                popupBounds = Rectangle2D.Float(
+                    popupBounds.x.toFloat(),
+                    popupBounds.y.toFloat(),
+                    popupBounds.width.toFloat(),
+                    popupBounds.height.toFloat()
+                )
+            )
+        } else {
+            null
+        }
+    }
 
     private fun detachFromLayeredPane() {
         layeredPane?.let { pane ->
@@ -174,6 +198,46 @@ internal class PopupConnectorOverlay(
         layeredPane = null
     }
 }
+
+internal fun WalkthroughPopupSurface.show(editor: Editor, screenPoint: Point) {
+    content.isVisible = true
+    setPopupScreenLocation(screenPoint)
+    moveToFitScreen(editor)
+    content.requestFocusInWindow()
+    repaint()
+}
+
+internal fun WalkthroughPopupSurface.popupLocationOnScreen(): Point? =
+    if (content.isShowing) {
+        Point(0, 0).also { SwingUtilities.convertPointToScreen(it, content) }
+    } else {
+        null
+    }
+
+internal fun WalkthroughPopupSurface.setPopupScreenLocation(screenPoint: Point) {
+    val localPoint = Point(screenPoint)
+    SwingUtilities.convertPointFromScreen(localPoint, this)
+    content.setBounds(localPoint.x, localPoint.y, content.width, content.height)
+    repaint()
+}
+
+internal fun WalkthroughPopupSurface.moveToFitScreen(editor: Editor) {
+    val currentLocation = popupLocationOnScreen() ?: return
+    val popupSize = resolvePopupSize(this) ?: return
+    val constrainedLocation = constrainPopupScreenLocation(editor, currentLocation, popupSize)
+    if (constrainedLocation != currentLocation) {
+        setPopupScreenLocation(constrainedLocation)
+    }
+}
+
+internal var WalkthroughPopupSurface.popupSize: Dimension
+    get() = resolvePopupSize(this) ?: WalkthroughPopupLayout.fallbackSize
+    set(value) {
+        content.preferredSize = value
+        content.setBounds(content.x, content.y, value.width, value.height)
+        content.revalidate()
+        repaint()
+    }
 
 private enum class ConnectorSide {
     Left,

@@ -16,6 +16,10 @@ run:
 verify:
     ./gradlew verifyPlugin
 
+# Run unit tests
+test:
+    ./gradlew test
+
 # Run Detekt static analysis
 lint:
     ./gradlew detekt

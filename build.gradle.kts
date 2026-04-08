@@ -32,9 +32,13 @@ repositories {
 
 // Read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin.html
 dependencies {
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.opentest4j)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testRuntimeOnly(libs.junit4)
+
     intellijPlatform {
         intellijIdea("2026.1")
-        testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
 
         // Add plugin dependencies for compilation here:
 
@@ -84,6 +88,10 @@ intellijPlatform {
 }
 
 tasks {
+    test {
+        useJUnitPlatform()
+    }
+
     // Set the JVM compatibility versions
     withType<JavaCompile> {
         sourceCompatibility = "21"

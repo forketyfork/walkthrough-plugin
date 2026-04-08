@@ -1,7 +1,6 @@
 package com.forketyfork.walkthrough
 
 import com.intellij.openapi.editor.Editor
-import com.intellij.openapi.ui.popup.JBPopup
 import java.awt.Color as AwtColor
 import java.awt.Component
 import java.awt.Container
@@ -28,12 +27,7 @@ private enum class PopupInteractionMode {
     Resize
 }
 
-internal fun makePopupHierarchyTransparent(popup: JBPopup, panel: JComponent) {
-    makeComponentHierarchyTransparent(popup.content)
-    makeComponentHierarchyTransparent(panel)
-}
-
-private fun makeComponentHierarchyTransparent(component: Component?) {
+internal fun makeComponentHierarchyTransparent(component: Component?) {
     var current = component
     while (current is JComponent) {
         if (current is JRootPane || current is JLayeredPane) {
@@ -48,7 +42,7 @@ private fun makeComponentHierarchyTransparent(component: Component?) {
 
 internal fun installPopupInteractionHandler(
     panel: JComponent,
-    popupProvider: () -> JBPopup?,
+    popupProvider: () -> WalkthroughPopupSurface?,
     editorProvider: () -> Editor,
     onPopupMoved: () -> Unit
 ) {
@@ -176,7 +170,7 @@ private fun isWithinResizeHandle(panel: JComponent, component: Component, point:
 }
 
 private fun resizePopupBy(
-    popup: JBPopup,
+    popup: WalkthroughPopupSurface,
     panel: JComponent,
     editor: Editor,
     deltaX: Float,
@@ -184,7 +178,7 @@ private fun resizePopupBy(
     onLocationChanged: (() -> Unit)? = null
 ) {
     stopPopupAvoidAnimation(popup)
-    val currentLocation = popup.locationOnScreen
+    val currentLocation = popup.popupLocationOnScreen() ?: return
     val currentSize = resolvePopupSize(popup)
         ?: panel.preferredSize
         ?: WalkthroughPopupLayout.fallbackSize
@@ -208,7 +202,7 @@ private fun resizePopupBy(
 
     panel.preferredSize = targetSize
     panel.revalidate()
-    popup.size = targetSize
-    popup.moveToFitScreen()
+    popup.popupSize = targetSize
+    popup.moveToFitScreen(editor)
     onLocationChanged?.invoke()
 }

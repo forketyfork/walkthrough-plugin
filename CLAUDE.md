@@ -37,7 +37,12 @@ just clean            # or: ./gradlew clean
 just hooks
 ```
 
-There are no unit tests in this project. The plugin is tested by running it in the IDE via `runIde`.
+```bash
+# Run unit tests
+just test             # or: ./gradlew test
+```
+
+The plugin is also tested by running it in the IDE via `runIde`.
 
 ## Infrastructure
 
@@ -55,10 +60,12 @@ Swing bridge.
 
 ### Key classes
 
-- **`WalkthroughItem.kt`** — The shared core: `showWalkthroughItems(project, editor, items)`
-  creates and positions a `JBPopup` with a Compose panel above the current caret line.
-  `WalkthroughItemContent` is the composable inside the popup. Both are used by the action and
-  the MCP toolset.
+- **`WalkthroughItem.kt`** — The `WalkthroughItem` data class and `WalkthroughPopupLayout` layout
+  constants.
+
+- **`WalkthroughOrchestrator.kt`** — The entry point: `showWalkthroughItems(project, editor, items)`
+  creates and positions a `JBPopup` with a Compose panel above the current caret line. Used by the
+  action and the MCP toolset.
 
 - **`ShowWalkthroughItemAction`** — An `AnAction` (shortcut `Ctrl+Shift+X`, also in the editor
   context menu) that calls `showWalkthroughItems` with a fixed walkthrough item.
@@ -101,3 +108,4 @@ so the project does not depend on a machine-specific local IDE path.
 6. After making changes, verify the build and linting pass: `just lint && just build`
 7. Do not introduce new dependencies without asking first.
 8. All UI must use JetBrains Compose / Jewel — no Swing UI code.
+9. Keep all external dependency versions in `gradle/libs.versions.toml` (Gradle version catalog).
