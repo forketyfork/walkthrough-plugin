@@ -8,12 +8,13 @@
     <name>Walkthrough</name>
 
     <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
-    <vendor url="https://github.com/forketyfork/destination">forketyfork</vendor>
+    <vendor url="https://github.com/forketyfork/walkthrough-plugin">forketyfork</vendor>
 
     <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-description -->
     <description><![CDATA[
-        Interactive walkthrough items for IntelliJ IDEA.
+        <p>Walkthrough is an IntelliJ IDEA plugin for showing inline guided walkthroughs anchored to specific lines of code. It renders a styled popup near a target line, keeps a connector pointing at that line, and lets the reader step through a sequence of walkthrough items. Typical uses include codebase tours, onboarding new contributors, and AI-driven code explanations.</p>
+        <p>The plugin also exposes a <code>show_walkthrough_items</code> MCP tool so LLM-driven agents can drive walkthroughs programmatically. The popup UI is built with JetBrains Compose (Jewel) and supports Markdown content, optional file and line navigation, and previous/next step navigation.</p>
     ]]></description>
 
     <!-- Product and plugin compatibility requirements.
