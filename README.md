@@ -9,6 +9,8 @@ Walkthrough Plugin is a prototype IntelliJ IDEA plugin for presenting inline wal
 inside the editor. It shows a styled popup near a target line, keeps a connector anchored to that
 line, and lets the user step through a sequence of walkthrough items.
 
+<img src="docs/screenshot.png" alt="Walkthrough popup rendering a markdown step in IntelliJ IDEA, with a connector pointing at a JewelComposePanel call site" width="800">
+
 ## Features
 
 - An MCP tool, `show_walkthrough_items`, that accepts JSON input and displays one or more
