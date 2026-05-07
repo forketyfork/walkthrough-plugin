@@ -3,10 +3,10 @@ import dev.detekt.gradle.DetektCreateBaselineTask
 
 plugins {
     id("java")
-    id("org.jetbrains.kotlin.jvm") version "2.3.20"
-    id("org.jetbrains.intellij.platform") version "2.13.1"
-    id("org.jetbrains.kotlin.plugin.compose") version "2.3.20"
-    id("dev.detekt") version "2.0.0-alpha.2"
+    id("org.jetbrains.kotlin.jvm") version "2.3.21"
+    id("org.jetbrains.intellij.platform") version "2.16.0"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.3.21"
+    id("dev.detekt") version "2.0.0-alpha.3"
 }
 
 group = "com.forketyfork"
@@ -106,7 +106,6 @@ kotlin {
 }
 
 detekt {
-    toolVersion = "2.0.0-alpha.2"
     source.setFrom("src/main/kotlin", "src/test/kotlin")
     parallel = true
     config.setFrom(files("$rootDir/detekt.yml"))
