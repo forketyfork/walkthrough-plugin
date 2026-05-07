@@ -46,8 +46,8 @@ The plugin is also tested by running it in the IDE via `runIde`.
 
 ## Infrastructure
 
-- **Source code hosting:** GitHub — URL: `https://github.com/JetBrains/walkthrough-plugin` — Skill: `managing-github`
-- **Issue tracker:** GitHub Issues — URL: `https://github.com/JetBrains/walkthrough-plugin/issues` — Skill: `managing-github`
+- **Source code hosting:** GitHub — URL: `https://github.com/forketyfork/walkthrough-plugin` — Skill: `managing-github`
+- **Issue tracker:** GitHub Issues — URL: `https://github.com/forketyfork/walkthrough-plugin/issues` — Skill: `managing-github`
 - **CI/CD:** GitHub Actions — config: `.github/workflows/build.yml`
 - **Issue/PR linkage convention:** Reference issues in PR descriptions using `Closes #<number>` or
   `Fixes #<number>` to auto-close on merge. Include the issue number in the PR title as `(#<number>)`.

@@ -1,6 +1,6 @@
 # Walkthrough Plugin
 
-[![Build status](https://github.com/JetBrains/walkthrough-plugin/actions/workflows/build.yml/badge.svg)](https://github.com/JetBrains/walkthrough-plugin/actions/workflows/build.yml)
+[![Build status](https://github.com/forketyfork/walkthrough-plugin/actions/workflows/build.yml/badge.svg)](https://github.com/forketyfork/walkthrough-plugin/actions/workflows/build.yml)
 [![Kotlin](https://img.shields.io/badge/language-Kotlin-purple.svg)](https://kotlinlang.org/)
 
 ## About
