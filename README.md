@@ -11,7 +11,6 @@ line, and lets the user step through a sequence of walkthrough items.
 
 ## Features
 
-- An editor action that shows a sample walkthrough item above the current line.
 - An MCP tool, `show_walkthrough_items`, that accepts JSON input and displays one or more
   walkthrough items.
 - Optional file and line navigation for each item, so a walkthrough can jump to the right place

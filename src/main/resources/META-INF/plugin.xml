@@ -30,12 +30,4 @@
     <extensions defaultExtensionNs="com.intellij.mcpServer">
         <mcpToolset implementation="com.forketyfork.walkthrough.ShowWalkthroughItemsToolset"/>
     </extensions>
-
-    <actions resource-bundle="messages.WalkthroughBundle">
-        <action id="com.forketyfork.walkthrough.ShowWalkthroughItemAction"
-                class="com.forketyfork.walkthrough.ShowWalkthroughItemAction">
-            <keyboard-shortcut keymap="$default" first-keystroke="control shift X"/>
-            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
-        </action>
-    </actions>
 </idea-plugin>

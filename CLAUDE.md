@@ -66,14 +66,11 @@ components.
 
 - **`WalkthroughOrchestrator.kt`** — The entry point: `showWalkthroughItems(project, editor, items)`
   creates and positions the walkthrough UI via `WalkthroughPopupSurface`, hosted on the editor
-  layered pane above the current caret line. Used by the action and the MCP toolset.
+  layered pane above the current caret line. Used by the MCP toolset.
 
 - **`WalkthroughPopupSurface.kt`** — The Swing host that owns the popup surface inside the editor
   layered pane, renders the connector on the same surface as the popup content, and keeps the UI
   aligned with editor scrolling and resizing.
-
-- **`ShowWalkthroughItemAction`** — An `AnAction` (shortcut `Ctrl+Shift+X`, also in the editor
-  context menu) that calls `showWalkthroughItems` with a fixed walkthrough item.
 
 - **`ShowWalkthroughItemsToolset`** — An MCP toolset (`McpToolset`) exposing one tool
   `show_walkthrough_items(items)` to MCP clients (e.g., Claude Desktop). Gets the active project
