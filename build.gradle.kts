@@ -106,7 +106,6 @@ kotlin {
 }
 
 detekt {
-    toolVersion = "2.0.0-alpha.2"
     source.setFrom("src/main/kotlin", "src/test/kotlin")
     parallel = true
     config.setFrom(files("$rootDir/detekt.yml"))
