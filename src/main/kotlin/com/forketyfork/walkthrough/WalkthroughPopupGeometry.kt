@@ -169,3 +169,9 @@ internal fun cubicEaseInOut(progress: Float): Float =
 
 internal fun lerp(start: Float, end: Float, progress: Float): Float =
     start + (end - start) * progress
+
+internal fun reverseLinearShift(elapsedMs: Long, halfPeriodMs: Int): Float {
+    val period = 2L * halfPeriodMs
+    val phase = (elapsedMs % period).toFloat() / halfPeriodMs.toFloat()
+    return if (phase < 1f) phase else 2f - phase
+}
