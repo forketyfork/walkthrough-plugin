@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.delay
+import kotlin.time.TimeSource
 import org.jetbrains.jewel.ui.component.Text
 
 private object WalkthroughPopupContentStyle {
@@ -173,21 +174,15 @@ private fun rememberPopupAnimationState(): WalkthroughPopupAnimationState {
     var gradientShift by remember { mutableStateOf(WalkthroughPopupContentStyle.ANIMATION_START) }
     var glowShift by remember { mutableStateOf(WalkthroughPopupContentStyle.ANIMATION_START) }
     LaunchedEffect(Unit) {
-        val startTime = System.currentTimeMillis()
+        val mark = TimeSource.Monotonic.markNow()
         while (true) {
-            val elapsed = System.currentTimeMillis() - startTime
+            val elapsed = mark.elapsedNow().inWholeMilliseconds
             gradientShift = reverseLinearShift(elapsed, WalkthroughPopupContentStyle.GRADIENT_ANIMATION_DURATION_MS)
             glowShift = reverseLinearShift(elapsed, WalkthroughPopupContentStyle.GLOW_ANIMATION_DURATION_MS)
             delay(WalkthroughPopupContentStyle.ANIMATION_FRAME_INTERVAL_MS)
         }
     }
     return WalkthroughPopupAnimationState(gradientShift = gradientShift, glowShift = glowShift)
-}
-
-private fun reverseLinearShift(elapsedMs: Long, halfPeriodMs: Int): Float {
-    val period = 2L * halfPeriodMs
-    val phase = (elapsedMs % period).toFloat() / halfPeriodMs.toFloat()
-    return if (phase < 1f) phase else 2f - phase
 }
 
 @Composable
