@@ -1,11 +1,5 @@
 package com.forketyfork.walkthrough
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.LocalScrollbarStyle
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.ScrollbarStyle
@@ -47,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.intellij.openapi.project.Project
+import kotlinx.coroutines.delay
 import org.jetbrains.jewel.ui.component.Text
 
 private object WalkthroughPopupContentStyle {
@@ -61,6 +56,11 @@ private object WalkthroughPopupContentStyle {
     const val ANIMATION_END = 1f
     const val GRADIENT_ANIMATION_DURATION_MS = 5400
     const val GLOW_ANIMATION_DURATION_MS = 3200
+
+    // Drives shift updates via a manual coroutine instead of Compose's frame clock, so the
+    // SkiaLayer (and the editor underneath the translucent popup corners) only repaints at
+    // this cadence. Lower values save more CPU at the cost of visible stepping.
+    const val ANIMATION_FRAME_INTERVAL_MS = 67L
     val backgroundGradientColors = listOf(
         WalkthroughColors.veryDarkPurple,
         WalkthroughColors.darkPurple,
@@ -170,30 +170,24 @@ private fun rememberPopupAnimationState(): WalkthroughPopupAnimationState {
             )
         }
     }
-    val transition = rememberInfiniteTransition()
-    val gradientShift by transition.animateFloat(
-        initialValue = WalkthroughPopupContentStyle.ANIMATION_START,
-        targetValue = WalkthroughPopupContentStyle.ANIMATION_END,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = WalkthroughPopupContentStyle.GRADIENT_ANIMATION_DURATION_MS,
-                easing = LinearEasing
-            ),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
-    val glowShift by transition.animateFloat(
-        initialValue = WalkthroughPopupContentStyle.ANIMATION_START,
-        targetValue = WalkthroughPopupContentStyle.ANIMATION_END,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = WalkthroughPopupContentStyle.GLOW_ANIMATION_DURATION_MS,
-                easing = LinearEasing
-            ),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
+    var gradientShift by remember { mutableStateOf(WalkthroughPopupContentStyle.ANIMATION_START) }
+    var glowShift by remember { mutableStateOf(WalkthroughPopupContentStyle.ANIMATION_START) }
+    LaunchedEffect(Unit) {
+        val startTime = System.currentTimeMillis()
+        while (true) {
+            val elapsed = System.currentTimeMillis() - startTime
+            gradientShift = reverseLinearShift(elapsed, WalkthroughPopupContentStyle.GRADIENT_ANIMATION_DURATION_MS)
+            glowShift = reverseLinearShift(elapsed, WalkthroughPopupContentStyle.GLOW_ANIMATION_DURATION_MS)
+            delay(WalkthroughPopupContentStyle.ANIMATION_FRAME_INTERVAL_MS)
+        }
+    }
     return WalkthroughPopupAnimationState(gradientShift = gradientShift, glowShift = glowShift)
+}
+
+private fun reverseLinearShift(elapsedMs: Long, halfPeriodMs: Int): Float {
+    val period = 2L * halfPeriodMs
+    val phase = (elapsedMs % period).toFloat() / halfPeriodMs.toFloat()
+    return if (phase < 1f) phase else 2f - phase
 }
 
 @Composable
