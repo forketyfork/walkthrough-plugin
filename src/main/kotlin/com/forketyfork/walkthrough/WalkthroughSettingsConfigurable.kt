@@ -1,64 +1,84 @@
 package com.forketyfork.walkthrough
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.toArgb
 import com.intellij.openapi.options.Configurable
+import com.intellij.ui.JBColor
+import com.intellij.util.ui.JBUI
+import java.awt.Color as AwtColor
+import java.awt.Component
+import java.awt.Dimension
+import java.awt.Graphics
+import java.awt.Graphics2D
+import java.awt.GridBagConstraints
+import java.awt.GridBagLayout
+import java.awt.Insets
+import java.awt.LinearGradientPaint
+import java.awt.Paint
+import java.awt.RenderingHints
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
+import java.awt.geom.RoundRectangle2D
+import javax.swing.ButtonGroup
 import javax.swing.JComponent
-import org.jetbrains.jewel.bridge.JewelComposePanel
-import org.jetbrains.jewel.ui.component.Text
+import javax.swing.JPanel
+import javax.swing.JRadioButton
 
 private object WalkthroughSettingsStyle {
-    val contentPadding = 16.dp
-    val paletteSpacing = 10.dp
-    val rowSpacing = 12.dp
-    val rowCornerRadius = 8.dp
-    val rowPaddingHorizontal = 10.dp
-    val rowPaddingVertical = 8.dp
-    val swatchSize = 92.dp
-    val swatchHeight = 24.dp
-    val swatchCornerRadius = 6.dp
-    val swatchBorderWidth = 1.dp
-    val selectedBorderWidth = 2.dp
-    val unselectedBorderWidth = 1.dp
-    val titleTextSize = 13.sp
-    val unselectedBorderColor = Color.Gray.copy(alpha = 0.24f)
-    val rowBackgroundColor = Color.Gray.copy(alpha = 0.08f)
-    val swatchBorderColor = Color.Black.copy(alpha = 0.16f)
+    const val SWATCH_WIDTH = 92
+    const val SWATCH_HEIGHT = 24
+    const val SWATCH_ARC = 8
+    const val PANEL_PADDING = 16
+    const val ROW_GAP = 10
+    const val COLUMN_GAP = 12
+    const val RGB_MIN = 0
+    const val RGB_MAX = 255
+    const val SWATCH_BORDER_ALPHA = 48
+    const val MIN_PAINT_SIZE = 1
+    const val MIN_GRADIENT_COLOR_COUNT = 2
 }
 
 internal class WalkthroughSettingsConfigurable : Configurable {
-    private var selectedPaletteId by mutableStateOf(WalkthroughSettings.getInstance().selectedPaletteId)
+    private var selectedPaletteId = WalkthroughSettings.getInstance().selectedPaletteId
+    private var paletteButtons = emptyMap<String, JRadioButton>()
 
     override fun getDisplayName(): String = "Walkthrough"
 
-    override fun createComponent(): JComponent =
-        JewelComposePanel {
-            WalkthroughSettingsPanel(
-                selectedPaletteId = selectedPaletteId,
-                onPaletteSelected = { selectedPaletteId = it }
-            )
+    override fun createComponent(): JComponent {
+        val buttonGroup = ButtonGroup()
+        val buttons = mutableMapOf<String, JRadioButton>()
+        val panel = JPanel(GridBagLayout()).apply {
+            border = JBUI.Borders.empty(WalkthroughSettingsStyle.PANEL_PADDING)
+            background = JBColor.PanelBackground
         }
+
+        WalkthroughPalettes.all.forEachIndexed { index, palette ->
+            val selectOnPress = object : MouseAdapter() {
+                override fun mousePressed(event: MouseEvent) {
+                    selectPalette(palette.id)
+                }
+            }
+            val radioButton = JRadioButton(palette.displayName).apply {
+                isSelected = palette.id == selectedPaletteId
+                isOpaque = false
+                addActionListener { selectPalette(palette.id) }
+            }
+            val swatch = PaletteSwatch(palette).apply {
+                alignmentX = Component.LEFT_ALIGNMENT
+                addMouseListener(selectOnPress)
+            }
+            val row = PaletteRow(radioButton, swatch).apply {
+                addMouseListener(selectOnPress)
+            }
+
+            buttonGroup.add(radioButton)
+            buttons[palette.id] = radioButton
+            panel.add(row, rowConstraints(index))
+        }
+
+        panel.add(JPanel().apply { isOpaque = false }, fillerConstraints())
+        paletteButtons = buttons
+        return panel
+    }
 
     override fun isModified(): Boolean =
         selectedPaletteId != WalkthroughSettings.getInstance().selectedPaletteId
@@ -66,85 +86,140 @@ internal class WalkthroughSettingsConfigurable : Configurable {
     override fun apply() {
         WalkthroughSettings.getInstance().selectedPaletteId = selectedPaletteId
         selectedPaletteId = WalkthroughSettings.getInstance().selectedPaletteId
+        updateSelection()
     }
 
     override fun reset() {
         selectedPaletteId = WalkthroughSettings.getInstance().selectedPaletteId
+        updateSelection()
     }
+
+    private fun selectPalette(paletteId: String) {
+        selectedPaletteId = paletteId
+        updateSelection()
+    }
+
+    private fun updateSelection() {
+        paletteButtons[selectedPaletteId]?.isSelected = true
+    }
+
+    private fun rowConstraints(index: Int): GridBagConstraints =
+        GridBagConstraints().apply {
+            gridx = 0
+            gridy = index
+            weightx = 1.0
+            fill = GridBagConstraints.HORIZONTAL
+            anchor = GridBagConstraints.NORTHWEST
+            insets = Insets(0, 0, WalkthroughSettingsStyle.ROW_GAP, 0)
+        }
+
+    private fun fillerConstraints(): GridBagConstraints =
+        GridBagConstraints().apply {
+            gridx = 0
+            gridy = WalkthroughPalettes.all.size
+            weightx = 1.0
+            weighty = 1.0
+            fill = GridBagConstraints.BOTH
+        }
 }
 
-@Composable
-private fun WalkthroughSettingsPanel(
-    selectedPaletteId: String,
-    onPaletteSelected: (String) -> Unit
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(WalkthroughSettingsStyle.paletteSpacing),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(WalkthroughSettingsStyle.contentPadding)
-    ) {
-        WalkthroughPalettes.all.forEach { palette ->
-            WalkthroughPaletteOption(
-                palette = palette,
-                selected = palette.id == selectedPaletteId,
-                onSelected = { onPaletteSelected(palette.id) }
+private class PaletteRow(
+    radioButton: JRadioButton,
+    swatch: JComponent
+) : JPanel(GridBagLayout()) {
+    init {
+        isOpaque = false
+        cursor = radioButton.cursor
+        add(swatch, swatchConstraints())
+        add(radioButton, labelConstraints())
+    }
+
+    private fun swatchConstraints(): GridBagConstraints =
+        GridBagConstraints().apply {
+            gridx = 0
+            gridy = 0
+            anchor = GridBagConstraints.WEST
+            insets = Insets(0, 0, 0, WalkthroughSettingsStyle.COLUMN_GAP)
+        }
+
+    private fun labelConstraints(): GridBagConstraints =
+        GridBagConstraints().apply {
+            gridx = 1
+            gridy = 0
+            weightx = 1.0
+            fill = GridBagConstraints.HORIZONTAL
+            anchor = GridBagConstraints.WEST
+        }
+}
+
+private class PaletteSwatch(
+    private val palette: WalkthroughPalette
+) : JComponent() {
+    init {
+        preferredSize = Dimension(WalkthroughSettingsStyle.SWATCH_WIDTH, WalkthroughSettingsStyle.SWATCH_HEIGHT)
+        minimumSize = preferredSize
+        maximumSize = preferredSize
+        toolTipText = palette.displayName
+        accessibleContext?.accessibleName = "${palette.displayName} palette"
+    }
+
+    override fun paintComponent(graphics: Graphics) {
+        super.paintComponent(graphics)
+        val graphics2d = graphics.create() as Graphics2D
+        try {
+            graphics2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+            val shape = RoundRectangle2D.Float(
+                0f,
+                0f,
+                width.toFloat(),
+                height.toFloat(),
+                WalkthroughSettingsStyle.SWATCH_ARC.toFloat(),
+                WalkthroughSettingsStyle.SWATCH_ARC.toFloat()
             )
+
+            graphics2d.paint = swatchPaint()
+            graphics2d.fill(shape)
+            graphics2d.color = JBColor(
+                AwtColor(
+                    WalkthroughSettingsStyle.RGB_MIN,
+                    WalkthroughSettingsStyle.RGB_MIN,
+                    WalkthroughSettingsStyle.RGB_MIN,
+                    WalkthroughSettingsStyle.SWATCH_BORDER_ALPHA
+                ),
+                AwtColor(
+                    WalkthroughSettingsStyle.RGB_MAX,
+                    WalkthroughSettingsStyle.RGB_MAX,
+                    WalkthroughSettingsStyle.RGB_MAX,
+                    WalkthroughSettingsStyle.SWATCH_BORDER_ALPHA
+                )
+            )
+            graphics2d.draw(shape)
+        } finally {
+            graphics2d.dispose()
         }
     }
-}
 
-@Composable
-private fun WalkthroughPaletteOption(
-    palette: WalkthroughPalette,
-    selected: Boolean,
-    onSelected: () -> Unit
-) {
-    val borderWidth = if (selected) {
-        WalkthroughSettingsStyle.selectedBorderWidth
-    } else {
-        WalkthroughSettingsStyle.unselectedBorderWidth
-    }
-    val borderColor = if (selected) {
-        palette.navPrimaryBorderColor
-    } else {
-        WalkthroughSettingsStyle.unselectedBorderColor
-    }
+    private fun swatchPaint(): Paint {
+        val colors = palette.swatchGradientColors.map { AwtColor(it.toArgb(), true) }
+        if (
+            colors.size < WalkthroughSettingsStyle.MIN_GRADIENT_COLOR_COUNT ||
+            width < WalkthroughSettingsStyle.MIN_PAINT_SIZE ||
+            height < WalkthroughSettingsStyle.MIN_PAINT_SIZE
+        ) {
+            return colors.firstOrNull() ?: JBColor.GRAY
+        }
 
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(WalkthroughSettingsStyle.rowSpacing),
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(WalkthroughSettingsStyle.rowCornerRadius))
-            .background(WalkthroughSettingsStyle.rowBackgroundColor)
-            .border(
-                width = borderWidth,
-                color = borderColor,
-                shape = RoundedCornerShape(WalkthroughSettingsStyle.rowCornerRadius)
-            )
-            .clickable(onClick = onSelected)
-            .padding(
-                horizontal = WalkthroughSettingsStyle.rowPaddingHorizontal,
-                vertical = WalkthroughSettingsStyle.rowPaddingVertical
-            )
-    ) {
-        Box(
-            modifier = Modifier
-                .size(WalkthroughSettingsStyle.swatchSize, WalkthroughSettingsStyle.swatchHeight)
-                .clip(RoundedCornerShape(WalkthroughSettingsStyle.swatchCornerRadius))
-                .background(Brush.linearGradient(palette.swatchGradientColors))
-                .border(
-                    width = WalkthroughSettingsStyle.swatchBorderWidth,
-                    color = WalkthroughSettingsStyle.swatchBorderColor,
-                    shape = RoundedCornerShape(WalkthroughSettingsStyle.swatchCornerRadius)
-                )
-        )
-        Text(
-            text = palette.displayName,
-            color = Color.Unspecified,
-            fontSize = WalkthroughSettingsStyle.titleTextSize,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+        val fractions = FloatArray(colors.size) { index ->
+            index.toFloat() / colors.lastIndex.toFloat()
+        }
+
+        return LinearGradientPaint(
+            0f,
+            0f,
+            width.toFloat(),
+            height.toFloat(),
+            fractions,
+            colors.toTypedArray()
         )
     }
 }
