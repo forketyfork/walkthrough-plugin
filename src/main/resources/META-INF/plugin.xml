@@ -27,6 +27,15 @@
 
     <!-- Extensions defined by the plugin.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService serviceImplementation="com.forketyfork.walkthrough.WalkthroughSettings"/>
+        <applicationConfigurable
+                parentId="tools"
+                instance="com.forketyfork.walkthrough.WalkthroughSettingsConfigurable"
+                id="com.forketyfork.walkthrough.settings"
+                displayName="Walkthrough"/>
+    </extensions>
+
     <extensions defaultExtensionNs="com.intellij.mcpServer">
         <mcpToolset implementation="com.forketyfork.walkthrough.ShowWalkthroughItemsToolset"/>
     </extensions>

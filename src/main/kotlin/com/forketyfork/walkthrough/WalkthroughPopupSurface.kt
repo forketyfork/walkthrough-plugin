@@ -5,7 +5,6 @@ import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.event.VisibleAreaEvent
 import com.intellij.openapi.editor.event.VisibleAreaListener
 import java.awt.BasicStroke
-import java.awt.Color as AwtColor
 import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
@@ -42,12 +41,6 @@ internal object WalkthroughConnectorStyle {
     const val ARROW_SPREAD_DEGREES = 24.0
     const val ARROW_HEAD_LENGTH = 13.0
     const val STROKE_WIDTH = 3.5f
-
-    @Suppress("UseJBColor")
-    val strokeColor = AwtColor(255, 136, 136, 235)
-
-    @Suppress("UseJBColor")
-    val arrowFillColor = AwtColor(255, 102, 102, 215)
 }
 
 private data class ConnectorPaintContext(
@@ -58,6 +51,7 @@ private data class ConnectorPaintContext(
 
 internal class WalkthroughPopupSurface(
     val content: JComponent,
+    private val palette: WalkthroughPalette,
     private val onCloseRequested: () -> Unit
 ) : JComponent(), VisibleAreaListener, Disposable {
     private var editor: Editor? = null
@@ -147,14 +141,14 @@ internal class WalkthroughPopupSurface(
                 RenderingHints.KEY_ANTIALIASING,
                 RenderingHints.VALUE_ANTIALIAS_ON
             )
-            graphics2D.color = WalkthroughConnectorStyle.strokeColor
+            graphics2D.color = palette.connectorStrokeColor
             graphics2D.stroke = BasicStroke(
                 WalkthroughConnectorStyle.STROKE_WIDTH,
                 BasicStroke.CAP_ROUND,
                 BasicStroke.JOIN_ROUND
             )
             graphics2D.draw(connector.path)
-            drawArrowHead(graphics2D, connector.end, connector.endControl)
+            drawArrowHead(graphics2D, connector.end, connector.endControl, palette)
         } finally {
             graphics2D.dispose()
         }
@@ -336,7 +330,12 @@ private fun buildConnector(anchor: ConnectorAnchor, end: Point2D.Float): Connect
     return ConnectorPath(path, end, endControl)
 }
 
-private fun drawArrowHead(graphics: Graphics2D, end: Point2D.Float, endControl: Point2D.Float) {
+private fun drawArrowHead(
+    graphics: Graphics2D,
+    end: Point2D.Float,
+    endControl: Point2D.Float,
+    palette: WalkthroughPalette
+) {
     val angle = atan2((end.y - endControl.y).toDouble(), (end.x - endControl.x).toDouble())
     val spread = Math.toRadians(WalkthroughConnectorStyle.ARROW_SPREAD_DEGREES)
     val headLength = WalkthroughConnectorStyle.ARROW_HEAD_LENGTH
@@ -350,6 +349,6 @@ private fun drawArrowHead(graphics: Graphics2D, end: Point2D.Float, endControl: 
         lineTo(rightX.toDouble(), rightY.toDouble())
         closePath()
     }
-    graphics.color = WalkthroughConnectorStyle.arrowFillColor
+    graphics.color = palette.connectorArrowFillColor
     graphics.fill(arrow)
 }

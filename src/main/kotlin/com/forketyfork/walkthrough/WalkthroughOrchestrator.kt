@@ -18,6 +18,7 @@ import javax.swing.SwingUtilities
 
 fun showWalkthroughItems(project: Project, editor: Editor, items: List<WalkthroughItem>) {
     if (items.isEmpty()) return
+    val palette = WalkthroughSettings.getInstance().selectedPalette
     val sessionDisposable = Disposer.newCheckedDisposable("WalkthroughPopupSession")
     Disposer.register(project, sessionDisposable)
 
@@ -54,6 +55,7 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
     val panel = createWalkthroughPanel(
         project = project,
         items = items,
+        palette = palette,
         onItemDisplayed = ::scheduleItemNavigation,
         onNavigateToSource = ::scheduleItemNavigation,
         onClose = { popupRef?.cancel() }
@@ -79,6 +81,7 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
 
     val popup = WalkthroughPopupSurface(
         content = panel,
+        palette = palette,
         onCloseRequested = {
             popupRef = null
             Disposer.dispose(sessionDisposable)
@@ -93,6 +96,7 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
 private fun createWalkthroughPanel(
     project: Project,
     items: List<WalkthroughItem>,
+    palette: WalkthroughPalette,
     onItemDisplayed: (WalkthroughItem) -> Unit,
     onNavigateToSource: (WalkthroughItem) -> Unit,
     onClose: () -> Unit
@@ -101,6 +105,7 @@ private fun createWalkthroughPanel(
         WalkthroughItemContent(
             project = project,
             items = items,
+            palette = palette,
             onItemDisplayed = onItemDisplayed,
             onNavigateToSource = onNavigateToSource,
             onClose = onClose
