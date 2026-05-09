@@ -49,7 +49,6 @@ private object WalkthroughSettingsStyle {
 
 internal class WalkthroughSettingsConfigurable : Configurable {
     private var selectedPaletteId by mutableStateOf(WalkthroughSettings.getInstance().selectedPaletteId)
-    private var component: JComponent? = null
 
     override fun getDisplayName(): String = "Walkthrough"
 
@@ -59,8 +58,6 @@ internal class WalkthroughSettingsConfigurable : Configurable {
                 selectedPaletteId = selectedPaletteId,
                 onPaletteSelected = { selectedPaletteId = it }
             )
-        }.also {
-            component = it
         }
 
     override fun isModified(): Boolean =
@@ -73,10 +70,6 @@ internal class WalkthroughSettingsConfigurable : Configurable {
 
     override fun reset() {
         selectedPaletteId = WalkthroughSettings.getInstance().selectedPaletteId
-    }
-
-    override fun disposeUIResources() {
-        component = null
     }
 }
 

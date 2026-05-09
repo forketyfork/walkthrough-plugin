@@ -6,8 +6,8 @@ import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 
 @State(
-    name = "WalkthroughSettings",
-    storages = [Storage("walkthrough.xml")]
+    name = "com.forketyfork.walkthrough.WalkthroughSettings",
+    storages = [Storage("com.forketyfork.walkthrough.settings.xml")]
 )
 internal class WalkthroughSettings : PersistentStateComponent<WalkthroughSettings.State> {
     private var state = State()
