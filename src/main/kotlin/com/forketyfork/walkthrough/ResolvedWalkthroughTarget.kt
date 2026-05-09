@@ -23,7 +23,8 @@ internal fun resolveWalkthroughTarget(
     val fileEditorManager = FileEditorManager.getInstance(project)
     val fileTarget = item.file
         ?.let { relativePath -> resolveFileTarget(project, fileEditorManager, item, relativePath) }
-    return fileTarget ?: resolveFallbackTarget(fileEditorManager, fallbackEditor, item)
+    val fallbackItem = if (item.file != null && fileTarget == null) item.withFallbackAnchor() else item
+    return fileTarget ?: resolveFallbackTarget(fileEditorManager, fallbackEditor, fallbackItem)
 }
 
 private fun resolveFallbackTarget(
@@ -58,8 +59,8 @@ private fun resolveFileTarget(
 }
 
 private fun findWalkthroughFile(project: Project, relativePath: String) =
-    project.basePath
-        ?.let { "$it/$relativePath" }
+    resolveProjectRelativeWalkthroughPath(project.basePath, relativePath)
+        ?.toString()
         ?.let(LocalFileSystem.getInstance()::findFileByPath)
 
 private fun VirtualFile.lineCount(): Int? =

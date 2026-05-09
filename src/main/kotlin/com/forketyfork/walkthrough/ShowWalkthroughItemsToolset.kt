@@ -67,8 +67,9 @@ class ShowWalkthroughItemsToolset : McpToolset {
 
         val record = WalkthroughHistoryService.getInstance(project)
             .save(trimmedDescription, itemList)
-            ?: mcpFail("Project path is required to save walkthrough history")
 
-        return "Walkthrough items shown and saved as ${record.id}"
+        return record
+            ?.let { savedRecord -> "Walkthrough items shown and saved as ${savedRecord.id}" }
+            ?: "Walkthrough items shown; history was not saved"
     }
 }

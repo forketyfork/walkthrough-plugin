@@ -4,7 +4,9 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonParseException
 import java.io.IOException
+import java.io.UncheckedIOException
 import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.DirectoryIteratorException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption.ATOMIC_MOVE
@@ -81,16 +83,30 @@ internal class WalkthroughHistoryStore(
     fun list(): List<WalkthroughRecord> {
         if (!Files.isDirectory(directory)) return emptyList()
 
-        return Files.list(directory).use { paths ->
-            paths
-                .filter(::isRecordFile)
-                .map { path -> readRecordOrNull(path) }
-                .toList()
-                .filterNotNull()
-                .sortedWith(
-                    compareByDescending<WalkthroughRecord> { record -> record.createdAtInstantOrEpoch() }
-                        .thenByDescending { record -> record.id }
-                )
+        return try {
+            Files.list(directory).use { paths ->
+                paths
+                    .filter(::isRecordFile)
+                    .map { path -> readRecordOrNull(path) }
+                    .toList()
+                    .filterNotNull()
+                    .sortedWith(
+                        compareByDescending<WalkthroughRecord> { record -> record.createdAtInstantOrEpoch() }
+                            .thenByDescending { record -> record.id }
+                    )
+            }
+        } catch (exception: DirectoryIteratorException) {
+            onCorruptFile(directory, exception)
+            emptyList()
+        } catch (exception: IOException) {
+            onCorruptFile(directory, exception)
+            emptyList()
+        } catch (exception: SecurityException) {
+            onCorruptFile(directory, exception)
+            emptyList()
+        } catch (exception: UncheckedIOException) {
+            onCorruptFile(directory, exception)
+            emptyList()
         }
     }
 

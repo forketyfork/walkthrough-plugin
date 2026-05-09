@@ -17,13 +17,25 @@ class WalkthroughHistoryService(private val project: Project) {
     }
 
     fun save(description: String, items: List<WalkthroughItem>): WalkthroughRecord? =
-        store?.save(description, items)
+        runHistoryOperation(operation = "save walkthrough history", fallback = null) {
+            store?.save(description, items)
+        }
 
     fun list(): List<WalkthroughRecord> =
-        store?.list().orEmpty()
+        runHistoryOperation(operation = "list walkthrough history", fallback = emptyList()) {
+            store?.list().orEmpty()
+        }
 
     fun load(id: String): WalkthroughRecord? =
-        store?.load(id)
+        runHistoryOperation(operation = "load walkthrough history", fallback = null) {
+            store?.load(id)
+        }
+
+    private fun <T> runHistoryOperation(operation: String, fallback: T, block: () -> T): T =
+        runCatching(block).getOrElse { exception ->
+            LOG.warn("Failed to $operation", exception)
+            fallback
+        }
 
     companion object {
         private val LOG = Logger.getInstance(WalkthroughHistoryService::class.java)
