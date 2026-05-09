@@ -26,11 +26,6 @@ import org.jetbrains.jewel.ui.icons.AllIconsKeys
 
 private object WalkthroughWidgetStyle {
     val navigationSpacing = 10.dp
-    val badgeGradientColors = listOf(
-        WalkthroughColors.purple,
-        WalkthroughColors.pink,
-        WalkthroughColors.blue
-    )
     val badgePaddingHorizontal = 12.dp
     val badgePaddingVertical = 6.dp
     val badgeTextSize = 11.sp
@@ -39,16 +34,10 @@ private object WalkthroughWidgetStyle {
     val closeButtonBorderWidth = 1.dp
     const val CLOSE_BUTTON_BORDER_ALPHA = 0.18f
     val closeButtonTextSize = 13.sp
-    val navPrimaryGradientColors = listOf(
-        WalkthroughColors.purple,
-        WalkthroughColors.pink,
-        WalkthroughColors.deepPurple
-    )
     val navSecondaryGradientColors = listOf(
         Color.White.copy(alpha = 0.12f),
         Color.White.copy(alpha = 0.08f)
     )
-    val navPrimaryBorderColor = WalkthroughColors.lightPink
     const val NAV_TEXT_DISABLED_ALPHA = 0.45f
     val navHorizontalPadding = 14.dp
     val navVerticalPadding = 8.dp
@@ -59,6 +48,7 @@ private object WalkthroughWidgetStyle {
 internal fun WalkthroughPopupNavigation(
     currentIndex: Int,
     lastIndex: Int,
+    palette: WalkthroughPalette,
     onPrevious: () -> Unit,
     onNext: () -> Unit
 ) {
@@ -71,23 +61,25 @@ internal fun WalkthroughPopupNavigation(
             label = "Previous",
             enabled = currentIndex > 0,
             emphasized = false,
+            palette = palette,
             onClick = onPrevious
         )
         AiNavButton(
             label = "Next",
             enabled = currentIndex < lastIndex,
             emphasized = true,
+            palette = palette,
             onClick = onNext
         )
     }
 }
 
 @Composable
-internal fun AiBadge() {
+internal fun AiBadge(palette: WalkthroughPalette) {
     Box(
         modifier = Modifier
             .clip(CircleShape)
-            .background(brush = Brush.linearGradient(WalkthroughWidgetStyle.badgeGradientColors))
+            .background(brush = Brush.linearGradient(palette.badgeGradientColors))
             .padding(
                 horizontal = WalkthroughWidgetStyle.badgePaddingHorizontal,
                 vertical = WalkthroughWidgetStyle.badgePaddingVertical
@@ -154,15 +146,16 @@ internal fun AiNavButton(
     label: String,
     enabled: Boolean,
     emphasized: Boolean,
+    palette: WalkthroughPalette,
     onClick: () -> Unit
 ) {
     val backgroundBrush = if (emphasized) {
-        Brush.linearGradient(WalkthroughWidgetStyle.navPrimaryGradientColors)
+        Brush.linearGradient(palette.navPrimaryGradientColors)
     } else {
         Brush.linearGradient(WalkthroughWidgetStyle.navSecondaryGradientColors)
     }
     val borderColor = if (emphasized) {
-        WalkthroughWidgetStyle.navPrimaryBorderColor
+        palette.navPrimaryBorderColor
     } else {
         Color.White.copy(alpha = WalkthroughWidgetStyle.CLOSE_BUTTON_BORDER_ALPHA)
     }

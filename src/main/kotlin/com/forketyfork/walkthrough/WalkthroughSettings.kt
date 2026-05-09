@@ -1,0 +1,51 @@
+package com.forketyfork.walkthrough
+
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.components.PersistentStateComponent
+import com.intellij.openapi.components.State
+import com.intellij.openapi.components.Storage
+
+@State(
+    name = "com.forketyfork.walkthrough.WalkthroughSettings",
+    storages = [Storage("com.forketyfork.walkthrough.settings.xml")]
+)
+internal class WalkthroughSettings : PersistentStateComponent<WalkthroughSettings.State> {
+    private var state = State()
+
+    var selectedPaletteId: String
+        get() = state.selectedPaletteId
+        set(value) {
+            val palette = WalkthroughPalettes.byId(value)
+            if (state.selectedPaletteId == palette.id) {
+                return
+            }
+            state.selectedPaletteId = palette.id
+            notifyPaletteChanged(palette)
+        }
+
+    val selectedPalette: WalkthroughPalette
+        get() = WalkthroughPalettes.byId(selectedPaletteId)
+
+    override fun getState(): State = state
+
+    override fun loadState(state: State) {
+        this.state = state
+        this.state.selectedPaletteId = WalkthroughPalettes.byId(state.selectedPaletteId).id
+    }
+
+    class State {
+        var selectedPaletteId: String = WalkthroughPalettes.default.id
+    }
+
+    private fun notifyPaletteChanged(palette: WalkthroughPalette) {
+        ApplicationManager.getApplication()
+            .messageBus
+            .syncPublisher(WalkthroughSettingsListener.TOPIC)
+            .paletteChanged(palette)
+    }
+
+    companion object {
+        fun getInstance(): WalkthroughSettings =
+            ApplicationManager.getApplication().getService(WalkthroughSettings::class.java)
+    }
+}

@@ -51,8 +51,6 @@ private object WalkthroughPopupContentStyle {
     val scrollbarMinHeight = 28.dp
     val scrollbarThickness = 6.dp
     const val SCROLLBAR_HOVER_DURATION_MS = 300
-    val scrollbarUnhoverColor = WalkthroughColors.scrollbarIndigo
-    val scrollbarHoverColor = WalkthroughColors.pink
     const val ANIMATION_START = 0f
     const val ANIMATION_END = 1f
     const val GRADIENT_ANIMATION_DURATION_MS = 5400
@@ -62,32 +60,14 @@ private object WalkthroughPopupContentStyle {
     // SkiaLayer (and the editor underneath the translucent popup corners) only repaints at
     // this cadence. Lower values save more CPU at the cost of visible stepping.
     const val ANIMATION_FRAME_INTERVAL_MS = 67L
-    val backgroundGradientColors = listOf(
-        WalkthroughColors.veryDarkPurple,
-        WalkthroughColors.darkPurple,
-        WalkthroughColors.magenta,
-        WalkthroughColors.navyBlue
-    )
     const val BACKGROUND_START_X_SHIFT = 0.7f
     const val BACKGROUND_START_Y_SHIFT = 0.2f
     const val BACKGROUND_END_X_SHIFT = 0.5f
     const val BACKGROUND_END_Y_SHIFT = 1.1f
-    val glowGradientColors = listOf(
-        WalkthroughColors.lightPink.copy(alpha = 0.4f),
-        WalkthroughColors.glowLavender,
-        Color.Transparent
-    )
     const val GLOW_CENTER_BASE_X = 0.18f
     const val GLOW_CENTER_SHIFT_X = 0.62f
     const val GLOW_CENTER_Y = 0.2f
     const val GLOW_RADIUS_FACTOR = 0.95f
-    val overlayColor = WalkthroughColors.overlay
-    val borderGradientColors = listOf(
-        WalkthroughColors.purple,
-        WalkthroughColors.pink,
-        WalkthroughColors.blue,
-        WalkthroughColors.purple
-    )
     const val BORDER_GRADIENT_START_SHIFT = 1f
     const val BORDER_ALPHA = 0.9f
     val borderStrokeWidth = 1.5.dp
@@ -104,7 +84,6 @@ private object WalkthroughPopupContentStyle {
     const val HEADER_BORDER_ALPHA = 0.08f
     val headerPaddingHorizontal = 8.dp
     val headerPaddingVertical = 6.dp
-    val metaTextColor = WalkthroughColors.textMeta
     val metaTextSize = 12.sp
     val bodyCornerRadius = 18.dp
     const val BODY_BACKGROUND_ALPHA = 0.08f
@@ -128,6 +107,7 @@ private data class WalkthroughPopupAnimationState(
 internal fun WalkthroughItemContent(
     project: Project,
     items: List<WalkthroughItem>,
+    palette: WalkthroughPalette,
     onItemDisplayed: (WalkthroughItem) -> Unit,
     onNavigateToSource: (WalkthroughItem) -> Unit,
     onClose: () -> Unit
@@ -136,7 +116,7 @@ internal fun WalkthroughItemContent(
     val item = items[currentIndex]
     val scrollState = rememberScrollState()
     val animationState = rememberPopupAnimationState()
-    val scrollbarStyle = rememberPopupScrollbarStyle()
+    val scrollbarStyle = rememberPopupScrollbarStyle(palette)
     val showScrollbar = scrollState.maxValue > 0
 
     LaunchedEffect(item) {
@@ -150,6 +130,7 @@ internal fun WalkthroughItemContent(
             item = item,
             items = items,
             currentIndex = currentIndex,
+            palette = palette,
             scrollState = scrollState,
             showScrollbar = showScrollbar,
             animationState = animationState,
@@ -186,15 +167,15 @@ private fun rememberPopupAnimationState(): WalkthroughPopupAnimationState {
 }
 
 @Composable
-private fun rememberPopupScrollbarStyle(): ScrollbarStyle =
-    remember {
+private fun rememberPopupScrollbarStyle(palette: WalkthroughPalette): ScrollbarStyle =
+    remember(palette) {
         ScrollbarStyle(
             minimalHeight = WalkthroughPopupContentStyle.scrollbarMinHeight,
             thickness = WalkthroughPopupContentStyle.scrollbarThickness,
             shape = CircleShape,
             hoverDurationMillis = WalkthroughPopupContentStyle.SCROLLBAR_HOVER_DURATION_MS,
-            unhoverColor = WalkthroughPopupContentStyle.scrollbarUnhoverColor,
-            hoverColor = WalkthroughPopupContentStyle.scrollbarHoverColor
+            unhoverColor = palette.scrollbarUnhoverColor,
+            hoverColor = palette.scrollbarHoverColor
         )
     }
 
@@ -204,6 +185,7 @@ private fun WalkthroughPopupFrame(
     item: WalkthroughItem,
     items: List<WalkthroughItem>,
     currentIndex: Int,
+    palette: WalkthroughPalette,
     scrollState: ScrollState,
     showScrollbar: Boolean,
     animationState: WalkthroughPopupAnimationState,
@@ -217,7 +199,7 @@ private fun WalkthroughPopupFrame(
         modifier = Modifier
             .fillMaxSize()
             .clip(shape)
-            .walkthroughPopupBackground(animationState)
+            .walkthroughPopupBackground(animationState, palette)
     ) {
         AiCloseButton(
             modifier = Modifier
@@ -246,7 +228,7 @@ private fun WalkthroughPopupFrame(
                 ),
             verticalArrangement = Arrangement.spacedBy(WalkthroughPopupContentStyle.contentSectionSpacing)
         ) {
-            WalkthroughPopupHeader(item = item, items = items, currentIndex = currentIndex)
+            WalkthroughPopupHeader(item = item, items = items, currentIndex = currentIndex, palette = palette)
             WalkthroughPopupBody(
                 project = project,
                 item = item,
@@ -257,6 +239,7 @@ private fun WalkthroughPopupFrame(
                 WalkthroughPopupNavigation(
                     currentIndex = currentIndex,
                     lastIndex = items.lastIndex,
+                    palette = palette,
                     onPrevious = onPrevious,
                     onNext = onNext
                 )
@@ -266,14 +249,15 @@ private fun WalkthroughPopupFrame(
 }
 
 private fun Modifier.walkthroughPopupBackground(
-    animationState: WalkthroughPopupAnimationState
+    animationState: WalkthroughPopupAnimationState,
+    palette: WalkthroughPalette
 ): Modifier = drawWithCache {
     val cornerRadius = CornerRadius(
         WalkthroughPopupContentStyle.cornerRadius.toPx(),
         WalkthroughPopupContentStyle.cornerRadius.toPx()
     )
     val backgroundBrush = Brush.linearGradient(
-        colors = WalkthroughPopupContentStyle.backgroundGradientColors,
+        colors = palette.backgroundGradientColors,
         start = Offset(
             size.width * (animationState.gradientShift - WalkthroughPopupContentStyle.BACKGROUND_START_X_SHIFT),
             -size.height * WalkthroughPopupContentStyle.BACKGROUND_START_Y_SHIFT
@@ -284,7 +268,7 @@ private fun Modifier.walkthroughPopupBackground(
         )
     )
     val glowBrush = Brush.radialGradient(
-        colors = WalkthroughPopupContentStyle.glowGradientColors,
+        colors = palette.glowGradientColors,
         center = Offset(
             size.width * (
                 WalkthroughPopupContentStyle.GLOW_CENTER_BASE_X +
@@ -295,7 +279,7 @@ private fun Modifier.walkthroughPopupBackground(
         radius = size.minDimension * WalkthroughPopupContentStyle.GLOW_RADIUS_FACTOR
     )
     val borderBrush = Brush.linearGradient(
-        colors = WalkthroughPopupContentStyle.borderGradientColors,
+        colors = palette.borderGradientColors,
         start = Offset(
             size.width * (animationState.gradientShift - WalkthroughPopupContentStyle.BORDER_GRADIENT_START_SHIFT),
             0f
@@ -306,7 +290,7 @@ private fun Modifier.walkthroughPopupBackground(
     onDrawBehind {
         drawRoundRect(brush = backgroundBrush, cornerRadius = cornerRadius)
         drawRoundRect(brush = glowBrush, cornerRadius = cornerRadius)
-        drawRoundRect(color = WalkthroughPopupContentStyle.overlayColor, cornerRadius = cornerRadius)
+        drawRoundRect(color = palette.overlayColor, cornerRadius = cornerRadius)
         drawRoundRect(
             brush = borderBrush,
             cornerRadius = cornerRadius,
@@ -320,7 +304,8 @@ private fun Modifier.walkthroughPopupBackground(
 private fun WalkthroughPopupHeader(
     item: WalkthroughItem,
     items: List<WalkthroughItem>,
-    currentIndex: Int
+    currentIndex: Int,
+    palette: WalkthroughPalette
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(WalkthroughPopupContentStyle.headerSpacing),
@@ -339,18 +324,18 @@ private fun WalkthroughPopupHeader(
                 vertical = WalkthroughPopupContentStyle.headerPaddingVertical
             )
     ) {
-        AiBadge()
+        AiBadge(palette)
         if (items.size > 1) {
             Text(
                 text = "${currentIndex + 1} / ${items.size}",
-                color = WalkthroughPopupContentStyle.metaTextColor,
+                color = palette.metaTextColor,
                 fontSize = WalkthroughPopupContentStyle.metaTextSize,
                 fontWeight = FontWeight.Medium
             )
         } else if (item.line != null) {
             Text(
                 text = "Line ${item.line}",
-                color = WalkthroughPopupContentStyle.metaTextColor,
+                color = palette.metaTextColor,
                 fontSize = WalkthroughPopupContentStyle.metaTextSize,
                 fontWeight = FontWeight.Medium
             )
