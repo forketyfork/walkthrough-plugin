@@ -15,7 +15,12 @@ internal class WalkthroughSettings : PersistentStateComponent<WalkthroughSetting
     var selectedPaletteId: String
         get() = state.selectedPaletteId
         set(value) {
-            state.selectedPaletteId = WalkthroughPalettes.byId(value).id
+            val palette = WalkthroughPalettes.byId(value)
+            if (state.selectedPaletteId == palette.id) {
+                return
+            }
+            state.selectedPaletteId = palette.id
+            notifyPaletteChanged(palette)
         }
 
     val selectedPalette: WalkthroughPalette
@@ -25,11 +30,18 @@ internal class WalkthroughSettings : PersistentStateComponent<WalkthroughSetting
 
     override fun loadState(state: State) {
         this.state = state
-        selectedPaletteId = state.selectedPaletteId
+        this.state.selectedPaletteId = WalkthroughPalettes.byId(state.selectedPaletteId).id
     }
 
     class State {
         var selectedPaletteId: String = WalkthroughPalettes.default.id
+    }
+
+    private fun notifyPaletteChanged(palette: WalkthroughPalette) {
+        ApplicationManager.getApplication()
+            .messageBus
+            .syncPublisher(WalkthroughSettingsListener.TOPIC)
+            .paletteChanged(palette)
     }
 
     companion object {

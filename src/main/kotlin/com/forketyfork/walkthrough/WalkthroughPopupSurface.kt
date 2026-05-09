@@ -51,7 +51,7 @@ private data class ConnectorPaintContext(
 
 internal class WalkthroughPopupSurface(
     val content: JComponent,
-    private val palette: WalkthroughPalette,
+    private var palette: WalkthroughPalette,
     private val onCloseRequested: () -> Unit
 ) : JComponent(), VisibleAreaListener, Disposable {
     private var editor: Editor? = null
@@ -103,6 +103,11 @@ internal class WalkthroughPopupSurface(
             }
         }
         refreshBounds()
+        repaint()
+    }
+
+    fun updatePalette(palette: WalkthroughPalette) {
+        this.palette = palette
         repaint()
     }
 

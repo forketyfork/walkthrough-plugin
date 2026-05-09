@@ -7,6 +7,7 @@ import com.intellij.util.ui.JBUI
 import java.awt.Color as AwtColor
 import java.awt.Component
 import java.awt.Dimension
+import java.awt.Font
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.GridBagConstraints
@@ -20,10 +21,13 @@ import java.awt.event.MouseEvent
 import java.awt.geom.RoundRectangle2D
 import javax.swing.ButtonGroup
 import javax.swing.JComponent
+import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JRadioButton
 
 private object WalkthroughSettingsStyle {
+    const val HEADING_BOTTOM_GAP = 4
+    const val DESCRIPTION_BOTTOM_GAP = 14
     const val SWATCH_WIDTH = 92
     const val SWATCH_HEIGHT = 24
     const val SWATCH_ARC = 8
@@ -50,8 +54,18 @@ internal class WalkthroughSettingsConfigurable : Configurable {
             border = JBUI.Borders.empty(WalkthroughSettingsStyle.PANEL_PADDING)
             background = JBColor.PanelBackground
         }
+        var gridRow = 0
 
-        WalkthroughPalettes.all.forEachIndexed { index, palette ->
+        panel.add(
+            settingsHeading(),
+            fullWidthConstraints(gridRow++, WalkthroughSettingsStyle.HEADING_BOTTOM_GAP)
+        )
+        panel.add(
+            settingsDescription(),
+            fullWidthConstraints(gridRow++, WalkthroughSettingsStyle.DESCRIPTION_BOTTOM_GAP)
+        )
+
+        WalkthroughPalettes.all.forEach { palette ->
             val selectOnPress = object : MouseAdapter() {
                 override fun mousePressed(event: MouseEvent) {
                     selectPalette(palette.id)
@@ -72,10 +86,10 @@ internal class WalkthroughSettingsConfigurable : Configurable {
 
             buttonGroup.add(radioButton)
             buttons[palette.id] = radioButton
-            panel.add(row, rowConstraints(index))
+            panel.add(row, rowConstraints(gridRow++))
         }
 
-        panel.add(JPanel().apply { isOpaque = false }, fillerConstraints())
+        panel.add(JPanel().apply { isOpaque = false }, fillerConstraints(gridRow))
         paletteButtons = buttons
         return panel
     }
@@ -102,26 +116,46 @@ internal class WalkthroughSettingsConfigurable : Configurable {
     private fun updateSelection() {
         paletteButtons[selectedPaletteId]?.isSelected = true
     }
-
-    private fun rowConstraints(index: Int): GridBagConstraints =
-        GridBagConstraints().apply {
-            gridx = 0
-            gridy = index
-            weightx = 1.0
-            fill = GridBagConstraints.HORIZONTAL
-            anchor = GridBagConstraints.NORTHWEST
-            insets = Insets(0, 0, WalkthroughSettingsStyle.ROW_GAP, 0)
-        }
-
-    private fun fillerConstraints(): GridBagConstraints =
-        GridBagConstraints().apply {
-            gridx = 0
-            gridy = WalkthroughPalettes.all.size
-            weightx = 1.0
-            weighty = 1.0
-            fill = GridBagConstraints.BOTH
-        }
 }
+
+private fun settingsHeading(): JLabel =
+    JLabel("Walkthrough popup colors").apply {
+        font = font.deriveFont(Font.BOLD)
+    }
+
+private fun settingsDescription(): JLabel =
+    JLabel("These palettes style the popup background, border, controls, scrollbar, and source connector.").apply {
+        foreground = JBColor.GRAY
+    }
+
+private fun fullWidthConstraints(gridRow: Int, bottomInset: Int): GridBagConstraints =
+    GridBagConstraints().apply {
+        gridx = 0
+        gridy = gridRow
+        weightx = 1.0
+        fill = GridBagConstraints.HORIZONTAL
+        anchor = GridBagConstraints.NORTHWEST
+        insets = Insets(0, 0, bottomInset, 0)
+    }
+
+private fun rowConstraints(gridRow: Int): GridBagConstraints =
+    GridBagConstraints().apply {
+        gridx = 0
+        gridy = gridRow
+        weightx = 1.0
+        fill = GridBagConstraints.HORIZONTAL
+        anchor = GridBagConstraints.NORTHWEST
+        insets = Insets(0, 0, WalkthroughSettingsStyle.ROW_GAP, 0)
+    }
+
+private fun fillerConstraints(gridRow: Int): GridBagConstraints =
+    GridBagConstraints().apply {
+        gridx = 0
+        gridy = gridRow
+        weightx = 1.0
+        weighty = 1.0
+        fill = GridBagConstraints.BOTH
+    }
 
 private class PaletteRow(
     radioButton: JRadioButton,

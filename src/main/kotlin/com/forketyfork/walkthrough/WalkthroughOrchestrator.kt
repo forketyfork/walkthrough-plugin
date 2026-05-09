@@ -1,5 +1,7 @@
 package com.forketyfork.walkthrough
 
+import androidx.compose.runtime.mutableStateOf
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.LogicalPosition
 import com.intellij.openapi.editor.ScrollType
@@ -18,7 +20,7 @@ import javax.swing.SwingUtilities
 
 fun showWalkthroughItems(project: Project, editor: Editor, items: List<WalkthroughItem>) {
     if (items.isEmpty()) return
-    val palette = WalkthroughSettings.getInstance().selectedPalette
+    val paletteState = mutableStateOf(WalkthroughSettings.getInstance().selectedPalette)
     val sessionDisposable = Disposer.newCheckedDisposable("WalkthroughPopupSession")
     Disposer.register(project, sessionDisposable)
 
@@ -30,6 +32,16 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
         popupRef?.let { popup ->
             popup.refreshBounds()
             popup.repaint()
+        }
+    }
+
+    fun updatePopupPalette(palette: WalkthroughPalette) {
+        SwingUtilities.invokeLater {
+            if (sessionDisposable.isDisposed) {
+                return@invokeLater
+            }
+            paletteState.value = palette
+            popupRef?.updatePalette(palette)
         }
     }
 
@@ -55,7 +67,7 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
     val panel = createWalkthroughPanel(
         project = project,
         items = items,
-        palette = palette,
+        paletteProvider = { paletteState.value },
         onItemDisplayed = ::scheduleItemNavigation,
         onNavigateToSource = ::scheduleItemNavigation,
         onClose = { popupRef?.cancel() }
@@ -78,10 +90,18 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
             }
         }
     )
+    ApplicationManager.getApplication().messageBus.connect(sessionDisposable).subscribe(
+        WalkthroughSettingsListener.TOPIC,
+        object : WalkthroughSettingsListener {
+            override fun paletteChanged(palette: WalkthroughPalette) {
+                updatePopupPalette(palette)
+            }
+        }
+    )
 
     val popup = WalkthroughPopupSurface(
         content = panel,
-        palette = palette,
+        palette = paletteState.value,
         onCloseRequested = {
             popupRef = null
             Disposer.dispose(sessionDisposable)
@@ -96,7 +116,7 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
 private fun createWalkthroughPanel(
     project: Project,
     items: List<WalkthroughItem>,
-    palette: WalkthroughPalette,
+    paletteProvider: () -> WalkthroughPalette,
     onItemDisplayed: (WalkthroughItem) -> Unit,
     onNavigateToSource: (WalkthroughItem) -> Unit,
     onClose: () -> Unit
@@ -105,7 +125,7 @@ private fun createWalkthroughPanel(
         WalkthroughItemContent(
             project = project,
             items = items,
-            palette = palette,
+            palette = paletteProvider(),
             onItemDisplayed = onItemDisplayed,
             onNavigateToSource = onNavigateToSource,
             onClose = onClose
