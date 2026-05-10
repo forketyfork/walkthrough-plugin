@@ -1,5 +1,6 @@
 package com.forketyfork.walkthrough
 
+import com.intellij.openapi.application.runReadActionBlocking
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.LogicalPosition
 import com.intellij.openapi.editor.ScrollType
@@ -63,8 +64,9 @@ private fun findWalkthroughFile(project: Project, relativePath: String) =
         ?.toString()
         ?.let(LocalFileSystem.getInstance()::findFileByPath)
 
-private fun VirtualFile.lineCount(): Int? =
+private fun VirtualFile.lineCount(): Int? = runReadActionBlocking {
     FileDocumentManager.getInstance().getDocument(this)?.lineCount
+}
 
 private fun openEditor(
     project: Project,
