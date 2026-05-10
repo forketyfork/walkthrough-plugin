@@ -29,6 +29,7 @@
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">
         <applicationService serviceImplementation="com.forketyfork.walkthrough.WalkthroughSettings"/>
+        <projectService serviceImplementation="com.forketyfork.walkthrough.WalkthroughHistoryService"/>
         <applicationConfigurable
                 parentId="tools"
                 instance="com.forketyfork.walkthrough.WalkthroughSettingsConfigurable"
@@ -39,4 +40,15 @@
     <extensions defaultExtensionNs="com.intellij.mcpServer">
         <mcpToolset implementation="com.forketyfork.walkthrough.ShowWalkthroughItemsToolset"/>
     </extensions>
+
+    <actions>
+        <group id="com.forketyfork.walkthrough.Group" text="Walkthrough" popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <action
+                id="com.forketyfork.walkthrough.ShowHistory"
+                class="com.forketyfork.walkthrough.WalkthroughHistoryAction"
+                text="Show Walkthrough History"
+                description="Show previous walkthroughs for the current project"/>
+        </group>
+    </actions>
 </idea-plugin>

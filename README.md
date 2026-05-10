@@ -14,10 +14,12 @@ line, and lets the user step through a sequence of walkthrough items.
 ## Features
 
 - An MCP tool, `show_walkthrough_items`, that accepts JSON input and displays one or more
-  walkthrough items.
+  walkthrough items with a description for history.
 - Optional file and line navigation for each item, so a walkthrough can jump to the right place
   before rendering.
 - Previous and Next navigation inside the popup for multi-step walkthroughs.
+- Per-project walkthrough history stored under `.idea/walkthroughs/`, with a keymap-bindable
+  action for replaying previous walkthroughs.
 - A Compose-based popup UI rendered through Jewel on the IntelliJ Platform.
 
 ## Prerequisites

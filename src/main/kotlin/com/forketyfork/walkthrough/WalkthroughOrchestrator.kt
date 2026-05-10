@@ -3,29 +3,34 @@ package com.forketyfork.walkthrough
 import androidx.compose.runtime.mutableStateOf
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
-import com.intellij.openapi.editor.LogicalPosition
-import com.intellij.openapi.editor.ScrollType
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
-import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
-import com.intellij.openapi.vfs.LocalFileSystem
 import org.jetbrains.jewel.bridge.JewelComposePanel
 import java.awt.Color as AwtColor
 import java.awt.Dimension
 import javax.swing.JComponent
 import javax.swing.SwingUtilities
 
-fun showWalkthroughItems(project: Project, editor: Editor, items: List<WalkthroughItem>) {
-    if (items.isEmpty()) return
+fun showWalkthroughItems(project: Project, items: List<WalkthroughItem>): Boolean {
+    val fallbackEditor = FileEditorManager.getInstance(project).selectedTextEditor
+    val target = items.firstOrNull()
+        ?.let { item -> resolveWalkthroughTarget(project, fallbackEditor, item) }
+    return target?.let { resolved -> showWalkthroughItems(project, resolved.editor, items) } ?: false
+}
+
+fun showWalkthroughItems(project: Project, editor: Editor, items: List<WalkthroughItem>): Boolean {
+    val firstTarget = items.firstOrNull()
+        ?.let { item -> resolveWalkthroughTarget(project, editor, item) }
+        ?: return false
     val paletteState = mutableStateOf(WalkthroughSettings.getInstance().selectedPalette)
     val sessionDisposable = Disposer.newCheckedDisposable("WalkthroughPopupSession")
     Disposer.register(project, sessionDisposable)
 
     var popupRef: WalkthroughPopupSurface? = null
-    var currentEditor = editor
+    var currentEditor = firstTarget.editor
     var pendingNavigationId = 0
 
     fun repaintPopup() {
@@ -47,10 +52,11 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
 
     fun showItem(item: WalkthroughItem) {
         val popup = popupRef ?: return
-        currentEditor = navigateToItem(project, currentEditor, item)
-        popup.update(currentEditor, item)
+        val target = resolveWalkthroughTarget(project, currentEditor, item) ?: return
+        currentEditor = target.editor
+        popup.update(currentEditor, target.popupItem)
         popup.connectorHidden = false
-        movePopupNearItem(popup, currentEditor, item, ::repaintPopup)
+        movePopupNearItem(popup, currentEditor, target.popupItem, ::repaintPopup)
     }
 
     fun scheduleItemNavigation(item: WalkthroughItem) {
@@ -109,8 +115,9 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
     )
     popupRef = popup
     Disposer.register(sessionDisposable, popup)
-    popup.update(currentEditor, items.first())
-    movePopupNearItem(popup, currentEditor, items.first(), ::repaintPopup)
+    popup.update(currentEditor, firstTarget.popupItem)
+    movePopupNearItem(popup, currentEditor, firstTarget.popupItem, ::repaintPopup)
+    return true
 }
 
 private fun createWalkthroughPanel(
@@ -140,35 +147,3 @@ private fun createWalkthroughPanel(
         )
         preferredSize = WalkthroughPopupLayout.fallbackSize
     }
-
-private fun navigateToItem(project: Project, fallbackEditor: Editor, item: WalkthroughItem): Editor {
-    val fileEditorManager = FileEditorManager.getInstance(project)
-    return item.file
-        ?.let { relativePath -> openItemEditor(project, fileEditorManager, item, relativePath) }
-        ?: moveCaretToItemLine(fileEditorManager.selectedTextEditor ?: fallbackEditor, item.line)
-}
-
-private fun openItemEditor(
-    project: Project,
-    fileEditorManager: FileEditorManager,
-    item: WalkthroughItem,
-    relativePath: String
-): Editor? {
-    val virtualFile = findWalkthroughFile(project, relativePath) ?: return null
-    val lineIndex = (item.line ?: 1).coerceAtLeast(1) - 1
-    return fileEditorManager.openTextEditor(OpenFileDescriptor(project, virtualFile, lineIndex, 0), true)
-}
-
-private fun findWalkthroughFile(project: Project, relativePath: String) =
-    project.basePath
-        ?.let { "$it/$relativePath" }
-        ?.let(LocalFileSystem.getInstance()::findFileByPath)
-
-private fun moveCaretToItemLine(editor: Editor, line: Int?): Editor {
-    if (line != null) {
-        val logicalLine = (line - 1).coerceIn(0, editor.document.lineCount - 1)
-        editor.caretModel.moveToLogicalPosition(LogicalPosition(logicalLine, 0))
-        editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
-    }
-    return editor
-}
