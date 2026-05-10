@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0]
+
+### Added
+
+- Per-project walkthrough history callable via a hotkey (#10).
+- Settings with selectable color palettes for the popups (#11).
+
+## [0.1.1]
+
+### Fixed
+
+- Fixed an issue with high CPU usage (#6).
+
 ## [0.1.0]
 
 ### Added
