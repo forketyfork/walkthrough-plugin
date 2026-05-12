@@ -26,7 +26,10 @@ class ShowWalkthroughItemsToolset : McpToolset {
             "with Previous and Next buttons. The walkthrough is saved to this project's history. " +
             "Top-level items are auto-labeled '1', '2', '3', etc. " +
             "The returned message includes a walkthroughId; pass it to await_walkthrough_question " +
-            "to react to follow-up questions the user types into the popup."
+            "to react to follow-up questions the user types into the popup. " +
+            "After this tool returns, immediately call await_walkthrough_question with that walkthroughId. " +
+            "Do not stop after showing the walkthrough; the waiting tool call is required for the plugin " +
+            "to deliver user questions back to you."
     )
     suspend fun showWalkthroughItems(
         @McpDescription(
@@ -61,7 +64,9 @@ class ShowWalkthroughItemsToolset : McpToolset {
         val historySuffix = record
             ?.let { "; saved to history as ${it.id}" }
             ?: "; history was not saved"
-        return "Walkthrough shown with walkthroughId=${session.id} (steps: $labels)$historySuffix"
+        return "Walkthrough shown with walkthroughId=${session.id} (steps: $labels)$historySuffix. " +
+            "Next: immediately call await_walkthrough_question with walkthroughId=${session.id} " +
+            "and keep waiting for questions until it returns dismissed."
     }
 
     @Suppress("unused")
@@ -70,8 +75,9 @@ class ShowWalkthroughItemsToolset : McpToolset {
         "Suspends until the user types a follow-up question into the active walkthrough popup " +
             "and presses Send, then returns the question text along with the label of the step " +
             "the user was viewing. Returns 'dismissed' if the user closes the popup before asking. " +
-            "Call this in a loop after show_walkthrough_items to react to questions; call " +
-            "insert_walkthrough_tangents to splice the answer into the walkthrough as labeled child steps."
+            "Call this immediately after show_walkthrough_items returns, and call it again after each " +
+            "insert_walkthrough_tangents response. Keep waiting in this loop until this tool returns dismissed. " +
+            "Call insert_walkthrough_tangents to splice each answer into the walkthrough as labeled child steps."
     )
     suspend fun awaitWalkthroughQuestion(
         @McpDescription("The walkthroughId returned by show_walkthrough_items.") walkthroughId: String
@@ -99,7 +105,8 @@ class ShowWalkthroughItemsToolset : McpToolset {
             "New child labels are derived automatically by appending '.N' to the parent label: " +
             "the first tangent under '3' becomes '3.1', the next '3.2', and so on. The popup " +
             "auto-navigates to the first inserted step. Clears the inline loading spinner so " +
-            "the user can ask another question."
+            "the user can ask another question. After this tool returns, immediately call " +
+            "await_walkthrough_question again with the same walkthroughId."
     )
     suspend fun insertWalkthroughTangents(
         @McpDescription("The walkthroughId returned by show_walkthrough_items.") walkthroughId: String,
