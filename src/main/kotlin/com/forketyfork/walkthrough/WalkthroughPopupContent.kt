@@ -106,18 +106,21 @@ private data class WalkthroughPopupAnimationState(
 @Composable
 internal fun WalkthroughItemContent(
     project: Project,
-    items: List<WalkthroughItem>,
+    session: WalkthroughSession,
     palette: WalkthroughPalette,
     onItemDisplayed: (WalkthroughItem) -> Unit,
     onNavigateToSource: (WalkthroughItem) -> Unit,
     onClose: () -> Unit
 ) {
-    var currentIndex by remember { mutableStateOf(0) }
-    val item = items[currentIndex]
+    val items = session.items
+    var currentIndex by session.currentIndexState
+    val safeIndex = currentIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+    val item = items.getOrNull(safeIndex) ?: return
     val scrollState = rememberScrollState()
     val animationState = rememberPopupAnimationState()
     val scrollbarStyle = rememberPopupScrollbarStyle(palette)
     val showScrollbar = scrollState.maxValue > 0
+    val isLoading by session.loadingState
 
     LaunchedEffect(item) {
         scrollState.scrollTo(0)
@@ -129,14 +132,17 @@ internal fun WalkthroughItemContent(
             project = project,
             item = item,
             items = items,
-            currentIndex = currentIndex,
+            currentIndex = safeIndex,
+            acceptsQuestions = session.acceptsQuestions,
+            isLoading = isLoading,
             palette = palette,
             scrollState = scrollState,
             showScrollbar = showScrollbar,
             animationState = animationState,
-            onPrevious = { currentIndex-- },
-            onNext = { currentIndex++ },
+            onPrevious = { currentIndex = (safeIndex - 1).coerceAtLeast(0) },
+            onNext = { currentIndex = (safeIndex + 1).coerceAtMost(items.lastIndex) },
             onNavigateToSource = { onNavigateToSource(item) },
+            onSubmitQuestion = { text -> session.submitQuestion(text) },
             onClose = onClose
         )
     }
@@ -179,12 +185,15 @@ private fun rememberPopupScrollbarStyle(palette: WalkthroughPalette): ScrollbarS
         )
     }
 
+@Suppress("LongParameterList")
 @Composable
 private fun WalkthroughPopupFrame(
     project: Project,
     item: WalkthroughItem,
     items: List<WalkthroughItem>,
     currentIndex: Int,
+    acceptsQuestions: Boolean,
+    isLoading: Boolean,
     palette: WalkthroughPalette,
     scrollState: ScrollState,
     showScrollbar: Boolean,
@@ -192,6 +201,7 @@ private fun WalkthroughPopupFrame(
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onNavigateToSource: () -> Unit,
+    onSubmitQuestion: (String) -> Unit,
     onClose: () -> Unit
 ) {
     val shape = RoundedCornerShape(WalkthroughPopupContentStyle.cornerRadius)
@@ -242,6 +252,13 @@ private fun WalkthroughPopupFrame(
                     palette = palette,
                     onPrevious = onPrevious,
                     onNext = onNext
+                )
+            }
+            if (acceptsQuestions) {
+                WalkthroughQuestionInput(
+                    isLoading = isLoading,
+                    palette = palette,
+                    onSubmit = onSubmitQuestion
                 )
             }
         }
@@ -325,22 +342,29 @@ private fun WalkthroughPopupHeader(
             )
     ) {
         AiBadge(palette)
-        if (items.size > 1) {
+        val meta = headerMetaText(item = item, items = items, currentIndex = currentIndex)
+        if (meta != null) {
             Text(
-                text = "${currentIndex + 1} / ${items.size}",
-                color = palette.metaTextColor,
-                fontSize = WalkthroughPopupContentStyle.metaTextSize,
-                fontWeight = FontWeight.Medium
-            )
-        } else if (item.line != null) {
-            Text(
-                text = "Line ${item.line}",
+                text = meta,
                 color = palette.metaTextColor,
                 fontSize = WalkthroughPopupContentStyle.metaTextSize,
                 fontWeight = FontWeight.Medium
             )
         }
     }
+}
+
+private fun headerMetaText(item: WalkthroughItem, items: List<WalkthroughItem>, currentIndex: Int): String? {
+    val label = item.label
+    val lineSuffix = item.line?.let { "Line $it" }
+    val parts = buildList {
+        when {
+            label != null -> add("Step $label")
+            items.size > 1 -> add("${currentIndex + 1} / ${items.size}")
+        }
+        if (lineSuffix != null) add(lineSuffix)
+    }
+    return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
 
 @Composable
