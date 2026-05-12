@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0]
+
+### Added
+
+- You can now write comments to steps. The agent awaits for the comments and inserts clarifying steps into the
+  walkthrough.
+
 ## [0.2.0]
 
 ### Added
