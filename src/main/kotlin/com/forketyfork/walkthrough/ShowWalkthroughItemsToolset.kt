@@ -77,12 +77,19 @@ class ShowWalkthroughItemsToolset : McpToolset {
         @McpDescription("The walkthroughId returned by show_walkthrough_items.") walkthroughId: String
     ): String {
         val project = requireProject()
-        val session = WalkthroughSessionRegistry.getInstance(project).get(walkthroughId)
-            ?: mcpFail("Unknown walkthroughId: $walkthroughId")
-        val question = session.awaitQuestion()
-            ?: return "dismissed"
-        val parent = question.parentLabel ?: "(unknown)"
-        return "parentLabel=$parent\nquestion=${question.question}"
+        val registry = WalkthroughSessionRegistry.getInstance(project)
+        val session = registry.get(walkthroughId)
+        val question = when {
+            session != null -> session.awaitQuestion().also {
+                registry.consumeDismissed(walkthroughId)
+            }
+            registry.consumeDismissed(walkthroughId) -> null
+            else -> mcpFail("Unknown walkthroughId: $walkthroughId")
+        }
+        return question?.let {
+            val parent = it.parentLabel ?: "(unknown)"
+            "parentLabel=$parent\nquestion=${it.question}"
+        } ?: "dismissed"
     }
 
     @Suppress("unused")

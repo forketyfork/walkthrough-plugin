@@ -101,6 +101,20 @@ class WalkthroughSessionRegistryTest {
     }
 
     @Test
+    fun insertTangentsClearsLoadingAfterValidationFailure() {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only")))
+        )
+        session.loadingState.value = true
+
+        assertThrows(IllegalArgumentException::class.java) {
+            session.insertTangents("9", listOf(WalkthroughItem(text = "x")))
+        }
+
+        assertEquals(false, session.loadingState.value)
+    }
+
+    @Test
     fun awaitQuestionReturnsNullAfterDismiss() = runBlocking {
         val session = newSession(
             assignTopLevelLabels(listOf(WalkthroughItem(text = "only")))
@@ -126,5 +140,32 @@ class WalkthroughSessionRegistryTest {
         assertNotNull(question)
         assertEquals("2", question?.parentLabel)
         assertEquals("what about two?", question?.question)
+    }
+
+    @Test
+    fun submitQuestionClearsLoadingWhenChannelIsClosed() {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only")))
+        )
+        session.dismiss()
+
+        session.submitQuestion("what now?")
+
+        assertEquals(false, session.loadingState.value)
+    }
+
+    @Test
+    fun removeKeepsDismissedSessionQueryableUntilConsumed() {
+        val registry = WalkthroughSessionRegistry()
+        val session = registry.create(
+            items = assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
+            acceptsQuestions = true
+        )
+
+        registry.remove(session.id)
+
+        assertNull(registry.get(session.id))
+        assertEquals(true, registry.consumeDismissed(session.id))
+        assertEquals(false, registry.consumeDismissed(session.id))
     }
 }

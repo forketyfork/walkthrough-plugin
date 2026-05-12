@@ -1,6 +1,7 @@
 package com.forketyfork.walkthrough
 
 import androidx.compose.runtime.mutableStateOf
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -47,6 +48,14 @@ fun showWalkthroughSession(
 
     val registry = WalkthroughSessionRegistry.getInstance(project)
     val session = registry.create(items, acceptsQuestions)
+    Disposer.register(
+        sessionDisposable,
+        object : Disposable {
+            override fun dispose() {
+                registry.remove(session.id)
+            }
+        }
+    )
 
     var popupRef: WalkthroughPopupSurface? = null
     var currentEditor = firstTarget.editor

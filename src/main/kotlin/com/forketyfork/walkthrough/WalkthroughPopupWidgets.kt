@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -245,55 +244,71 @@ internal fun WalkthroughQuestionInput(
         horizontalArrangement = Arrangement.spacedBy(WalkthroughWidgetStyle.questionRowSpacing),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .clip(RoundedCornerShape(WalkthroughWidgetStyle.questionFieldRadius))
-                .background(
-                    Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_FIELD_BACKGROUND_ALPHA),
-                    RoundedCornerShape(WalkthroughWidgetStyle.questionFieldRadius)
-                )
-                .border(
-                    WalkthroughWidgetStyle.closeButtonBorderWidth,
-                    Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_FIELD_BORDER_ALPHA),
-                    RoundedCornerShape(WalkthroughWidgetStyle.questionFieldRadius)
-                )
-                .padding(
-                    horizontal = WalkthroughWidgetStyle.questionFieldPaddingHorizontal,
-                    vertical = WalkthroughWidgetStyle.questionFieldPaddingVertical
-                )
-        ) {
-            BasicTextField(
-                value = text,
-                onValueChange = { value -> text = value },
-                enabled = !isLoading,
-                singleLine = true,
-                textStyle = TextStyle(
-                    color = Color.White,
-                    fontSize = WalkthroughWidgetStyle.questionFieldTextSize,
-                    fontWeight = FontWeight.Normal
-                ),
-                cursorBrush = SolidColor(Color.White),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(onSend = { submit() }),
-                modifier = Modifier.fillMaxWidth(),
-                decorationBox = { innerTextField ->
-                    if (text.isEmpty()) {
-                        Text(
-                            text = "Ask a question about this step…",
-                            color = Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_PLACEHOLDER_ALPHA),
-                            fontSize = WalkthroughWidgetStyle.questionFieldTextSize
-                        )
-                    }
-                    innerTextField()
-                }
-            )
-        }
+        QuestionTextField(
+            text = text,
+            isLoading = isLoading,
+            onTextChange = { value -> text = value },
+            onSend = submit,
+            modifier = Modifier.weight(1f)
+        )
         if (isLoading) {
             QuestionSpinner(palette = palette)
         } else {
             SendQuestionButton(enabled = canSubmit, palette = palette, onClick = submit)
         }
+    }
+}
+
+@Composable
+private fun QuestionTextField(
+    text: String,
+    isLoading: Boolean,
+    onTextChange: (String) -> Unit,
+    onSend: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(WalkthroughWidgetStyle.questionFieldRadius))
+            .background(
+                Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_FIELD_BACKGROUND_ALPHA),
+                RoundedCornerShape(WalkthroughWidgetStyle.questionFieldRadius)
+            )
+            .border(
+                WalkthroughWidgetStyle.closeButtonBorderWidth,
+                Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_FIELD_BORDER_ALPHA),
+                RoundedCornerShape(WalkthroughWidgetStyle.questionFieldRadius)
+            )
+            .padding(
+                horizontal = WalkthroughWidgetStyle.questionFieldPaddingHorizontal,
+                vertical = WalkthroughWidgetStyle.questionFieldPaddingVertical
+            )
+    ) {
+        BasicTextField(
+            value = text,
+            onValueChange = onTextChange,
+            enabled = !isLoading,
+            singleLine = true,
+            textStyle = TextStyle(
+                color = Color.White,
+                fontSize = WalkthroughWidgetStyle.questionFieldTextSize,
+                fontWeight = FontWeight.Normal
+            ),
+            cursorBrush = SolidColor(Color.White),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+            keyboardActions = KeyboardActions(onSend = { onSend() }),
+            modifier = Modifier.fillMaxWidth(),
+            decorationBox = { innerTextField ->
+                if (text.isEmpty()) {
+                    Text(
+                        text = "Ask a question about this step…",
+                        color = Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_PLACEHOLDER_ALPHA),
+                        fontSize = WalkthroughWidgetStyle.questionFieldTextSize
+                    )
+                }
+                innerTextField()
+            }
+        )
     }
 }
 
