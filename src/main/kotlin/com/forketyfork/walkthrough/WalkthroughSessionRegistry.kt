@@ -4,12 +4,14 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicReference
 
 data class WalkthroughTangentQuestion(
     val question: String,
@@ -88,6 +90,14 @@ class WalkthroughSessionRegistry {
     private val sessions = ConcurrentHashMap<String, WalkthroughSession>()
     private val dismissedSessionIds = ConcurrentHashMap.newKeySet<String>()
     private val dismissedSessionOrder = ConcurrentLinkedQueue<String>()
+    private val activeSessionDisposable = AtomicReference<Disposable?>()
+
+    internal fun swapActive(newDisposable: Disposable): Disposable? =
+        activeSessionDisposable.getAndSet(newDisposable)
+
+    internal fun clearActive(disposable: Disposable) {
+        activeSessionDisposable.compareAndSet(disposable, null)
+    }
 
     internal fun create(items: List<WalkthroughItem>, acceptsQuestions: Boolean): WalkthroughSession {
         val session = WalkthroughSession(

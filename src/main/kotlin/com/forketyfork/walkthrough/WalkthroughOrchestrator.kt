@@ -47,12 +47,14 @@ fun showWalkthroughSession(
     Disposer.register(project, sessionDisposable)
 
     val registry = WalkthroughSessionRegistry.getInstance(project)
+    registry.swapActive(sessionDisposable)?.let(Disposer::dispose)
     val session = registry.create(items, acceptsQuestions)
     Disposer.register(
         sessionDisposable,
         object : Disposable {
             override fun dispose() {
                 registry.remove(session.id)
+                registry.clearActive(sessionDisposable)
             }
         }
     )
