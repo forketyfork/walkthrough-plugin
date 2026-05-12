@@ -1,9 +1,11 @@
 package com.forketyfork.walkthrough
 
+import com.intellij.openapi.Disposable
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
@@ -152,6 +154,31 @@ class WalkthroughSessionRegistryTest {
         session.submitQuestion("what now?")
 
         assertEquals(false, session.loadingState.value)
+    }
+
+    @Test
+    fun swapActiveReturnsPreviousDisposable() {
+        val registry = WalkthroughSessionRegistry()
+        val first = Disposable {}
+        val second = Disposable {}
+
+        assertNull(registry.swapActive(first))
+        assertSame(first, registry.swapActive(second))
+        assertSame(second, registry.swapActive(Disposable {}))
+    }
+
+    @Test
+    fun clearActiveOnlyClearsWhenDisposableStillMatches() {
+        val registry = WalkthroughSessionRegistry()
+        val first = Disposable {}
+        val second = Disposable {}
+
+        registry.swapActive(first)
+        registry.swapActive(second)
+
+        // first is stale — clearing it must not evict the current active disposable
+        registry.clearActive(first)
+        assertSame(second, registry.swapActive(Disposable {}))
     }
 
     @Test
