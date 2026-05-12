@@ -38,7 +38,9 @@ private data class WalkthroughRecordJson(
 private data class WalkthroughRecordItemJson(
     val text: String?,
     val file: String?,
-    val line: Int?
+    val line: Int?,
+    val label: String?,
+    val parentLabel: String?
 )
 
 internal class WalkthroughHistoryStore(
@@ -197,4 +199,12 @@ private fun WalkthroughRecordJson.toRecord(): WalkthroughRecord? {
 private fun WalkthroughRecordItemJson.toWalkthroughItemOrNull(): WalkthroughItem? =
     text
         ?.takeIf { value -> value.isNotBlank() }
-        ?.let { value -> WalkthroughItem(text = value, file = file, line = line) }
+        ?.let { value ->
+            WalkthroughItem(
+                text = value,
+                file = file,
+                line = line,
+                label = label?.takeIf { it.isNotBlank() },
+                parentLabel = parentLabel?.takeIf { it.isNotBlank() }
+            )
+        }

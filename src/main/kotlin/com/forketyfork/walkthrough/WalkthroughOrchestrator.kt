@@ -1,6 +1,7 @@
 package com.forketyfork.walkthrough
 
 import androidx.compose.runtime.mutableStateOf
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -14,20 +15,47 @@ import java.awt.Dimension
 import javax.swing.JComponent
 import javax.swing.SwingUtilities
 
-fun showWalkthroughItems(project: Project, items: List<WalkthroughItem>): Boolean {
+fun showWalkthroughItems(project: Project, items: List<WalkthroughItem>): Boolean =
+    showWalkthroughSession(project, items, acceptsQuestions = false) != null
+
+fun showWalkthroughItems(project: Project, editor: Editor, items: List<WalkthroughItem>): Boolean =
+    showWalkthroughSession(project, editor, items, acceptsQuestions = false) != null
+
+fun showWalkthroughSession(
+    project: Project,
+    items: List<WalkthroughItem>,
+    acceptsQuestions: Boolean
+): WalkthroughSession? {
     val fallbackEditor = FileEditorManager.getInstance(project).selectedTextEditor
     val target = items.firstOrNull()
         ?.let { item -> resolveWalkthroughTarget(project, fallbackEditor, item) }
-    return target?.let { resolved -> showWalkthroughItems(project, resolved.editor, items) } ?: false
+    return target?.let { resolved -> showWalkthroughSession(project, resolved.editor, items, acceptsQuestions) }
 }
 
-fun showWalkthroughItems(project: Project, editor: Editor, items: List<WalkthroughItem>): Boolean {
+@Suppress("LongMethod")
+fun showWalkthroughSession(
+    project: Project,
+    editor: Editor,
+    items: List<WalkthroughItem>,
+    acceptsQuestions: Boolean
+): WalkthroughSession? {
     val firstTarget = items.firstOrNull()
         ?.let { item -> resolveWalkthroughTarget(project, editor, item) }
-        ?: return false
+        ?: return null
     val paletteState = mutableStateOf(WalkthroughSettings.getInstance().selectedPalette)
     val sessionDisposable = Disposer.newCheckedDisposable("WalkthroughPopupSession")
     Disposer.register(project, sessionDisposable)
+
+    val registry = WalkthroughSessionRegistry.getInstance(project)
+    val session = registry.create(items, acceptsQuestions)
+    Disposer.register(
+        sessionDisposable,
+        object : Disposable {
+            override fun dispose() {
+                registry.remove(session.id)
+            }
+        }
+    )
 
     var popupRef: WalkthroughPopupSurface? = null
     var currentEditor = firstTarget.editor
@@ -72,7 +100,7 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
 
     val panel = createWalkthroughPanel(
         project = project,
-        items = items,
+        session = session,
         paletteProvider = { paletteState.value },
         onItemDisplayed = ::scheduleItemNavigation,
         onNavigateToSource = ::scheduleItemNavigation,
@@ -110,6 +138,7 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
         palette = paletteState.value,
         onCloseRequested = {
             popupRef = null
+            registry.remove(session.id)
             Disposer.dispose(sessionDisposable)
         }
     )
@@ -117,12 +146,12 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
     Disposer.register(sessionDisposable, popup)
     popup.update(currentEditor, firstTarget.popupItem)
     movePopupNearItem(popup, currentEditor, firstTarget.popupItem, ::repaintPopup)
-    return true
+    return session
 }
 
 private fun createWalkthroughPanel(
     project: Project,
-    items: List<WalkthroughItem>,
+    session: WalkthroughSession,
     paletteProvider: () -> WalkthroughPalette,
     onItemDisplayed: (WalkthroughItem) -> Unit,
     onNavigateToSource: (WalkthroughItem) -> Unit,
@@ -131,7 +160,7 @@ private fun createWalkthroughPanel(
     JewelComposePanel {
         WalkthroughItemContent(
             project = project,
-            items = items,
+            session = session,
             palette = paletteProvider(),
             onItemDisplayed = onItemDisplayed,
             onNavigateToSource = onNavigateToSource,

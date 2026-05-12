@@ -16,5 +16,7 @@ internal object WalkthroughPopupLayout {
 data class WalkthroughItem(
     val text: String,
     val file: String? = null,
-    val line: Int? = null
+    val line: Int? = null,
+    val label: String? = null,
+    val parentLabel: String? = null
 )

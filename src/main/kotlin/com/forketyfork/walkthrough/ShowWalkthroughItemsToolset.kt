@@ -9,6 +9,7 @@ import com.intellij.mcpserver.annotations.McpTool
 import com.intellij.mcpserver.mcpFail
 import com.intellij.mcpserver.projectOrNull
 import com.intellij.openapi.application.EDT
+import com.intellij.openapi.project.Project
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
@@ -22,7 +23,13 @@ class ShowWalkthroughItemsToolset : McpToolset {
     @McpDescription(
         "Shows and stores walkthrough items with navigation support. " +
             "Accepts one or more walkthrough items; the user can cycle through them " +
-            "with Previous and Next buttons. The walkthrough is saved to this project's history."
+            "with Previous and Next buttons. The walkthrough is saved to this project's history. " +
+            "Top-level items are auto-labeled '1', '2', '3', etc. " +
+            "The returned message includes a walkthroughId; pass it to await_walkthrough_question " +
+            "to react to follow-up questions the user types into the popup. " +
+            "After this tool returns, immediately call await_walkthrough_question with that walkthroughId. " +
+            "Do not stop after showing the walkthrough; the waiting tool call is required for the plugin " +
+            "to deliver user questions back to you."
     )
     suspend fun showWalkthroughItems(
         @McpDescription(
@@ -37,39 +44,113 @@ class ShowWalkthroughItemsToolset : McpToolset {
             "Verify line numbers by reading the actual file before calling this tool — do not estimate from diffs or memory."
         ) items: String
     ): String {
-        val project = currentCoroutineContext().projectOrNull
-            ?: mcpFail("No active project")
+        val project = requireProject()
         val trimmedDescription = description.trim()
         if (trimmedDescription.isBlank()) mcpFail("description must not be blank")
 
-        val itemList = try {
-            val type = object : TypeToken<List<WalkthroughItemJson>>() {}.type
-            val parsed: List<WalkthroughItemJson> = Gson().fromJson(items, type)
-            parsed.map { entry ->
-                WalkthroughItem(
-                    text = entry.text ?: mcpFail("Each item must have a 'text' field"),
-                    file = entry.file,
-                    line = entry.line
-                )
-            }
-        } catch (exception: JsonParseException) {
-            mcpFail("Invalid entries JSON: ${exception.message}")
-        } catch (exception: IllegalStateException) {
-            mcpFail("Invalid entries JSON: ${exception.message}")
-        }
+        val parsedItems = parseItems(items)
+        if (parsedItems.isEmpty()) mcpFail("items must not be empty")
 
-        if (itemList.isEmpty()) mcpFail("items must not be empty")
+        val labeledItems = assignTopLevelLabels(parsedItems)
 
-        val shown = withContext(Dispatchers.EDT) {
-            showWalkthroughItems(project, itemList)
-        }
-        if (!shown) mcpFail("No active editor")
+        val session = withContext(Dispatchers.EDT) {
+            showWalkthroughSession(project, labeledItems, acceptsQuestions = true)
+        } ?: mcpFail("No active editor")
 
         val record = WalkthroughHistoryService.getInstance(project)
-            .save(trimmedDescription, itemList)
+            .save(trimmedDescription, session.snapshotItems())
 
-        return record
-            ?.let { savedRecord -> "Walkthrough items shown and saved as ${savedRecord.id}" }
-            ?: "Walkthrough items shown; history was not saved"
+        val labels = labeledItems.mapNotNull { it.label }.joinToString(", ")
+        val historySuffix = record
+            ?.let { "; saved to history as ${it.id}" }
+            ?: "; history was not saved"
+        return "Walkthrough shown with walkthroughId=${session.id} (steps: $labels)$historySuffix. " +
+            "Next: immediately call await_walkthrough_question with walkthroughId=${session.id} " +
+            "and keep waiting for questions until it returns dismissed."
+    }
+
+    @Suppress("unused")
+    @McpTool(name = "await_walkthrough_question")
+    @McpDescription(
+        "Suspends until the user types a follow-up question into the active walkthrough popup " +
+            "and presses Send, then returns the question text along with the label of the step " +
+            "the user was viewing. Returns 'dismissed' if the user closes the popup before asking. " +
+            "Call this immediately after show_walkthrough_items returns, and call it again after each " +
+            "insert_walkthrough_tangents response. Keep waiting in this loop until this tool returns dismissed. " +
+            "Call insert_walkthrough_tangents to splice each answer into the walkthrough as labeled child steps."
+    )
+    suspend fun awaitWalkthroughQuestion(
+        @McpDescription("The walkthroughId returned by show_walkthrough_items.") walkthroughId: String
+    ): String {
+        val project = requireProject()
+        val registry = WalkthroughSessionRegistry.getInstance(project)
+        val session = registry.get(walkthroughId)
+        val question = when {
+            session != null -> session.awaitQuestion().also {
+                registry.consumeDismissed(walkthroughId)
+            }
+            registry.consumeDismissed(walkthroughId) -> null
+            else -> mcpFail("Unknown walkthroughId: $walkthroughId")
+        }
+        return question?.let {
+            val parent = it.parentLabel ?: "(unknown)"
+            "parentLabel=$parent\nquestion=${it.question}"
+        } ?: "dismissed"
+    }
+
+    @Suppress("unused")
+    @McpTool(name = "insert_walkthrough_tangents")
+    @McpDescription(
+        "Inserts one or more answer steps as children of an existing walkthrough step. " +
+            "New child labels are derived automatically by appending '.N' to the parent label: " +
+            "the first tangent under '3' becomes '3.1', the next '3.2', and so on. The popup " +
+            "auto-navigates to the first inserted step. Clears the inline loading spinner so " +
+            "the user can ask another question. After this tool returns, immediately call " +
+            "await_walkthrough_question again with the same walkthroughId."
+    )
+    suspend fun insertWalkthroughTangents(
+        @McpDescription("The walkthroughId returned by show_walkthrough_items.") walkthroughId: String,
+        @McpDescription(
+            "Label of the parent step the user asked the question under (e.g. '3' or '3.1'). " +
+            "Must match the parentLabel reported by await_walkthrough_question."
+        ) parentLabel: String,
+        @McpDescription(
+            "JSON array of walkthrough items to insert as children, same shape as show_walkthrough_items: " +
+            "[{\"text\":\"…\",\"file\":\"src/Foo.kt\",\"line\":10}, …]. " +
+            "Verify line numbers against the actual file before calling."
+        ) items: String
+    ): String {
+        val project = requireProject()
+        val trimmedParent = parentLabel.trim()
+        if (trimmedParent.isBlank()) mcpFail("parentLabel must not be blank")
+        val session = WalkthroughSessionRegistry.getInstance(project).get(walkthroughId)
+            ?: mcpFail("Unknown walkthroughId: $walkthroughId")
+        val parsedItems = parseItems(items)
+        if (parsedItems.isEmpty()) mcpFail("items must not be empty")
+
+        val inserted = withContext(Dispatchers.EDT) {
+            session.insertTangents(trimmedParent, parsedItems)
+        }
+        val labels = inserted.mapNotNull { it.label }.joinToString(", ")
+        return "Inserted ${inserted.size} tangent step(s) under $trimmedParent: $labels"
+    }
+
+    private suspend fun requireProject(): Project =
+        currentCoroutineContext().projectOrNull ?: mcpFail("No active project")
+
+    private fun parseItems(items: String): List<WalkthroughItem> = try {
+        val type = object : TypeToken<List<WalkthroughItemJson>>() {}.type
+        val parsed: List<WalkthroughItemJson> = Gson().fromJson(items, type)
+        parsed.map { entry ->
+            WalkthroughItem(
+                text = entry.text ?: mcpFail("Each item must have a 'text' field"),
+                file = entry.file,
+                line = entry.line
+            )
+        }
+    } catch (exception: JsonParseException) {
+        mcpFail("Invalid items JSON: ${exception.message}")
+    } catch (exception: IllegalStateException) {
+        mcpFail("Invalid items JSON: ${exception.message}")
     }
 }

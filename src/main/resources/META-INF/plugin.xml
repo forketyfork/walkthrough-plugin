@@ -30,6 +30,7 @@
     <extensions defaultExtensionNs="com.intellij">
         <applicationService serviceImplementation="com.forketyfork.walkthrough.WalkthroughSettings"/>
         <projectService serviceImplementation="com.forketyfork.walkthrough.WalkthroughHistoryService"/>
+        <projectService serviceImplementation="com.forketyfork.walkthrough.WalkthroughSessionRegistry"/>
         <applicationConfigurable
                 parentId="tools"
                 instance="com.forketyfork.walkthrough.WalkthroughSettingsConfigurable"
