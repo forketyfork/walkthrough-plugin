@@ -30,7 +30,7 @@ A companion skill that teaches agents how to author walkthroughs is published in
 [agentic-skills](https://github.com/forketyfork/agentic-skills) marketplace. Install it in
 Claude Code with:
 
-```
+```bash
 /plugin marketplace add forketyfork/agentic-skills
 /plugin install walkthrough@agentic-skills
 ```
