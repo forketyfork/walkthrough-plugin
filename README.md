@@ -5,23 +5,49 @@
 
 ## About
 
-Walkthrough Plugin is a prototype IntelliJ IDEA plugin for presenting inline walkthrough guidance
-inside the editor. It shows a styled popup near a target line, keeps a connector anchored to that
-line, and lets the user step through a sequence of walkthrough items.
+Walkthrough Plugin is an IntelliJ IDEA plugin for presenting inline walkthrough guidance inside
+the editor. It shows a styled popup near a target line, keeps a connector anchored to that line,
+and lets the user step through a sequence of walkthrough items.
 
 Available on the [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/31637-walkthrough/).
 
-<img src="docs/screenshot.png" alt="Walkthrough popup rendering a markdown step in IntelliJ IDEA, with a connector pointing at a JewelComposePanel call site" width="800">
+<table>
+  <tr>
+    <td align="center">
+      <a href="docs/popup.png">
+        <img src="docs/popup.png" alt="Walkthrough popup rendering a markdown step in IntelliJ IDEA" width="260">
+      </a>
+    </td>
+    <td align="center">
+      <a href="docs/history.png">
+        <img src="docs/history.png" alt="Walkthrough history popup listing saved walkthroughs" width="260">
+      </a>
+    </td>
+    <td align="center">
+      <a href="docs/settings.png">
+        <img src="docs/settings.png" alt="Walkthrough settings page with selectable popup color palettes" width="260">
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Popup</sub></td>
+    <td align="center"><sub>History</sub></td>
+    <td align="center"><sub>Settings</sub></td>
+  </tr>
+</table>
 
 ## Features
 
-- An MCP tool, `show_walkthrough_items`, that accepts JSON input and displays one or more
-  walkthrough items with a description for history.
+- Three MCP tools: `show_walkthrough_items`, `await_walkthrough_question`, and
+  `insert_walkthrough_tangents` display a walkthrough, wait for popup questions, and insert
+  answer steps into the active walkthrough.
 - Optional file and line navigation for each item, so a walkthrough can jump to the right place
   before rendering.
 - Previous and Next navigation inside the popup for multi-step walkthroughs.
+- Users can ask follow-up questions in the popup; answers are inserted as labeled child steps.
 - Per-project walkthrough history stored under `.idea/walkthroughs/`, with a keymap-bindable
   action for replaying previous walkthroughs.
+- User-selectable popup color palettes under the IDE settings.
 - A Compose-based popup UI rendered through Jewel on the IntelliJ Platform.
 
 ## Claude Code skill
@@ -54,12 +80,14 @@ development tooling automatically.
 | `just run` | Run in a sandboxed IDE instance |
 | `just verify` | Verify plugin compatibility |
 | `just lint` | Run Detekt static analysis |
+| `just test` | Run unit tests |
 | `just clean` | Clean build artifacts |
+| `just publish` | Publish the plugin to JetBrains Marketplace |
 | `just hooks` | Install pre-commit hooks (Nix dev shell) |
 
 Without `just`, use `./gradlew buildPlugin`, `./gradlew runIde`, etc. directly.
 
 ## Architecture
 
-The plugin targets IntelliJ IDEA 261+ and uses JetBrains Compose (via the Jewel library) for all
-UI. See [CLAUDE.md](CLAUDE.md) for detailed architecture documentation.
+The plugin targets IntelliJ IDEA 261+ and uses JetBrains Compose (via the Jewel library) for the
+walkthrough popup UI. See [CLAUDE.md](CLAUDE.md) for detailed architecture documentation.
