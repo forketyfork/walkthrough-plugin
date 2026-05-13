@@ -112,7 +112,6 @@ internal class WalkthroughPopupSurface(
     }
 
     override fun dispose() {
-        stopPopupAvoidAnimation(this)
         editor?.scrollingModel?.removeVisibleAreaListener(this)
         editor = null
         item = null

@@ -7,10 +7,7 @@ internal object WalkthroughPopupLayout {
     const val MINIMUM_WIDTH_PX = 520
     const val MINIMUM_HEIGHT_PX = 260
     const val VIEWPORT_PADDING = 18
-    const val LINE_SPACING = 10
-    const val AVOID_ANIMATION_DURATION_MS = 220
-    const val AVOID_ANIMATION_TIMER_DELAY_MS = 16
-    const val AVOID_ANIMATION_CLIENT_PROPERTY = "walkthrough.popup.avoid.animation"
+    const val LINE_SPACING = 20
 }
 
 data class WalkthroughItem(

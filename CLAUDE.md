@@ -8,7 +8,7 @@
 **Description:** IntelliJ IDEA plugin for presenting inline walkthrough guidance inside the editor.
 Shows styled popups near target lines with a connector anchored to the line, and lets the user
 step through a sequence of walkthrough items. Built with JetBrains Compose via the Jewel library.
-**Stack:** Kotlin 2.3.20, JetBrains Compose (Jewel), IntelliJ Platform Gradle Plugin v2, Detekt
+**Stack:** Kotlin 2.3.21, JetBrains Compose (Jewel), IntelliJ Platform Gradle Plugin v2, Detekt
 **Status:** Active development
 
 ## Build & Run
@@ -30,16 +30,17 @@ just verify           # or: ./gradlew verifyPlugin
 # Lint (Detekt static analysis)
 just lint             # or: ./gradlew detekt
 
+# Run unit tests
+just test             # or: ./gradlew test
+
 # Clean
 just clean            # or: ./gradlew clean
 
+# Publish to JetBrains Marketplace
+just publish          # or: ./gradlew publishPlugin
+
 # Install pre-commit hooks (inside the Nix dev shell)
 just hooks
-```
-
-```bash
-# Run unit tests
-just test             # or: ./gradlew test
 ```
 
 The plugin is also tested by running it in the IDE via `runIde`.
@@ -48,7 +49,7 @@ The plugin is also tested by running it in the IDE via `runIde`.
 
 - **Source code hosting:** GitHub — URL: `https://github.com/forketyfork/walkthrough-plugin` — Skill: `managing-github`
 - **Issue tracker:** GitHub Issues — URL: `https://github.com/forketyfork/walkthrough-plugin/issues` — Skill: `managing-github`
-- **CI/CD:** GitHub Actions — config: `.github/workflows/build.yml`
+- **CI/CD:** GitHub Actions — configs: `.github/workflows/build.yml`, `.github/workflows/release.yml`
 - **Issue/PR linkage convention:** Reference issues in PR descriptions using `Closes #<number>` or
   `Fixes #<number>` to auto-close on merge. Include the issue number in the PR title as `(#<number>)`.
 
@@ -64,18 +65,32 @@ components.
 - **`WalkthroughItem.kt`** — The `WalkthroughItem` data class and `WalkthroughPopupLayout` layout
   constants.
 
+- **`WalkthroughPopupContent.kt` / `WalkthroughPopupWidgets.kt`** — The Jewel Compose popup
+  content, markdown body, navigation controls, source navigation button, and follow-up question
+  input.
+
 - **`WalkthroughOrchestrator.kt`** — The entry point: `showWalkthroughItems(project, editor, items)`
   creates and positions the walkthrough UI via `WalkthroughPopupSurface`, hosted on the editor
-  layered pane above the current caret line. Used by the MCP toolset.
+  layered pane above the current caret line. Used by the MCP toolset and history replay action.
 
 - **`WalkthroughPopupSurface.kt`** — The Swing host that owns the popup surface inside the editor
   layered pane, renders the connector on the same surface as the popup content, and keeps the UI
   aligned with editor scrolling and resizing.
 
-- **`ShowWalkthroughItemsToolset`** — An MCP toolset (`McpToolset`) exposing one tool
-  `show_walkthrough_items(items)` to MCP clients (e.g., Claude Desktop). Gets the active project
-  from the coroutine context via `projectOrNull`, dispatches to the EDT via
-  `withContext(Dispatchers.EDT)`, and calls the same `showWalkthroughItems` function.
+- **`WalkthroughSessionRegistry.kt`** — Tracks the active walkthrough session, stable step labels,
+  dismissed sessions, follow-up questions, loading state, and inserted child steps.
+
+- **`WalkthroughHistoryService.kt` / `WalkthroughHistoryStore.kt`** — Store and load per-project
+  walkthrough history from `.idea/walkthroughs/`.
+
+- **`WalkthroughSettings.kt` / `WalkthroughSettingsConfigurable.kt` / `WalkthroughPalette.kt`** —
+  Persist and expose the user-selectable popup color palettes.
+
+- **`ShowWalkthroughItemsToolset`** — An MCP toolset (`McpToolset`) exposing
+  `show_walkthrough_items`, `await_walkthrough_question`, and `insert_walkthrough_tangents` to MCP
+  clients. Gets the active project from the coroutine context via `projectOrNull`, dispatches UI
+  changes to the EDT via `withContext(Dispatchers.EDT)`, and calls the same walkthrough session
+  code used by local actions.
 
 ### MCP server integration
 
@@ -84,6 +99,15 @@ The plugin depends on the bundled `com.intellij.mcpServer` plugin. Toolsets are 
 point. Tool methods are discovered by reflection: annotate a suspend method with `@McpTool` and
 `@McpDescription`; annotate each parameter with `@McpDescription`. Use `mcpFail(message)` to
 return an error response.
+
+Current MCP flow:
+
+1. `show_walkthrough_items(description, items)` shows labeled top-level steps and stores them in
+   project history.
+2. `await_walkthrough_question(walkthroughId)` waits for a user question from the active popup and
+   returns the step label where it was asked.
+3. `insert_walkthrough_tangents(walkthroughId, parentLabel, items)` inserts generated answer steps
+   as labeled children and moves the popup to the first inserted step.
 
 Key API notes:
 

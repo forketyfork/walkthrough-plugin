@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- You can now write comments to steps. The agent awaits for the comments and inserts clarifying steps into the
-  walkthrough.
+- Users can ask follow-up questions from a walkthrough step. Agents can wait for those questions
+  and insert clarifying answer steps back into the walkthrough.
 
 ## [0.2.0]
 
