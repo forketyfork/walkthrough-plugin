@@ -7,7 +7,7 @@ internal object WalkthroughPopupLayout {
     const val MINIMUM_WIDTH_PX = 520
     const val MINIMUM_HEIGHT_PX = 260
     const val VIEWPORT_PADDING = 18
-    const val LINE_SPACING = 10
+    const val LINE_SPACING = 20
 }
 
 data class WalkthroughItem(

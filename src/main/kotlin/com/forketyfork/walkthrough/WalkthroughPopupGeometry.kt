@@ -38,7 +38,11 @@ internal fun calculatePopupScreenPoint(editor: Editor, popupSize: Dimension, lin
     val targetY = when {
         belowFits -> belowY
         aboveFits -> aboveY
-        else -> viewportLineY.coerceIn(minY, maxY)
+        else -> {
+            val belowSpace = visibleArea.height - (viewportLineY + editor.lineHeight)
+            val aboveSpace = viewportLineY
+            if (belowSpace >= aboveSpace) belowY else aboveY
+        }
     }
 
     val targetX = (
@@ -113,9 +117,10 @@ internal fun avoidLineOverlap(
         return popupLocation
     }
 
-    val minY = lineGeometry.viewportTopY + WalkthroughPopupLayout.VIEWPORT_PADDING
+    val outerBounds = calculatePopupYBounds(editor, lineGeometry)
+    val minY = outerBounds.first
     val maxY = (
-        lineGeometry.viewportBottomY - popupSize.height - WalkthroughPopupLayout.VIEWPORT_PADDING
+        outerBounds.second - popupSize.height - WalkthroughPopupLayout.VIEWPORT_PADDING
         ).coerceAtLeast(minY)
     val aboveY = lineGeometry.topY - popupSize.height - WalkthroughPopupLayout.LINE_SPACING
     val belowY = lineGeometry.bottomY + WalkthroughPopupLayout.LINE_SPACING
@@ -130,11 +135,24 @@ internal fun avoidLineOverlap(
         !preferBelow && aboveFits -> aboveY
         belowFits -> belowY
         aboveFits -> aboveY
-        preferBelow -> maxY
-        else -> minY
+        preferBelow -> belowY
+        else -> aboveY
     }
 
     return Point(popupLocation.x, adjustedY.roundToInt())
+}
+
+private fun calculatePopupYBounds(editor: Editor, lineGeometry: LineScreenGeometry): Pair<Float, Float> {
+    val rootPane = SwingUtilities.getRootPane(editor.contentComponent)
+    return if (rootPane != null && rootPane.isShowing) {
+        val rootLocation = Point(0, 0).also { SwingUtilities.convertPointToScreen(it, rootPane) }
+        val top = rootLocation.y.toFloat() + WalkthroughPopupLayout.VIEWPORT_PADDING
+        val bottom = (rootLocation.y + rootPane.height).toFloat()
+        top to bottom
+    } else {
+        val top = lineGeometry.viewportTopY + WalkthroughPopupLayout.VIEWPORT_PADDING
+        top to lineGeometry.viewportBottomY
+    }
 }
 
 internal fun calculateLineScreenPoint(editor: Editor, line: Int?): Point {
