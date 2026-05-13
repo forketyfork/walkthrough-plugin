@@ -9,6 +9,8 @@ Walkthrough Plugin is a prototype IntelliJ IDEA plugin for presenting inline wal
 inside the editor. It shows a styled popup near a target line, keeps a connector anchored to that
 line, and lets the user step through a sequence of walkthrough items.
 
+Available on the [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/31637-walkthrough/).
+
 <img src="docs/screenshot.png" alt="Walkthrough popup rendering a markdown step in IntelliJ IDEA, with a connector pointing at a JewelComposePanel call site" width="800">
 
 ## Features
@@ -21,6 +23,20 @@ line, and lets the user step through a sequence of walkthrough items.
 - Per-project walkthrough history stored under `.idea/walkthroughs/`, with a keymap-bindable
   action for replaying previous walkthroughs.
 - A Compose-based popup UI rendered through Jewel on the IntelliJ Platform.
+
+## Claude Code skill
+
+A companion skill that teaches agents how to author walkthroughs is published in the
+[agentic-skills](https://github.com/forketyfork/agentic-skills) marketplace. Install it in
+Claude Code with:
+
+```bash
+/plugin marketplace add forketyfork/agentic-skills
+/plugin install walkthrough@agentic-skills
+```
+
+Once installed, the skill activates whenever you ask for a guided tour or step-by-step code
+walkthrough, and can be invoked explicitly as `/walkthrough`.
 
 ## Prerequisites
 
