@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.1]
+
+### Fixed
+
+- Popup no longer jumps after appearing; it now opens at its final position and keeps the
+  target line clear of the popup body (#19).
+- Replaced `runReadActionBlocking` with `WriteIntentReadAction` to avoid read-action assertions
+  when navigating between walkthrough steps (#17).
+- Only one walkthrough popup is visible at a time; previous sessions are disposed when a new one
+  starts (#16).
+
 ## [0.3.0]
 
 ### Added
