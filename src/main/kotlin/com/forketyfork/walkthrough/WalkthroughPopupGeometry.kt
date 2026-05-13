@@ -7,12 +7,6 @@ import javax.swing.SwingUtilities
 import kotlin.math.roundToInt
 
 private const val ARROW_VIEWPORT_INSET_PX = 12f
-private const val ANIMATION_MIDPOINT = 0.5f
-private const val ACCELERATE_FACTOR = 4f
-private const val INVERTED_PROGRESS_FACTOR = -2f
-private const val INVERTED_PROGRESS_OFFSET = 2f
-private const val ANIMATION_COMPLETION = 1f
-private const val EASING_DIVISOR = 2f
 
 private data class LineScreenGeometry(
     val anchorX: Float,
@@ -158,17 +152,6 @@ internal fun calculateLineScreenPoint(editor: Editor, line: Int?): Point {
         lineGeometry.centerY.coerceIn(minY, maxY).roundToInt()
     )
 }
-
-internal fun cubicEaseInOut(progress: Float): Float =
-    if (progress < ANIMATION_MIDPOINT) {
-        ACCELERATE_FACTOR * progress * progress * progress
-    } else {
-        val inverted = INVERTED_PROGRESS_FACTOR * progress + INVERTED_PROGRESS_OFFSET
-        ANIMATION_COMPLETION - (inverted * inverted * inverted) / EASING_DIVISOR
-    }
-
-internal fun lerp(start: Float, end: Float, progress: Float): Float =
-    start + (end - start) * progress
 
 internal fun reverseLinearShift(elapsedMs: Long, halfPeriodMs: Int): Float {
     val period = 2L * halfPeriodMs

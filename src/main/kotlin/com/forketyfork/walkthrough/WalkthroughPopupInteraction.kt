@@ -177,7 +177,6 @@ private fun resizePopupBy(
     deltaY: Float,
     onLocationChanged: (() -> Unit)? = null
 ) {
-    stopPopupAvoidAnimation(popup)
     val currentLocation = popup.popupLocationOnScreen() ?: return
     val currentSize = resolvePopupSize(popup)
         ?: panel.preferredSize
