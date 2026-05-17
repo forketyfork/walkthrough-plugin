@@ -62,12 +62,18 @@ fun showWalkthroughSession(
     var popupRef: WalkthroughPopupSurface? = null
     var currentEditor = firstTarget.editor
     var pendingNavigationId = 0
+    var userMovedPopup = false
 
     fun repaintPopup() {
         popupRef?.let { popup ->
             popup.refreshBounds()
             popup.repaint()
         }
+    }
+
+    fun onPopupUserMoved() {
+        userMovedPopup = true
+        repaintPopup()
     }
 
     fun updatePopupPalette(palette: WalkthroughPalette) {
@@ -86,7 +92,12 @@ fun showWalkthroughSession(
         currentEditor = target.editor
         popup.update(currentEditor, target.popupItem)
         popup.connectorHidden = false
-        movePopupNearItem(popup, currentEditor, target.popupItem, ::repaintPopup)
+        if (userMovedPopup) {
+            popup.moveToFitScreen(currentEditor)
+            repaintPopup()
+        } else {
+            movePopupNearItem(popup, currentEditor, target.popupItem, ::repaintPopup)
+        }
     }
 
     fun scheduleItemNavigation(item: WalkthroughItem) {
@@ -114,7 +125,7 @@ fun showWalkthroughSession(
         panel = panel,
         popupProvider = { popupRef },
         editorProvider = { currentEditor },
-        onPopupMoved = ::repaintPopup
+        onPopupMoved = ::onPopupUserMoved
     )
 
     project.messageBus.connect(sessionDisposable).subscribe(
