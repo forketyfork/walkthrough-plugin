@@ -155,7 +155,7 @@ fun showWalkthroughSession(
 
 private fun saveCurrentGeometry(popup: WalkthroughPopupSurface?) {
     val location = popup?.popupLocationOnScreen() ?: return
-    val size = popup.let(::resolvePopupSize) ?: return
+    val size = resolvePopupSize(popup) ?: return
     WalkthroughSettings.getInstance().saveGeometry(
         PopupGeometry(location.x, location.y, size.width, size.height)
     )

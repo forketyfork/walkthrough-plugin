@@ -9,8 +9,7 @@ import kotlin.math.roundToInt
 internal fun movePopupNearItem(
     popup: WalkthroughPopupSurface,
     editor: Editor,
-    item: WalkthroughItem,
-    onLocationChanged: (() -> Unit)? = null
+    item: WalkthroughItem
 ) {
     popup.content.revalidate()
     popup.content.doLayout()
@@ -27,7 +26,6 @@ internal fun movePopupNearItem(
     val reAvoidedPoint = avoidLineOverlap(constrainedPoint, popupSize, editor, item.line)
     val finalPoint = constrainPopupScreenLocation(editor, reAvoidedPoint, popupSize)
     popup.show(editor, finalPoint)
-    onLocationChanged?.invoke()
 }
 
 internal fun movePopupBy(
