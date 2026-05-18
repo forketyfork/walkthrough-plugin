@@ -9,8 +9,7 @@ import kotlin.math.roundToInt
 internal fun movePopupNearItem(
     popup: WalkthroughPopupSurface,
     editor: Editor,
-    item: WalkthroughItem,
-    onLocationChanged: (() -> Unit)? = null
+    item: WalkthroughItem
 ) {
     popup.content.revalidate()
     popup.content.doLayout()
@@ -27,15 +26,13 @@ internal fun movePopupNearItem(
     val reAvoidedPoint = avoidLineOverlap(constrainedPoint, popupSize, editor, item.line)
     val finalPoint = constrainPopupScreenLocation(editor, reAvoidedPoint, popupSize)
     popup.show(editor, finalPoint)
-    onLocationChanged?.invoke()
 }
 
 internal fun movePopupBy(
     popup: WalkthroughPopupSurface,
     editor: Editor,
     deltaX: Float,
-    deltaY: Float,
-    onLocationChanged: (() -> Unit)? = null
+    deltaY: Float
 ) {
     val currentLocation = popup.popupLocationOnScreen() ?: return
     val popupSize = resolvePopupSize(popup) ?: WalkthroughPopupLayout.fallbackSize
@@ -44,7 +41,6 @@ internal fun movePopupBy(
         currentLocation.y + deltaY.roundToInt()
     )
     popup.setPopupScreenLocation(constrainPopupScreenLocation(editor, movedPoint, popupSize))
-    onLocationChanged?.invoke()
 }
 
 internal fun resolvePopupSize(popup: WalkthroughPopupSurface): Dimension? =
@@ -75,4 +71,15 @@ internal fun constrainPopupScreenLocation(
         constrainedLocation.y = constrainedLocation.y.coerceIn(rootLocation.y + verticalInset, maxY)
     }
     return constrainedLocation
+}
+
+internal fun clampPopupSize(size: Dimension, maxWidth: Int, maxHeight: Int): Dimension {
+    val minWidth = WalkthroughPopupLayout.MINIMUM_WIDTH_PX
+    val minHeight = WalkthroughPopupLayout.MINIMUM_HEIGHT_PX
+    val effectiveMaxWidth = maxWidth.coerceAtLeast(minWidth)
+    val effectiveMaxHeight = maxHeight.coerceAtLeast(minHeight)
+    return Dimension(
+        size.width.coerceIn(minWidth, effectiveMaxWidth),
+        size.height.coerceIn(minHeight, effectiveMaxHeight)
+    )
 }

@@ -12,6 +12,7 @@ import com.intellij.openapi.util.Disposer
 import org.jetbrains.jewel.bridge.JewelComposePanel
 import java.awt.Color as AwtColor
 import java.awt.Dimension
+import java.awt.Point
 import javax.swing.JComponent
 import javax.swing.SwingUtilities
 
@@ -86,7 +87,7 @@ fun showWalkthroughSession(
         currentEditor = target.editor
         popup.update(currentEditor, target.popupItem)
         popup.connectorHidden = false
-        movePopupNearItem(popup, currentEditor, target.popupItem, ::repaintPopup)
+        applyPopupGeometryForItem(popup, currentEditor, target.popupItem)
     }
 
     fun scheduleItemNavigation(item: WalkthroughItem) {
@@ -114,7 +115,7 @@ fun showWalkthroughSession(
         panel = panel,
         popupProvider = { popupRef },
         editorProvider = { currentEditor },
-        onPopupMoved = ::repaintPopup
+        onInteractionEnd = { saveCurrentGeometry(popupRef) }
     )
 
     project.messageBus.connect(sessionDisposable).subscribe(
@@ -147,8 +148,54 @@ fun showWalkthroughSession(
     popupRef = popup
     Disposer.register(sessionDisposable, popup)
     popup.update(currentEditor, firstTarget.popupItem)
-    movePopupNearItem(popup, currentEditor, firstTarget.popupItem, ::repaintPopup)
+    applyPopupGeometryForItem(popup, currentEditor, firstTarget.popupItem)
+    repaintPopup()
     return session
+}
+
+private fun saveCurrentGeometry(popup: WalkthroughPopupSurface?) {
+    val location = popup?.popupLocationOnScreen() ?: return
+    val size = resolvePopupSize(popup) ?: return
+    WalkthroughSettings.getInstance().saveGeometry(
+        PopupGeometry(location.x, location.y, size.width, size.height)
+    )
+}
+
+private fun applyPopupGeometryForItem(
+    popup: WalkthroughPopupSurface,
+    editor: Editor,
+    item: WalkthroughItem
+) {
+    val settings = WalkthroughSettings.getInstance()
+    val persisted = settings.loadGeometry()
+
+    if (persisted == null) {
+        movePopupNearItem(popup, editor, item)
+    } else {
+        val rootPane = SwingUtilities.getRootPane(editor.contentComponent)
+        val maxWidth = rootPane?.let { it.width - 2 * WalkthroughPopupLayout.VIEWPORT_PADDING }
+            ?: Int.MAX_VALUE
+        val maxHeight = rootPane?.let { it.height - 2 * WalkthroughPopupLayout.VIEWPORT_PADDING }
+            ?: Int.MAX_VALUE
+        val clampedSize = clampPopupSize(
+            Dimension(persisted.width, persisted.height),
+            maxWidth = maxWidth,
+            maxHeight = maxHeight
+        )
+        popup.popupSize = clampedSize
+        val avoided = avoidLineOverlap(Point(persisted.x, persisted.y), clampedSize, editor, item.line)
+        val constrained = constrainPopupScreenLocation(editor, avoided, clampedSize)
+        val reAvoided = avoidLineOverlap(constrained, clampedSize, editor, item.line)
+        val finalPoint = constrainPopupScreenLocation(editor, reAvoided, clampedSize)
+        popup.show(editor, finalPoint)
+    }
+
+    val finalLocation = popup.popupLocationOnScreen() ?: return
+    val finalSize = resolvePopupSize(popup) ?: return
+    val finalGeometry = PopupGeometry(finalLocation.x, finalLocation.y, finalSize.width, finalSize.height)
+    if (persisted != finalGeometry) {
+        settings.saveGeometry(finalGeometry)
+    }
 }
 
 private fun createWalkthroughPanel(

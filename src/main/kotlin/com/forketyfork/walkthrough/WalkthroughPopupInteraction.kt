@@ -44,7 +44,7 @@ internal fun installPopupInteractionHandler(
     panel: JComponent,
     popupProvider: () -> WalkthroughPopupSurface?,
     editorProvider: () -> Editor,
-    onPopupMoved: () -> Unit
+    onInteractionEnd: () -> Unit
 ) {
     var lastScreenPoint: Point? = null
     var interactionMode: PopupInteractionMode? = null
@@ -74,8 +74,7 @@ internal fun installPopupInteractionHandler(
                     popup = popup,
                     editor = editorProvider(),
                     deltaX = (currentScreenPoint.x - previousScreenPoint.x).toFloat(),
-                    deltaY = (currentScreenPoint.y - previousScreenPoint.y).toFloat(),
-                    onLocationChanged = onPopupMoved
+                    deltaY = (currentScreenPoint.y - previousScreenPoint.y).toFloat()
                 )
 
                 PopupInteractionMode.Resize -> resizePopupBy(
@@ -83,8 +82,7 @@ internal fun installPopupInteractionHandler(
                     panel = panel,
                     editor = editorProvider(),
                     deltaX = (currentScreenPoint.x - previousScreenPoint.x).toFloat(),
-                    deltaY = (currentScreenPoint.y - previousScreenPoint.y).toFloat(),
-                    onLocationChanged = onPopupMoved
+                    deltaY = (currentScreenPoint.y - previousScreenPoint.y).toFloat()
                 )
             }
             lastScreenPoint = currentScreenPoint
@@ -95,9 +93,13 @@ internal fun installPopupInteractionHandler(
         }
 
         override fun mouseReleased(event: MouseEvent) {
+            val hadInteraction = interactionMode != null
             interactionMode = null
             lastScreenPoint = null
             updateInteractionCursor(panel, event.component, event.point)
+            if (hadInteraction) {
+                onInteractionEnd()
+            }
         }
 
         override fun mouseExited(event: MouseEvent) {
@@ -174,8 +176,7 @@ private fun resizePopupBy(
     panel: JComponent,
     editor: Editor,
     deltaX: Float,
-    deltaY: Float,
-    onLocationChanged: (() -> Unit)? = null
+    deltaY: Float
 ) {
     val currentLocation = popup.popupLocationOnScreen() ?: return
     val currentSize = resolvePopupSize(popup)
@@ -203,5 +204,4 @@ private fun resizePopupBy(
     panel.revalidate()
     popup.popupSize = targetSize
     popup.moveToFitScreen(editor)
-    onLocationChanged?.invoke()
 }

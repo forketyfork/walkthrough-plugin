@@ -5,12 +5,15 @@ import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 
+internal data class PopupGeometry(val x: Int, val y: Int, val width: Int, val height: Int)
+
 @State(
     name = "com.forketyfork.walkthrough.WalkthroughSettings",
     storages = [Storage("com.forketyfork.walkthrough.settings.xml")]
 )
 internal class WalkthroughSettings : PersistentStateComponent<WalkthroughSettings.State> {
-    private var state = State()
+    internal var state = State()
+        private set
 
     var selectedPaletteId: String
         get() = state.selectedPaletteId
@@ -26,6 +29,27 @@ internal class WalkthroughSettings : PersistentStateComponent<WalkthroughSetting
     val selectedPalette: WalkthroughPalette
         get() = WalkthroughPalettes.byId(selectedPaletteId)
 
+    fun loadGeometry(): PopupGeometry? {
+        val s = state
+        val fields = intArrayOf(s.popupX, s.popupY, s.popupWidth, s.popupHeight)
+        if (fields.any { it == Int.MIN_VALUE }) {
+            return null
+        }
+        return PopupGeometry(s.popupX, s.popupY, s.popupWidth, s.popupHeight)
+    }
+
+    fun saveGeometry(geometry: PopupGeometry) {
+        val s = state
+        val current = PopupGeometry(s.popupX, s.popupY, s.popupWidth, s.popupHeight)
+        if (current == geometry) {
+            return
+        }
+        s.popupX = geometry.x
+        s.popupY = geometry.y
+        s.popupWidth = geometry.width
+        s.popupHeight = geometry.height
+    }
+
     override fun getState(): State = state
 
     override fun loadState(state: State) {
@@ -35,6 +59,10 @@ internal class WalkthroughSettings : PersistentStateComponent<WalkthroughSetting
 
     class State {
         var selectedPaletteId: String = WalkthroughPalettes.default.id
+        var popupX: Int = Int.MIN_VALUE
+        var popupY: Int = Int.MIN_VALUE
+        var popupWidth: Int = Int.MIN_VALUE
+        var popupHeight: Int = Int.MIN_VALUE
     }
 
     private fun notifyPaletteChanged(palette: WalkthroughPalette) {

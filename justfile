@@ -20,8 +20,9 @@ verify:
 test:
     ./gradlew test
 
-# Run Detekt static analysis
+# Run all static analysis CI runs: nix flake check (markdownlint, shellcheck, actionlint, alejandra, statix) and Detekt
 lint:
+    nix flake check
     ./gradlew detekt
 
 # Clean build artifacts
