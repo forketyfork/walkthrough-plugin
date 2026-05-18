@@ -92,12 +92,7 @@ fun showWalkthroughSession(
         currentEditor = target.editor
         popup.update(currentEditor, target.popupItem)
         popup.connectorHidden = false
-        if (userMovedPopup) {
-            popup.moveToFitScreen(currentEditor)
-            repaintPopup()
-        } else {
-            movePopupNearItem(popup, currentEditor, target.popupItem, ::repaintPopup)
-        }
+        repositionPopupForItem(popup, currentEditor, target.popupItem, userMovedPopup, ::repaintPopup)
     }
 
     fun scheduleItemNavigation(item: WalkthroughItem) {
@@ -160,6 +155,21 @@ fun showWalkthroughSession(
     popup.update(currentEditor, firstTarget.popupItem)
     movePopupNearItem(popup, currentEditor, firstTarget.popupItem, ::repaintPopup)
     return session
+}
+
+private fun repositionPopupForItem(
+    popup: WalkthroughPopupSurface,
+    editor: Editor,
+    popupItem: WalkthroughItem,
+    userMovedPopup: Boolean,
+    onRepaint: () -> Unit
+) {
+    if (userMovedPopup) {
+        popup.moveToFitScreen(editor)
+        onRepaint()
+    } else {
+        movePopupNearItem(popup, editor, popupItem, onRepaint)
+    }
 }
 
 private fun createWalkthroughPanel(
