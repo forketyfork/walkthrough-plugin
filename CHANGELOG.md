@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.2]
+
+### Fixed
+
+- Popup location and size are now preserved.
+- Popup size is increased and the layout is improved.
+
 ## [0.3.1]
 
 ### Fixed
