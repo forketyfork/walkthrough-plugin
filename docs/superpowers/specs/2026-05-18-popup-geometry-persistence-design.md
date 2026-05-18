@@ -36,7 +36,7 @@ The plugin already has two relevant pieces:
 | First-time fallback            | Existing `movePopupNearItem` placement                  |
 | Behavior on Next within session| Same as first show: load → avoid overlap → constrain    |
 | Replacement of `userMovedPopup`| Yes — the in-memory flag is removed                     |
-| Persistence triggers           | On every drag/resize mouse-motion event, and on initial show when the position is adjusted from what was loaded |
+| Persistence triggers           | Once on mouse release after a drag or resize, and once on initial show when the position is adjusted from what was loaded |
 
 ## Architecture
 
@@ -87,20 +87,28 @@ without Swing.
 
 The orchestrator already wires a `onPopupMoved` callback through
 `installPopupInteractionHandler`. The recent commit repurposed it to flip
-`userMovedPopup`; this design replaces that with a save:
+`userMovedPopup`; this design replaces that with a save fired only when the
+interaction completes:
 
-- Rename `onPopupMoved` → `onGeometryChanged` in `WalkthroughPopupInteraction`
-  (now covers resize too, not just move).
+- Rename `onPopupMoved` → `onInteractionEnd` in `WalkthroughPopupInteraction`.
+- Stop invoking the callback from inside `movePopupBy` / `resizePopupBy`. Drop
+  the `onLocationChanged` parameter from both helpers — per-motion redraws are
+  already handled by `setPopupScreenLocation` (which calls `repaint()` on the
+  surface) and the `popupSize` setter (which also calls `repaint()`), so no
+  external trigger is needed for the connector to follow the popup during a
+  drag.
+- Fire `onInteractionEnd()` from `mouseReleased`, but only when
+  `interactionMode != null` (i.e. the press began on the drag handle or resize
+  handle). This avoids firing on stray clicks elsewhere on the popup.
 - Signature stays `() -> Unit`. Inside the callback the orchestrator queries
   `popup.popupLocationOnScreen()` and `resolvePopupSize(popup)` and calls
   `geometryService.saveGeometry(x, y, w, h)`. Keeping the interaction module
   ignorant of the geometry service preserves the existing module boundary.
 
-Both `movePopupBy` (drag) and `resizePopupBy` (resize) already call the
-callback after applying their delta. Note that the callback fires on every
-`mouseDragged` event, not just on release, so saves are frequent during a
-drag — but the underlying `PersistentStateComponent` holds state in memory and
-the IDE flushes to disk asynchronously, so the cost is negligible.
+The result: exactly one save per completed drag and one per completed resize,
+regardless of how many `mouseDragged` events fired between press and release.
+A press-release with no motion still triggers one save, which is a harmless
+no-op because the persisted geometry is unchanged.
 
 ### Files touched
 
