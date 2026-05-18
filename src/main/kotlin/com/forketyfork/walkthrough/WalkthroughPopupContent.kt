@@ -217,16 +217,6 @@ private fun WalkthroughPopupFrame(
                 .padding(WalkthroughPopupContentStyle.closeButtonPadding),
             onClick = onClose
         )
-
-        if (item.file != null || item.line != null) {
-            GoToSourceButton(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(WalkthroughPopupContentStyle.closeButtonPadding),
-                onClick = onNavigateToSource
-            )
-        }
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -245,13 +235,17 @@ private fun WalkthroughPopupFrame(
                 scrollState = scrollState,
                 showScrollbar = showScrollbar
             )
-            if (items.size > 1) {
+            val showNavigation = items.size > 1
+            val sourceCallback = onNavigateToSource.takeIf { item.file != null || item.line != null }
+            if (showNavigation || sourceCallback != null) {
                 WalkthroughPopupNavigation(
+                    showNavigation = showNavigation,
                     currentIndex = currentIndex,
                     lastIndex = items.lastIndex,
                     palette = palette,
                     onPrevious = onPrevious,
-                    onNext = onNext
+                    onNext = onNext,
+                    onNavigateToSource = sourceCallback
                 )
             }
             if (acceptsQuestions) {

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -68,7 +69,6 @@ private object WalkthroughWidgetStyle {
     val questionRowSpacing = 8.dp
     val questionFieldRadius = 18.dp
     val questionFieldPaddingHorizontal = 14.dp
-    val questionFieldPaddingVertical = 10.dp
     val questionFieldTextSize = 13.sp
     const val QUESTION_FIELD_BACKGROUND_ALPHA = 0.12f
     const val QUESTION_FIELD_BORDER_ALPHA = 0.2f
@@ -83,31 +83,38 @@ private object WalkthroughWidgetStyle {
 
 @Composable
 internal fun WalkthroughPopupNavigation(
+    showNavigation: Boolean,
     currentIndex: Int,
     lastIndex: Int,
     palette: WalkthroughPalette,
     onPrevious: () -> Unit,
-    onNext: () -> Unit
+    onNext: () -> Unit,
+    onNavigateToSource: (() -> Unit)?
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(WalkthroughWidgetStyle.navigationSpacing),
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.wrapContentWidth()
     ) {
-        AiNavButton(
-            label = "Previous",
-            enabled = currentIndex > 0,
-            emphasized = false,
-            palette = palette,
-            onClick = onPrevious
-        )
-        AiNavButton(
-            label = "Next",
-            enabled = currentIndex < lastIndex,
-            emphasized = true,
-            palette = palette,
-            onClick = onNext
-        )
+        if (showNavigation) {
+            AiNavButton(
+                label = "Previous",
+                enabled = currentIndex > 0,
+                emphasized = false,
+                palette = palette,
+                onClick = onPrevious
+            )
+            AiNavButton(
+                label = "Next",
+                enabled = currentIndex < lastIndex,
+                emphasized = true,
+                palette = palette,
+                onClick = onNext
+            )
+        }
+        if (onNavigateToSource != null) {
+            GoToSourceButton(onClick = onNavigateToSource)
+        }
     }
 }
 
@@ -159,7 +166,7 @@ internal fun AiCloseButton(modifier: Modifier = Modifier, onClick: () -> Unit) {
 internal fun GoToSourceButton(modifier: Modifier = Modifier, onClick: () -> Unit) {
     Box(
         modifier = modifier
-            .size(WalkthroughWidgetStyle.closeButtonSize)
+            .size(WalkthroughWidgetStyle.sendButtonSize)
             .clip(CircleShape)
             .background(Color.White.copy(alpha = WalkthroughWidgetStyle.CLOSE_BUTTON_BACKGROUND_ALPHA))
             .border(
@@ -269,6 +276,7 @@ private fun QuestionTextField(
 ) {
     Box(
         modifier = modifier
+            .height(WalkthroughWidgetStyle.sendButtonSize)
             .clip(RoundedCornerShape(WalkthroughWidgetStyle.questionFieldRadius))
             .background(
                 Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_FIELD_BACKGROUND_ALPHA),
@@ -279,10 +287,8 @@ private fun QuestionTextField(
                 Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_FIELD_BORDER_ALPHA),
                 RoundedCornerShape(WalkthroughWidgetStyle.questionFieldRadius)
             )
-            .padding(
-                horizontal = WalkthroughWidgetStyle.questionFieldPaddingHorizontal,
-                vertical = WalkthroughWidgetStyle.questionFieldPaddingVertical
-            )
+            .padding(horizontal = WalkthroughWidgetStyle.questionFieldPaddingHorizontal),
+        contentAlignment = Alignment.CenterStart
     ) {
         BasicTextField(
             value = text,
