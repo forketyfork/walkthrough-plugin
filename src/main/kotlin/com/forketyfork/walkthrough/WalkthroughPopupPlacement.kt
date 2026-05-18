@@ -34,8 +34,7 @@ internal fun movePopupBy(
     popup: WalkthroughPopupSurface,
     editor: Editor,
     deltaX: Float,
-    deltaY: Float,
-    onLocationChanged: (() -> Unit)? = null
+    deltaY: Float
 ) {
     val currentLocation = popup.popupLocationOnScreen() ?: return
     val popupSize = resolvePopupSize(popup) ?: WalkthroughPopupLayout.fallbackSize
@@ -44,7 +43,6 @@ internal fun movePopupBy(
         currentLocation.y + deltaY.roundToInt()
     )
     popup.setPopupScreenLocation(constrainPopupScreenLocation(editor, movedPoint, popupSize))
-    onLocationChanged?.invoke()
 }
 
 internal fun resolvePopupSize(popup: WalkthroughPopupSurface): Dimension? =
