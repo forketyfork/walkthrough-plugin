@@ -76,3 +76,14 @@ internal fun constrainPopupScreenLocation(
     }
     return constrainedLocation
 }
+
+internal fun clampPopupSize(size: Dimension, maxWidth: Int, maxHeight: Int): Dimension {
+    val minWidth = WalkthroughPopupLayout.MINIMUM_WIDTH_PX
+    val minHeight = WalkthroughPopupLayout.MINIMUM_HEIGHT_PX
+    val effectiveMaxWidth = maxWidth.coerceAtLeast(minWidth)
+    val effectiveMaxHeight = maxHeight.coerceAtLeast(minHeight)
+    return Dimension(
+        size.width.coerceIn(minWidth, effectiveMaxWidth),
+        size.height.coerceIn(minHeight, effectiveMaxHeight)
+    )
+}
