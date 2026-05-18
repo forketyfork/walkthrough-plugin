@@ -15,6 +15,7 @@
 ## Task 1: Extend `WalkthroughSettings` with `PopupGeometry`
 
 **Files:**
+
 - Modify: `src/main/kotlin/com/forketyfork/walkthrough/WalkthroughSettings.kt`
 - Create: `src/test/kotlin/com/forketyfork/walkthrough/WalkthroughSettingsGeometryTest.kt`
 
@@ -90,6 +91,7 @@ class WalkthroughSettingsGeometryTest {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run:
+
 ```bash
 ./gradlew test --tests com.forketyfork.walkthrough.WalkthroughSettingsGeometryTest
 ```
@@ -193,6 +195,7 @@ Note the change to `state`: it is now exposed as `internal var ... private set` 
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run:
+
 ```bash
 ./gradlew test --tests com.forketyfork.walkthrough.WalkthroughSettingsGeometryTest
 ```
@@ -202,6 +205,7 @@ Expected: all 5 tests pass.
 - [ ] **Step 5: Run lint and build**
 
 Run:
+
 ```bash
 just lint && just build
 ```
@@ -221,6 +225,7 @@ git commit -m "feat: persist popup geometry in WalkthroughSettings"
 ## Task 2: Add pure `clampPopupSize` helper
 
 **Files:**
+
 - Modify: `src/main/kotlin/com/forketyfork/walkthrough/WalkthroughPopupPlacement.kt`
 - Create: `src/test/kotlin/com/forketyfork/walkthrough/WalkthroughPopupPlacementTest.kt`
 
@@ -281,6 +286,7 @@ class WalkthroughPopupPlacementTest {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run:
+
 ```bash
 ./gradlew test --tests com.forketyfork.walkthrough.WalkthroughPopupPlacementTest
 ```
@@ -307,6 +313,7 @@ internal fun clampPopupSize(size: Dimension, maxWidth: Int, maxHeight: Int): Dim
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run:
+
 ```bash
 ./gradlew test --tests com.forketyfork.walkthrough.WalkthroughPopupPlacementTest
 ```
@@ -316,6 +323,7 @@ Expected: all 4 tests pass.
 - [ ] **Step 5: Run lint and build**
 
 Run:
+
 ```bash
 just lint && just build
 ```
@@ -341,6 +349,7 @@ changes to fire once on `mouseReleased`, and the orchestrator gains a unified
 Next/Previous navigation.
 
 **Files:**
+
 - Modify: `src/main/kotlin/com/forketyfork/walkthrough/WalkthroughPopupPlacement.kt`
 - Modify: `src/main/kotlin/com/forketyfork/walkthrough/WalkthroughPopupInteraction.kt`
 - Modify: `src/main/kotlin/com/forketyfork/walkthrough/WalkthroughOrchestrator.kt`
@@ -821,6 +830,7 @@ private fun createWalkthroughPanel(
 ```
 
 Notable diffs versus the current file:
+
 - `var userMovedPopup`, `fun onPopupUserMoved()`, and the file-level
   `repositionPopupForItem` helper introduced in the prior commit are removed.
 - A new file-level `saveCurrentGeometry(popup)` helper reads the current popup
@@ -842,6 +852,7 @@ Notable diffs versus the current file:
 - [ ] **Step 4: Verify the project still builds**
 
 Run:
+
 ```bash
 just build
 ```
@@ -851,6 +862,7 @@ Expected: BUILD SUCCESSFUL.
 - [ ] **Step 5: Verify lint still passes**
 
 Run:
+
 ```bash
 just lint
 ```
@@ -860,6 +872,7 @@ Expected: BUILD SUCCESSFUL (detekt clean).
 - [ ] **Step 6: Run the full test suite**
 
 Run:
+
 ```bash
 just test
 ```
@@ -887,6 +900,7 @@ integration with Swing/Editor must be validated in `runIde`.
 - [ ] **Step 1: Launch the sandboxed IDE**
 
 Run:
+
 ```bash
 just run
 ```

@@ -29,14 +29,14 @@ place.
 
 ## Decisions
 
-| Decision                       | Choice                                                  |
-| ------------------------------ | ------------------------------------------------------- |
-| Scope                          | Application-wide (extend existing `WalkthroughSettings`) |
-| Coordinate system              | Absolute screen coordinates                             |
-| First-time fallback            | Existing `movePopupNearItem` placement                  |
-| Behavior on Next within session| Same as first show: load → avoid overlap → constrain    |
-| Replacement of `userMovedPopup`| Yes — the in-memory flag is removed                     |
-| Persistence triggers           | Once on mouse release after a drag or resize, and once on initial show when the position is adjusted from what was loaded |
+- **Scope:** application-wide (extend existing `WalkthroughSettings`).
+- **Coordinate system:** absolute screen coordinates.
+- **First-time fallback:** existing `movePopupNearItem` placement.
+- **Behavior on Next within session:** same as first show — load, avoid
+  overlap, constrain.
+- **Replacement of `userMovedPopup`:** yes; the in-memory flag is removed.
+- **Persistence triggers:** once on mouse release after a drag or resize, and
+  once on initial show when the position is adjusted from what was loaded.
 
 ## Architecture
 
@@ -121,12 +121,18 @@ no-op because the persisted geometry is unchanged.
 
 ### Files touched
 
-| File                             | Change                                                                                                                              |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `WalkthroughSettings.kt`         | Add `popupX/Y/Width/Height` fields to `State`; add `PopupGeometry` data class; add `loadGeometry()` and `saveGeometry()` methods.  |
-| `WalkthroughOrchestrator.kt`     | Remove `userMovedPopup` and `onPopupUserMoved`. Replace `repositionPopupForItem` with `applyPopupGeometryForItem`. Wire save hook. |
-| `WalkthroughPopupPlacement.kt`   | Add a helper that takes a starting `Rectangle`, target line, editor, and returns the constrained, overlap-avoided rectangle.        |
-| `WalkthroughPopupInteraction.kt` | Rename `onPopupMoved` → `onInteractionEnd`; drop `onLocationChanged` param from `movePopupBy` / `resizePopupBy`; fire callback from `mouseReleased`. |
+- **`WalkthroughSettings.kt`** — add `popupX/Y/Width/Height` fields to `State`;
+  add a `PopupGeometry` data class; add `loadGeometry()` and `saveGeometry()`
+  methods.
+- **`WalkthroughOrchestrator.kt`** — remove `userMovedPopup` and
+  `onPopupUserMoved`. Replace `repositionPopupForItem` with
+  `applyPopupGeometryForItem`. Wire the save hook.
+- **`WalkthroughPopupPlacement.kt`** — add a helper that takes a starting
+  `Rectangle`, target line, and editor, and returns the constrained,
+  overlap-avoided rectangle.
+- **`WalkthroughPopupInteraction.kt`** — rename `onPopupMoved` →
+  `onInteractionEnd`; drop the `onLocationChanged` param from `movePopupBy` /
+  `resizePopupBy`; fire the callback from `mouseReleased`.
 
 No `plugin.xml` change is required — `WalkthroughSettings` is already
 registered as an `applicationService`.
