@@ -27,8 +27,8 @@ just run              # or: ./gradlew runIde
 # Verify plugin compatibility
 just verify           # or: ./gradlew verifyPlugin
 
-# Lint (Detekt static analysis)
-just lint             # or: ./gradlew detekt
+# Lint (everything CI runs: nix flake check + Detekt)
+just lint             # or: nix flake check && ./gradlew detekt
 
 # Run unit tests
 just test             # or: ./gradlew test
