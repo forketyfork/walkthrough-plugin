@@ -1,11 +1,14 @@
 package com.forketyfork.walkthrough
 
 import com.intellij.openapi.Disposable
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
@@ -116,6 +119,7 @@ class WalkthroughSessionRegistryTest {
         }
 
         assertEquals(false, session.loadingState.value)
+        assertEquals(WalkthroughQuestionStatus.AgentNotWaiting, session.questionStatusState.value)
     }
 
     @Test
@@ -144,6 +148,8 @@ class WalkthroughSessionRegistryTest {
         assertNotNull(question)
         assertEquals("2", question?.parentLabel)
         assertEquals("what about two?", question?.question)
+        assertEquals(WalkthroughQuestionStatus.ProcessingQuestion, session.questionStatusState.value)
+        assertEquals(true, session.loadingState.value)
     }
 
     @Test
@@ -156,6 +162,91 @@ class WalkthroughSessionRegistryTest {
         session.submitQuestion("what now?")
 
         assertEquals(false, session.loadingState.value)
+        assertEquals(WalkthroughQuestionStatus.AgentNotWaiting, session.questionStatusState.value)
+    }
+
+    @Test
+    fun submitQuestionQueuesWhenAgentIsNotWaiting() {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only")))
+        )
+
+        session.submitQuestion("can you explain?")
+
+        assertEquals(WalkthroughQuestionStatus.QuestionQueued, session.questionStatusState.value)
+        assertEquals(false, session.loadingState.value)
+    }
+
+    @Test
+    fun queuedQuestionIsDeliveredToNextAwait() = runBlocking {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only")))
+        )
+        session.submitQuestion("can you explain?")
+
+        val result = session.awaitQuestionResult(timeoutMillis = TEST_AWAIT_TIMEOUT_MILLIS)
+
+        assertTrue(result is WalkthroughQuestionAwaitResult.Received)
+        val question = (result as WalkthroughQuestionAwaitResult.Received).question
+        assertEquals("can you explain?", question.question)
+        assertEquals("1", question.parentLabel)
+        assertEquals(WalkthroughQuestionStatus.ProcessingQuestion, session.questionStatusState.value)
+        assertEquals(true, session.loadingState.value)
+    }
+
+    @Test
+    fun inFlightQuestionCanBeClaimedAgainUntilTangentsAreInserted() = runBlocking {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only")))
+        )
+        session.submitQuestion("can you explain?")
+
+        val firstResult = session.awaitQuestionResult(timeoutMillis = TEST_AWAIT_TIMEOUT_MILLIS)
+        val secondResult = session.awaitQuestionResult(timeoutMillis = TEST_AWAIT_TIMEOUT_MILLIS)
+
+        assertTrue(firstResult is WalkthroughQuestionAwaitResult.Received)
+        assertTrue(secondResult is WalkthroughQuestionAwaitResult.Received)
+        val firstQuestion = (firstResult as WalkthroughQuestionAwaitResult.Received).question
+        val secondQuestion = (secondResult as WalkthroughQuestionAwaitResult.Received).question
+        assertEquals(firstQuestion, secondQuestion)
+
+        session.insertTangents("1", listOf(WalkthroughItem(text = "answer")))
+        val resultAfterAnswer = session.awaitQuestionResult(timeoutMillis = 1L)
+
+        assertSame(WalkthroughQuestionAwaitResult.WaitingExpired, resultAfterAnswer)
+    }
+
+    @Test
+    fun awaitQuestionResultExpiresAndMarksAgentNotWaiting() = runBlocking {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only")))
+        )
+
+        val result = session.awaitQuestionResult(timeoutMillis = 1L)
+
+        assertSame(WalkthroughQuestionAwaitResult.WaitingExpired, result)
+        assertEquals(WalkthroughQuestionStatus.AgentNotWaiting, session.questionStatusState.value)
+        assertEquals(false, session.loadingState.value)
+    }
+
+    @Test
+    fun newAwaitReplacesPreviousWaiter() = runBlocking {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only")))
+        )
+        val firstAwait = async { session.awaitQuestionResult(timeoutMillis = TEST_AWAIT_TIMEOUT_MILLIS) }
+        waitUntilQuestionStatus(session, WalkthroughQuestionStatus.WaitingForQuestion)
+
+        val secondAwait = async { session.awaitQuestionResult(timeoutMillis = TEST_AWAIT_TIMEOUT_MILLIS) }
+        assertSame(WalkthroughQuestionAwaitResult.Replaced, firstAwait.await())
+        waitUntilQuestionStatus(session, WalkthroughQuestionStatus.WaitingForQuestion)
+
+        session.submitQuestion("fresh question")
+        val result = secondAwait.await()
+
+        assertTrue(result is WalkthroughQuestionAwaitResult.Received)
+        val question = (result as WalkthroughQuestionAwaitResult.Received).question
+        assertEquals("fresh question", question.question)
     }
 
     @Test
@@ -196,5 +287,21 @@ class WalkthroughSessionRegistryTest {
         assertNull(registry.get(session.id))
         assertEquals(true, registry.consumeDismissed(session.id))
         assertEquals(false, registry.consumeDismissed(session.id))
+    }
+
+    private suspend fun waitUntilQuestionStatus(
+        session: WalkthroughSession,
+        status: WalkthroughQuestionStatus
+    ) {
+        repeat(TEST_STATUS_WAIT_ATTEMPTS) {
+            if (session.questionStatusState.value == status) return
+            yield()
+        }
+        assertEquals(status, session.questionStatusState.value)
+    }
+
+    private companion object {
+        const val TEST_AWAIT_TIMEOUT_MILLIS = 1_000L
+        const val TEST_STATUS_WAIT_ATTEMPTS = 100
     }
 }

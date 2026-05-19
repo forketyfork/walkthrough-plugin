@@ -11,6 +11,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -70,9 +71,12 @@ private object WalkthroughWidgetStyle {
     val questionFieldRadius = 18.dp
     val questionFieldPaddingHorizontal = 14.dp
     val questionFieldTextSize = 13.sp
+    val questionStatusSpacing = 4.dp
+    val questionStatusTextSize = 12.sp
     const val QUESTION_FIELD_BACKGROUND_ALPHA = 0.12f
     const val QUESTION_FIELD_BORDER_ALPHA = 0.2f
     const val QUESTION_PLACEHOLDER_ALPHA = 0.55f
+    const val QUESTION_STATUS_ALPHA = 0.72f
     val sendButtonSize = 34.dp
     val spinnerSize = 18.dp
     val spinnerStrokeWidth = 2.dp
@@ -234,42 +238,52 @@ internal fun AiNavButton(
 
 @Composable
 internal fun WalkthroughQuestionInput(
-    isLoading: Boolean,
+    status: WalkthroughQuestionStatus,
     palette: WalkthroughPalette,
     onSubmit: (String) -> Unit
 ) {
     var text by remember { mutableStateOf("") }
-    val canSubmit = !isLoading && text.isNotBlank()
+    val canType = status == WalkthroughQuestionStatus.AgentNotWaiting ||
+        status == WalkthroughQuestionStatus.WaitingForQuestion
+    val canSubmit = canType && text.isNotBlank()
     val submit: () -> Unit = {
         if (canSubmit) {
             onSubmit(text)
             text = ""
         }
     }
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(WalkthroughWidgetStyle.questionRowSpacing),
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(WalkthroughWidgetStyle.questionStatusSpacing)
     ) {
-        QuestionTextField(
-            text = text,
-            isLoading = isLoading,
-            onTextChange = { value -> text = value },
-            onSend = submit,
-            modifier = Modifier.weight(1f)
-        )
-        if (isLoading) {
-            QuestionSpinner(palette = palette)
-        } else {
-            SendQuestionButton(enabled = canSubmit, palette = palette, onClick = submit)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(WalkthroughWidgetStyle.questionRowSpacing),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            QuestionTextField(
+                text = text,
+                enabled = canType,
+                placeholder = questionPlaceholder(status),
+                onTextChange = { value -> text = value },
+                onSend = submit,
+                modifier = Modifier.weight(1f)
+            )
+            if (status == WalkthroughQuestionStatus.ProcessingQuestion) {
+                QuestionSpinner(palette = palette)
+            } else {
+                SendQuestionButton(enabled = canSubmit, palette = palette, onClick = submit)
+            }
         }
+        QuestionStatusText(status = status)
     }
 }
 
 @Composable
 private fun QuestionTextField(
     text: String,
-    isLoading: Boolean,
+    enabled: Boolean,
+    placeholder: String,
     onTextChange: (String) -> Unit,
     onSend: () -> Unit,
     modifier: Modifier = Modifier
@@ -293,7 +307,7 @@ private fun QuestionTextField(
         BasicTextField(
             value = text,
             onValueChange = onTextChange,
-            enabled = !isLoading,
+            enabled = enabled,
             singleLine = true,
             textStyle = TextStyle(
                 color = Color.White,
@@ -307,7 +321,7 @@ private fun QuestionTextField(
             decorationBox = { innerTextField ->
                 if (text.isEmpty()) {
                     Text(
-                        text = "Ask a question about this step…",
+                        text = placeholder,
                         color = Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_PLACEHOLDER_ALPHA),
                         fontSize = WalkthroughWidgetStyle.questionFieldTextSize
                     )
@@ -317,6 +331,31 @@ private fun QuestionTextField(
         )
     }
 }
+
+@Composable
+private fun QuestionStatusText(status: WalkthroughQuestionStatus) {
+    Text(
+        text = questionStatusText(status),
+        color = Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_STATUS_ALPHA),
+        fontSize = WalkthroughWidgetStyle.questionStatusTextSize
+    )
+}
+
+private fun questionPlaceholder(status: WalkthroughQuestionStatus): String =
+    when (status) {
+        WalkthroughQuestionStatus.AgentNotWaiting,
+        WalkthroughQuestionStatus.WaitingForQuestion -> "Ask a question about this step…"
+        WalkthroughQuestionStatus.QuestionQueued -> "Question queued"
+        WalkthroughQuestionStatus.ProcessingQuestion -> "Question sent"
+    }
+
+private fun questionStatusText(status: WalkthroughQuestionStatus): String =
+    when (status) {
+        WalkthroughQuestionStatus.AgentNotWaiting -> "await_walkthrough_question is not running."
+        WalkthroughQuestionStatus.WaitingForQuestion -> "await_walkthrough_question is listening for questions."
+        WalkthroughQuestionStatus.QuestionQueued -> "Question is ready; await_walkthrough_question is not running."
+        WalkthroughQuestionStatus.ProcessingQuestion -> "Question is being processed by the agent."
+    }
 
 @Composable
 private fun SendQuestionButton(enabled: Boolean, palette: WalkthroughPalette, onClick: () -> Unit) {

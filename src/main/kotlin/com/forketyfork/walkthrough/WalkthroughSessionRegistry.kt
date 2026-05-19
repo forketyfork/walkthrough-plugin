@@ -7,7 +7,9 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -16,6 +18,30 @@ import java.util.concurrent.atomic.AtomicReference
 data class WalkthroughTangentQuestion(
     val question: String,
     val parentLabel: String?
+)
+
+internal enum class WalkthroughQuestionStatus {
+    AgentNotWaiting,
+    WaitingForQuestion,
+    QuestionQueued,
+    ProcessingQuestion
+}
+
+internal sealed interface WalkthroughQuestionAwaitResult {
+    data class Received(val question: WalkthroughTangentQuestion) : WalkthroughQuestionAwaitResult
+    data object Dismissed : WalkthroughQuestionAwaitResult
+    data object WaitingExpired : WalkthroughQuestionAwaitResult
+    data object Replaced : WalkthroughQuestionAwaitResult
+}
+
+private class WalkthroughQuestionWaiter {
+    val result = CompletableDeferred<WalkthroughQuestionAwaitResult>()
+}
+
+private data class WalkthroughQuestionWaitRegistration(
+    val waiter: WalkthroughQuestionWaiter?,
+    val previousWaiter: WalkthroughQuestionWaiter?,
+    val immediateResult: WalkthroughQuestionAwaitResult?
 )
 
 class WalkthroughSession internal constructor(
@@ -28,9 +54,13 @@ class WalkthroughSession internal constructor(
     internal val items: SnapshotStateList<WalkthroughItem> =
         mutableStateListOf<WalkthroughItem>().apply { addAll(initialItems) }
     internal val currentIndexState = mutableIntStateOf(0)
+    internal val questionStatusState = mutableStateOf(WalkthroughQuestionStatus.AgentNotWaiting)
     internal val loadingState = mutableStateOf(false)
 
-    private val questionChannel = Channel<WalkthroughTangentQuestion>(capacity = Channel.UNLIMITED)
+    private val questionLock = Any()
+    private var activeQuestionWaiter: WalkthroughQuestionWaiter? = null
+    private var pendingQuestion: WalkthroughTangentQuestion? = null
+    private var inFlightQuestion: WalkthroughTangentQuestion? = null
     private val disposed = CompletableDeferred<Unit>()
 
     fun snapshotItems(): List<WalkthroughItem> = items.toList()
@@ -39,15 +69,54 @@ class WalkthroughSession internal constructor(
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
         val parentItem = items.getOrNull(currentIndexState.intValue)
-        loadingState.value = true
-        val result = questionChannel.trySend(WalkthroughTangentQuestion(trimmed, parentItem?.label))
-        if (result.isFailure) {
-            loadingState.value = false
+        val question = WalkthroughTangentQuestion(trimmed, parentItem?.label)
+        val waiter = synchronized(questionLock) {
+            when {
+                disposed.isCompleted -> null
+                pendingQuestion != null -> null
+                questionStatusState.value == WalkthroughQuestionStatus.ProcessingQuestion -> null
+                activeQuestionWaiter != null -> {
+                    activeQuestionWaiter.also {
+                        activeQuestionWaiter = null
+                        inFlightQuestion = question
+                        setQuestionStatus(WalkthroughQuestionStatus.ProcessingQuestion)
+                    }
+                }
+                else -> {
+                    pendingQuestion = question
+                    setQuestionStatus(WalkthroughQuestionStatus.QuestionQueued)
+                    null
+                }
+            }
         }
+        waiter?.result?.complete(WalkthroughQuestionAwaitResult.Received(question))
     }
 
     suspend fun awaitQuestion(): WalkthroughTangentQuestion? =
-        questionChannel.receiveCatching().getOrNull()
+        when (val result = awaitQuestionResult(timeoutMillis = null)) {
+            is WalkthroughQuestionAwaitResult.Received -> result.question
+            else -> null
+        }
+
+    internal suspend fun awaitQuestionResult(timeoutMillis: Long?): WalkthroughQuestionAwaitResult = coroutineScope {
+        val registration = registerQuestionWaiter()
+        registration.previousWaiter?.result?.complete(WalkthroughQuestionAwaitResult.Replaced)
+        registration.immediateResult?.let { return@coroutineScope it }
+
+        val waiter = registration.waiter ?: return@coroutineScope WalkthroughQuestionAwaitResult.Dismissed
+        val timeoutJob = timeoutMillis?.let { timeout ->
+            launch {
+                delay(timeout)
+                expireQuestionWaiter(waiter)
+            }
+        }
+        try {
+            waiter.result.await()
+        } finally {
+            timeoutJob?.cancel()
+            clearQuestionWaiter(waiter)
+        }
+    }
 
     fun insertTangents(parentLabel: String, newItems: List<WalkthroughItem>): List<WalkthroughItem> {
         try {
@@ -76,15 +145,96 @@ class WalkthroughSession internal constructor(
             currentIndexState.intValue = lastSubtreeIndex + 1
             return labeled
         } finally {
-            loadingState.value = false
+            synchronized(questionLock) {
+                inFlightQuestion = null
+                setQuestionStatus(WalkthroughQuestionStatus.AgentNotWaiting)
+            }
         }
     }
 
     internal fun dismiss() {
         if (disposed.complete(Unit)) {
-            loadingState.value = false
-            questionChannel.close()
+            val waiter = synchronized(questionLock) {
+                activeQuestionWaiter.also {
+                    activeQuestionWaiter = null
+                    pendingQuestion = null
+                    inFlightQuestion = null
+                    setQuestionStatus(WalkthroughQuestionStatus.AgentNotWaiting)
+                }
+            }
+            waiter?.result?.complete(WalkthroughQuestionAwaitResult.Dismissed)
         }
+    }
+
+    private fun registerQuestionWaiter(): WalkthroughQuestionWaitRegistration {
+        val waiter = WalkthroughQuestionWaiter()
+        return synchronized(questionLock) {
+            when {
+                disposed.isCompleted -> WalkthroughQuestionWaitRegistration(
+                    waiter = null,
+                    previousWaiter = null,
+                    immediateResult = WalkthroughQuestionAwaitResult.Dismissed
+                )
+                inFlightQuestion != null -> {
+                    setQuestionStatus(WalkthroughQuestionStatus.ProcessingQuestion)
+                    WalkthroughQuestionWaitRegistration(
+                        waiter = null,
+                        previousWaiter = null,
+                        immediateResult = WalkthroughQuestionAwaitResult.Received(requireNotNull(inFlightQuestion))
+                    )
+                }
+                pendingQuestion != null -> {
+                    val question = pendingQuestion
+                    pendingQuestion = null
+                    inFlightQuestion = question
+                    setQuestionStatus(WalkthroughQuestionStatus.ProcessingQuestion)
+                    WalkthroughQuestionWaitRegistration(
+                        waiter = null,
+                        previousWaiter = null,
+                        immediateResult = WalkthroughQuestionAwaitResult.Received(requireNotNull(question))
+                    )
+                }
+                else -> {
+                    val previousWaiter = activeQuestionWaiter
+                    activeQuestionWaiter = waiter
+                    setQuestionStatus(WalkthroughQuestionStatus.WaitingForQuestion)
+                    WalkthroughQuestionWaitRegistration(
+                        waiter = waiter,
+                        previousWaiter = previousWaiter,
+                        immediateResult = null
+                    )
+                }
+            }
+        }
+    }
+
+    private fun expireQuestionWaiter(waiter: WalkthroughQuestionWaiter) {
+        val expired = synchronized(questionLock) {
+            if (activeQuestionWaiter === waiter) {
+                activeQuestionWaiter = null
+                setQuestionStatus(WalkthroughQuestionStatus.AgentNotWaiting)
+                true
+            } else {
+                false
+            }
+        }
+        if (expired) {
+            waiter.result.complete(WalkthroughQuestionAwaitResult.WaitingExpired)
+        }
+    }
+
+    private fun clearQuestionWaiter(waiter: WalkthroughQuestionWaiter) {
+        synchronized(questionLock) {
+            if (activeQuestionWaiter === waiter) {
+                activeQuestionWaiter = null
+                setQuestionStatus(WalkthroughQuestionStatus.AgentNotWaiting)
+            }
+        }
+    }
+
+    private fun setQuestionStatus(status: WalkthroughQuestionStatus) {
+        questionStatusState.value = status
+        loadingState.value = status == WalkthroughQuestionStatus.ProcessingQuestion
     }
 }
 
