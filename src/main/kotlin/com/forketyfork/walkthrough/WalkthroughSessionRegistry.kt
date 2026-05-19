@@ -119,37 +119,34 @@ class WalkthroughSession internal constructor(
     }
 
     fun insertTangents(parentLabel: String, newItems: List<WalkthroughItem>): List<WalkthroughItem> {
-        try {
-            require(newItems.isNotEmpty()) { "newItems must not be empty" }
-            val parentIndex = items.indexOfFirst { it.label == parentLabel }
-            require(parentIndex >= 0) { "No item with label '$parentLabel'" }
+        require(newItems.isNotEmpty()) { "newItems must not be empty" }
+        val parentIndex = items.indexOfFirst { it.label == parentLabel }
+        require(parentIndex >= 0) { "No item with label '$parentLabel'" }
 
-            val directChildPattern = Regex("^${Regex.escape(parentLabel)}\\.\\d+$")
-            val existingDirectChildren = items.count { it.label?.matches(directChildPattern) == true }
+        val directChildPattern = Regex("^${Regex.escape(parentLabel)}\\.\\d+$")
+        val existingDirectChildren = items.count { it.label?.matches(directChildPattern) == true }
 
-            val parentPrefix = "$parentLabel."
-            var lastSubtreeIndex = parentIndex
-            items.forEachIndexed { index, item ->
-                if (item.label?.startsWith(parentPrefix) == true) {
-                    lastSubtreeIndex = index
-                }
-            }
-
-            val labeled = newItems.mapIndexed { offset, item ->
-                item.copy(
-                    label = "$parentLabel.${existingDirectChildren + offset + 1}",
-                    parentLabel = parentLabel
-                )
-            }
-            items.addAll(lastSubtreeIndex + 1, labeled)
-            currentIndexState.intValue = lastSubtreeIndex + 1
-            return labeled
-        } finally {
-            synchronized(questionLock) {
-                inFlightQuestion = null
-                setQuestionStatus(WalkthroughQuestionStatus.AgentNotWaiting)
+        val parentPrefix = "$parentLabel."
+        var lastSubtreeIndex = parentIndex
+        items.forEachIndexed { index, item ->
+            if (item.label?.startsWith(parentPrefix) == true) {
+                lastSubtreeIndex = index
             }
         }
+
+        val labeled = newItems.mapIndexed { offset, item ->
+            item.copy(
+                label = "$parentLabel.${existingDirectChildren + offset + 1}",
+                parentLabel = parentLabel
+            )
+        }
+        items.addAll(lastSubtreeIndex + 1, labeled)
+        currentIndexState.intValue = lastSubtreeIndex + 1
+        synchronized(questionLock) {
+            inFlightQuestion = null
+            setQuestionStatus(WalkthroughQuestionStatus.AgentNotWaiting)
+        }
+        return labeled
     }
 
     internal fun dismiss() {

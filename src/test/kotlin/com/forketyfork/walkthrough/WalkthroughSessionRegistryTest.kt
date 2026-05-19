@@ -108,18 +108,26 @@ class WalkthroughSessionRegistryTest {
     }
 
     @Test
-    fun insertTangentsClearsLoadingAfterValidationFailure() {
+    fun insertTangentsPreservesInFlightQuestionAfterValidationFailure() = runBlocking {
         val session = newSession(
             assignTopLevelLabels(listOf(WalkthroughItem(text = "only")))
         )
-        session.loadingState.value = true
+        session.submitQuestion("can you explain?")
+        val firstResult = session.awaitQuestionResult(timeoutMillis = TEST_AWAIT_TIMEOUT_MILLIS)
 
         assertThrows(IllegalArgumentException::class.java) {
             session.insertTangents("9", listOf(WalkthroughItem(text = "x")))
         }
 
-        assertEquals(false, session.loadingState.value)
-        assertEquals(WalkthroughQuestionStatus.AgentNotWaiting, session.questionStatusState.value)
+        assertTrue(firstResult is WalkthroughQuestionAwaitResult.Received)
+        assertEquals(WalkthroughQuestionStatus.ProcessingQuestion, session.questionStatusState.value)
+        assertEquals(true, session.loadingState.value)
+
+        val retryResult = session.awaitQuestionResult(timeoutMillis = TEST_AWAIT_TIMEOUT_MILLIS)
+
+        assertTrue(retryResult is WalkthroughQuestionAwaitResult.Received)
+        val retryQuestion = (retryResult as WalkthroughQuestionAwaitResult.Received).question
+        assertEquals("can you explain?", retryQuestion.question)
     }
 
     @Test

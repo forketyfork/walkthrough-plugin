@@ -39,6 +39,16 @@ private data class ToolDiffWalkthroughDescriptorJson(
 
 private const val QUESTION_TOOL_REFRESH_TIMEOUT_MILLIS = 110_000L
 
+private fun resolveAwaitQuestionResult(
+    result: WalkthroughQuestionAwaitResult,
+    wasDismissed: Boolean
+): WalkthroughQuestionAwaitResult =
+    if (wasDismissed && result == WalkthroughQuestionAwaitResult.WaitingExpired) {
+        WalkthroughQuestionAwaitResult.Dismissed
+    } else {
+        result
+    }
+
 class ShowWalkthroughItemsToolset : McpToolset {
     // Discovered and invoked via reflection by the MCP server framework
     @Suppress("unused")
@@ -173,9 +183,10 @@ class ShowWalkthroughItemsToolset : McpToolset {
         val registry = WalkthroughSessionRegistry.getInstance(project)
         val session = registry.get(walkthroughId)
         val result = when {
-            session != null -> session.awaitQuestionResult(QUESTION_TOOL_REFRESH_TIMEOUT_MILLIS).also {
-                registry.consumeDismissed(walkthroughId)
-            }
+            session != null -> resolveAwaitQuestionResult(
+                result = session.awaitQuestionResult(QUESTION_TOOL_REFRESH_TIMEOUT_MILLIS),
+                wasDismissed = registry.consumeDismissed(walkthroughId)
+            )
             registry.consumeDismissed(walkthroughId) -> WalkthroughQuestionAwaitResult.Dismissed
             else -> mcpFail("Unknown walkthroughId: $walkthroughId")
         }
