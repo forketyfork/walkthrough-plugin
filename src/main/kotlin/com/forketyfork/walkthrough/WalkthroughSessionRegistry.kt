@@ -255,7 +255,9 @@ class WalkthroughSession internal constructor(
     /**
      * Defers the transition to [WalkthroughQuestionStatus.AgentNotWaiting] by [notListeningGracePeriodMillis]
      * to avoid briefly showing the "agent is not listening" warning when the MCP client cancels and
-     * immediately re-issues the await call. Must be invoked while holding [questionLock].
+     * immediately re-issues the await call. The spinner ([loadingState]) is cleared immediately so it
+     * does not keep spinning during the grace window after the question has actually been answered.
+     * Must be invoked while holding [questionLock].
      */
     private fun scheduleAgentNotWaitingLocked() {
         cancelPendingAgentNotWaitingLocked()
@@ -263,6 +265,9 @@ class WalkthroughSession internal constructor(
             setQuestionStatus(WalkthroughQuestionStatus.AgentNotWaiting)
             return
         }
+        // Stop the spinner now even though the visible status text is deferred: the question is
+        // done, only the AgentNotWaiting warning flash needs the grace window.
+        loadingState.value = false
         lateinit var scheduledJob: Job
         scheduledJob = sessionScope.launch {
             delay(notListeningGracePeriodMillis)

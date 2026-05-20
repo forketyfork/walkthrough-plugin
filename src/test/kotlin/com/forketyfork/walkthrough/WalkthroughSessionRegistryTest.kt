@@ -309,6 +309,25 @@ class WalkthroughSessionRegistryTest {
     }
 
     @Test
+    fun insertTangentsClearsLoadingImmediatelyDuringGraceWindow() = runBlocking {
+        val session = newSession(
+            items = assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
+            notListeningGracePeriodMillis = LONG_GRACE_PERIOD_MILLIS
+        )
+        session.submitQuestion("explain")
+        val received = session.awaitQuestionResult(timeoutMillis = TEST_AWAIT_TIMEOUT_MILLIS)
+        assertTrue(received is WalkthroughQuestionAwaitResult.Received)
+        assertEquals(true, session.loadingState.value)
+
+        session.insertTangents("1", listOf(WalkthroughItem(text = "answer")))
+
+        // The spinner must stop immediately; only the AgentNotWaiting warning is deferred by the grace window.
+        assertEquals(false, session.loadingState.value)
+        // The grace window is much longer than this check, so the visible status flip is still pending.
+        assertEquals(WalkthroughQuestionStatus.ProcessingQuestion, session.questionStatusState.value)
+    }
+
+    @Test
     fun newAwaitReplacesPreviousWaiter() = runBlocking {
         val session = newSession(
             assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
@@ -382,5 +401,6 @@ class WalkthroughSessionRegistryTest {
         const val TEST_STATUS_WAIT_ATTEMPTS = 100
         const val TEST_STATUS_POLL_INTERVAL_MILLIS = 10L
         const val TEST_GRACE_PERIOD_MILLIS = 50L
+        const val LONG_GRACE_PERIOD_MILLIS = 10_000L
     }
 }

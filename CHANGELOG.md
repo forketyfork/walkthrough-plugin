@@ -25,7 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - The popup no longer briefly flashes the "agent is not listening" warning when the MCP client
   cancels and immediately re-issues `await_walkthrough_question`. The status now waits for a
   short grace period (5 s) before flipping. The underlying `CancellationException` is also no
-  longer surfaced to the IDE log as a tool-call error.
+  longer surfaced to the IDE log as a tool-call error. The inline spinner is now cleared as soon
+  as `insert_walkthrough_tangents` returns, instead of staying on screen until the grace window
+  expires.
 
 ## [0.4.0]
 
