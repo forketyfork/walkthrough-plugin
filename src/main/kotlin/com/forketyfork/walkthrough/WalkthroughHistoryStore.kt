@@ -185,21 +185,33 @@ internal class WalkthroughHistoryStore(
 
     private fun validateRecord(record: WalkthroughRecord) {
         val hasValidCreatedAt = runCatching { Instant.parse(record.createdAt) }.isSuccess
+        val hasValidTargetKind = when (record.targetKind) {
+            WalkthroughTargetKind.File -> record.diffDescriptors.isEmpty()
+            WalkthroughTargetKind.Diff -> record.diffDescriptors.isNotEmpty()
+        }
+        val hasValidDescriptors = record.diffDescriptors.all { descriptor ->
+            descriptor.id.isNotBlank() &&
+                descriptor.leftCommit.isNotBlank() &&
+                descriptor.rightCommit.isNotBlank() &&
+                descriptor.hasUsablePath()
+        }
         val hasValidFields = isSafeRecordId(record.id) &&
             record.description.isNotBlank() &&
             record.items.isNotEmpty() &&
             record.items.all { item -> item.text.isNotBlank() } &&
-            (record.targetKind == WalkthroughTargetKind.File || record.diffDescriptors.isNotEmpty()) &&
-            record.diffDescriptors.all { descriptor ->
-                descriptor.id.isNotBlank() &&
-                    descriptor.leftCommit.isNotBlank() &&
-                    descriptor.rightCommit.isNotBlank()
-            }
+            hasValidTargetKind &&
+            hasValidDescriptors
 
         if (!hasValidCreatedAt || !hasValidFields) {
             throw JsonParseException("Invalid walkthrough history record")
         }
     }
+}
+
+private fun DiffWalkthroughDescriptor.hasUsablePath(): Boolean {
+    val hasSharedFile = !file.isNullOrBlank()
+    val hasBothSideFiles = !leftFile.isNullOrBlank() && !rightFile.isNullOrBlank()
+    return hasSharedFile || hasBothSideFiles
 }
 
 internal fun slugifyDescription(description: String): String =

@@ -250,8 +250,8 @@ class ShowWalkthroughItemsToolset : McpToolset {
         val parsed = Gson().fromJson(payload, DiffWalkthroughPayloadJson::class.java)
             ?: mcpFail("payload must be a JSON object")
         val descriptors = parseDiffDescriptors(parsed.diffs.orEmpty())
-        val items = parseDiffItems(parsed.items.orEmpty(), descriptors)
         if (descriptors.isEmpty()) mcpFail("diffs must not be empty")
+        val items = parseDiffItems(parsed.items.orEmpty(), descriptors)
         if (items.isEmpty()) mcpFail("items must not be empty")
         ParsedDiffPayload(descriptors = descriptors, items = items)
     } catch (exception: JsonParseException) {
