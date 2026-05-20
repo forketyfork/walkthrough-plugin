@@ -24,9 +24,6 @@ Relevant public API:
 - `DiffManager.getInstance().showDiff(project, request)` opens a diff request.
 - `DiffRequestFactory.getInstance().createFromFiles(project, left, right)`
   creates file-backed diff requests.
-- `DiffContentFactory.getInstance().create(project, text, highlightFile)` and
-  `SimpleDiffRequest` can create text-backed diffs when the agent supplies both
-  sides.
 - `DiffUserDataKeys.SCROLL_TO_LINE` can request initial scrolling to a side and
   line.
 - `DiffExtension.onViewerCreated(viewer, context, request)` can customize
@@ -35,6 +32,9 @@ Relevant public API:
   viewers.
 - Diff tabs opened as file editors can also expose embedded editors via
   `FileEditorWithTextEditors.getEmbeddedEditors()`.
+- With a `Git4Idea` bundled plugin dependency, `GitContentRevision` can resolve
+  a project file at a specific Git commit hash, and the VCS `Change`/diff
+  request machinery can render a standard IDEA diff from those revisions.
 
 This means a diff walkthrough can be implemented without replacing the existing
 Compose popup. The main change is target resolution: instead of resolving a
@@ -61,6 +61,7 @@ data class WalkthroughItem(
     val text: String,
     val file: String? = null,
     val line: Int? = null,
+    val diffId: String? = null,
     val diffFile: String? = null,
     val diffSide: DiffSide? = null,
     val label: String? = null,
@@ -74,28 +75,30 @@ enum class DiffSide {
 ```
 
 The current `file` and `line` fields stay file-mode fields. Diff-mode items use
-`diffFile`, `diffSide`, and `line`. The line is 1-based in the chosen side's
-full file text, not a patch hunk line.
+`diffId`, `diffFile`, `diffSide`, and `line`. The line is 1-based in the chosen
+side's full file text at that commit, not a patch hunk line. Commit hashes live
+on the diff descriptor, not duplicated into every item.
 
 ### Diff content source
 
-Start with text-backed diffs prepared by the agent:
+Use commit-backed diffs. The agent should not submit file text. It should
+submit the commit hashes that identify the two file revisions to compare.
 
 ```json
 {
   "kind": "diff",
   "diffs": [
     {
+      "id": "foo-main-to-pr",
       "file": "src/Foo.kt",
-      "leftTitle": "base",
-      "rightTitle": "working tree",
-      "leftText": "...",
-      "rightText": "..."
+      "leftCommit": "1a2b3c4d5e6f...",
+      "rightCommit": "9f8e7d6c5b4a..."
     }
   ],
   "items": [
     {
       "text": "This new branch handles the null result.",
+      "diffId": "foo-main-to-pr",
       "diffFile": "src/Foo.kt",
       "diffSide": "right",
       "line": 42
@@ -104,45 +107,83 @@ Start with text-backed diffs prepared by the agent:
 }
 ```
 
-Reasons:
+Reasons for this contract:
 
-- It keeps the plugin independent of Git, GitHub, and PR provider APIs.
-- It lets agents review arbitrary diffs, including uncommitted changes, branch
-  comparisons, copied patches, and PR context obtained through MCP.
-- It makes line-number verification explicit: the agent must verify the line in
-  the side text it submits.
+- It keeps large file contents out of MCP tool arguments and history records.
+- It lets IDEA render a native VCS diff and load contents through the platform's
+  Git revision cache.
+- It makes PR walkthroughs precise: the agent can compare a file at the merge
+  base to the same file at the PR head.
+- It makes history replay feasible as long as the commits remain available in
+  the local repository.
 
-Later, add a VCS-backed mode if needed:
+For a PR walkthrough, the agent should determine the merge-base commit and the
+PR head commit, ensure both commits are available locally, and pass those hashes
+for every file diff it wants to annotate. For a single commit walkthrough, the
+agent should compare the parent commit to the commit being explained. For a
+branch walkthrough, compare the merge base of the target branch and topic branch
+to the topic branch head.
+
+The first implementation should require full commit hashes or refs that Git can
+resolve locally. Full hashes are preferred because they are stable for history
+replay. The plugin can optionally resolve refs to full hashes before saving the
+record.
+
+Support renamed files by allowing separate left/right paths:
 
 ```json
 {
   "kind": "diff",
-  "source": {
-    "type": "git",
-    "baseRef": "main",
-    "headRef": "HEAD"
-  },
+  "diffs": [
+    {
+      "id": "foo-rename",
+      "leftFile": "src/OldFoo.kt",
+      "rightFile": "src/Foo.kt",
+      "leftCommit": "1a2b3c4d5e6f...",
+      "rightCommit": "9f8e7d6c5b4a..."
+    }
+  ],
   "items": [...]
 }
 ```
 
-That second mode is more native, but it couples the plugin to VCS APIs and makes
-non-Git/remote-review workflows harder.
+In the common non-rename case, `file` is shorthand for both `leftFile` and
+`rightFile`. `id` should be unique within the walkthrough payload. It prevents
+ambiguity if the same file is shown across more than one commit pair.
+
+This does couple diff walkthroughs to Git. That is acceptable for this feature
+because the requested workflow is PR/change review by commit hash. The plugin
+will need `bundledPlugin("Git4Idea")` in Gradle and `<depends
+optional="true|false">Git4Idea</depends>` in `plugin.xml`. Make the dependency
+non-optional if diff walkthroughs are a core advertised feature; make it
+optional only if the tool is registered conditionally or fails with a clear
+"Git plugin unavailable" error.
 
 ### Opening and anchoring
 
 For each diff item:
 
-1. Find the matching submitted diff by `diffFile`.
-2. Create left and right `DocumentContent` with `DiffContentFactory`.
-3. Use `SimpleDiffRequest` with content titles.
-4. Put `DiffUserDataKeys.SCROLL_TO_LINE` on the request using the requested
+1. Find the matching diff descriptor by `diffId`, falling back to `diffFile`
+   only if the payload has a single descriptor for that file.
+2. Resolve the project Git root for the left/right file paths.
+3. Build `FilePath` instances for `leftFile` and `rightFile`.
+4. Build `GitRevisionNumber(leftCommit)` and `GitRevisionNumber(rightCommit)`.
+   Optionally call `GitRevisionNumber.resolve(project, root, ref)` first to
+   normalize refs and short hashes to full hashes.
+5. Build `GitContentRevision.createRevision(filePath, revisionNumber, project)`
+   for each side.
+6. Build a VCS `Change(leftRevision, rightRevision)`.
+7. Create a `ChangeDiffRequestProducer` or directly create equivalent
+   `DiffContent` instances from the revisions. Prefer the platform producer if
+   it gives better VCS metadata and title handling without relying on internal
+   APIs.
+8. Put `DiffUserDataKeys.SCROLL_TO_LINE` on the request using the requested
    side and zero-based line.
-5. Add plugin-specific user data to the request containing the walkthrough
+9. Add plugin-specific user data to the request containing the walkthrough
    session id and target item.
-6. Call `DiffManager.getInstance().showDiff(project, request)` on the EDT.
-7. Use a `DiffExtension` to detect tagged requests in `onViewerCreated`.
-8. If the viewer is an `EditorDiffViewer`, choose the editor by side from
+10. Call `DiffManager.getInstance().showDiff(project, request)` on the EDT.
+11. Use a `DiffExtension` to detect tagged requests in `onViewerCreated`.
+12. If the viewer is an `EditorDiffViewer`, choose the editor by side from
    `getEditors()`, move its caret to the requested line, and attach
    `WalkthroughPopupSurface` to that editor.
 
@@ -150,14 +191,19 @@ The existing `WalkthroughPopupSurface` can remain editor-based. Diff editors are
 normal editor instances for anchoring, scrolling listeners, and line-to-screen
 coordinate calculations.
 
+Never call `ContentRevision.getContent()` or `getContentAsBytes()` on the EDT.
+Git revision content loading can hit Git and the platform cache. Prepare the
+diff request under background/progress-aware work, then switch to the EDT to
+show the diff and attach the popup.
+
 ### Navigation behavior
 
 When the user clicks Previous or Next:
 
-- If the next diff item references the same `diffFile`, keep the current diff
-  open and move the popup to the requested side and line.
-- If the next item references a different `diffFile`, open that diff and attach
-  after the viewer is created.
+- If the next diff item references the same diff descriptor, keep the current
+  diff open and move the popup to the requested side and line.
+- If the next item references a different file or a different commit pair, open
+  that diff and attach after the viewer is created.
 
 If the user switches away from the diff tab, hide the connector using the same
 principle already used for file editor changes.
@@ -166,15 +212,15 @@ principle already used for file editor changes.
 
 Persist `kind`, diff descriptors, and item-side fields in history.
 
-For text-backed diffs, storing full left/right texts can make history large. A
-reasonable first implementation is:
+For commit-backed diffs, history should persist:
 
-- Persist diff walkthrough metadata and items.
-- Do not persist full diff contents unless needed for replay.
-- Mark replay unavailable if the stored diff contents are absent.
+- `leftCommit` and `rightCommit`.
+- `leftFile` and `rightFile`, or `file` when paths are unchanged.
+- the descriptor `id`.
+- item anchors: `diffId`, `diffFile`, `diffSide`, and `line`.
 
-If replay is important from day one, persist the texts but cap record size and
-fail gracefully when a diff is too large.
+Replay should fail gracefully when the repository no longer has one of the
+commits. The failure message should name the missing commit and file.
 
 ## MCP Tool Shape
 
@@ -220,18 +266,22 @@ Suggested `show_diff_walkthrough_items` description:
 > the user asks about changes, a PR, a review, a commit, a branch comparison, a
 > patch, or "what changed". Do not use this for general code explanation unless
 > the user specifically wants the explanation in terms of a change. All items in
-> one call must target submitted diffs; do not mix file walkthrough items and
-> diff walkthrough items.
+> one call must target Git commit-backed file diffs; do not mix file walkthrough
+> items and diff walkthrough items. Do not submit file contents. Submit commit
+> hashes for the two file revisions to compare.
 
 Suggested diff payload parameter description:
 
-> JSON object with `diffs` and `items`. `diffs` supplies the text to compare:
-> `file`, `leftTitle`, `rightTitle`, `leftText`, `rightText`. `items` is an
-> array of walkthrough items with `text`, `diffFile`, `diffSide`, and `line`.
-> `diffSide` is `left` or `right`. `line` is 1-based in that side's full text,
-> not the patch hunk line. Use `right` for added or modified new code, `left` for
-> removed old code, and `right` for unchanged context unless discussing the old
-> version. Verify every line against the side text before calling.
+> JSON object with `diffs` and `items`. `diffs` supplies Git revisions to
+> compare: `id`, `file`, `leftCommit`, and `rightCommit`; for renames, use
+> `leftFile` and `rightFile` instead of `file`. `items` is an array of
+> walkthrough items with `text`, `diffId`, `diffFile`, `diffSide`, and `line`.
+> `diffSide` is `left` or `right`. `line` is 1-based in that side's full file
+> text at that commit, not the patch hunk line. Use `right` for added or modified
+> new code, `left` for removed old code, and `right` for unchanged context unless
+> discussing the old version. Verify every line by inspecting that exact file at
+> that exact commit before calling. For PRs, pass the merge-base commit as
+> `leftCommit` and the PR head commit as `rightCommit`.
 
 ## Companion Skill Guidance
 
@@ -269,17 +319,38 @@ File walkthrough lines are 1-based lines in the current full file.
 
 Diff walkthrough lines are 1-based lines in the selected diff side's full text:
 `right` for added/new code, `left` for deleted/old code. Do not use patch hunk
-line numbers. Read or generate the exact side text first, then verify the
+line numbers. Inspect the exact file at the exact commit first, then verify the
 anchor line before calling the tool.
+```
+
+Add a commit-selection section:
+
+```markdown
+## Diff Commits
+
+For diff walkthroughs, submit commit hashes, not file text.
+
+For PR walkthroughs:
+- Fetch the PR branch and target branch if needed.
+- Resolve the merge base between the target branch and PR head.
+- Use the merge-base commit as `leftCommit`.
+- Use the PR head commit as `rightCommit`.
+- For every walkthrough item, verify the anchor line in the selected side at
+  that commit.
+
+For single-commit walkthroughs, use the first parent as `leftCommit` and the
+commit as `rightCommit`. For branch walkthroughs, use the merge base with the
+target branch as `leftCommit` and the branch head as `rightCommit`.
 ```
 
 ## Open Questions
 
-- Should diff history replay persist full diff texts, or should diff sessions be
-  intentionally non-replayable unless backed by VCS refs?
 - Should the first implementation force side-by-side diffs for stable side
   anchoring, or support unified diffs by mapping item anchors to the unified
   synthetic editor?
 - Should there be a separate `show_diff_walkthrough_items` tool, or a single
   `show_walkthrough_items` tool with a `kind` payload? Separate tools are easier
   for agents to choose correctly and preserve backward compatibility.
+- Should the tool accept short hashes and refs, or require full hashes? Full
+  hashes are better for persistence; accepting refs is more ergonomic but should
+  resolve them to full hashes before history is saved.
