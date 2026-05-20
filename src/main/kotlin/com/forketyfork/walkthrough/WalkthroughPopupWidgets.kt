@@ -334,8 +334,9 @@ private fun QuestionTextField(
 
 @Composable
 private fun QuestionStatusText(status: WalkthroughQuestionStatus) {
+    val text = questionStatusText(status) ?: return
     Text(
-        text = questionStatusText(status),
+        text = text,
         color = Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_STATUS_ALPHA),
         fontSize = WalkthroughWidgetStyle.questionStatusTextSize
     )
@@ -349,12 +350,13 @@ private fun questionPlaceholder(status: WalkthroughQuestionStatus): String =
         WalkthroughQuestionStatus.ProcessingQuestion -> "Question sent"
     }
 
-private fun questionStatusText(status: WalkthroughQuestionStatus): String =
+private fun questionStatusText(status: WalkthroughQuestionStatus): String? =
     when (status) {
-        WalkthroughQuestionStatus.AgentNotWaiting -> "await_walkthrough_question is not running."
-        WalkthroughQuestionStatus.WaitingForQuestion -> "await_walkthrough_question is listening for questions."
-        WalkthroughQuestionStatus.QuestionQueued -> "Question is ready; await_walkthrough_question is not running."
-        WalkthroughQuestionStatus.ProcessingQuestion -> "Question is being processed by the agent."
+        WalkthroughQuestionStatus.AgentNotWaiting,
+        WalkthroughQuestionStatus.QuestionQueued ->
+            "⚠\uFE0F Agent is not listening, it should call await_walkthrough_question"
+        WalkthroughQuestionStatus.WaitingForQuestion,
+        WalkthroughQuestionStatus.ProcessingQuestion -> null
     }
 
 @Composable
