@@ -18,9 +18,6 @@ import com.intellij.diff.util.Side as PlatformDiffSide
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
-import com.intellij.openapi.fileEditor.FileEditorManager
-import com.intellij.openapi.fileEditor.FileEditorManagerEvent
-import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.CheckedDisposable
@@ -33,6 +30,8 @@ import com.intellij.openapi.vcs.VcsException
 import com.intellij.vcsUtil.VcsUtil
 import git4idea.GitContentRevision
 import git4idea.GitRevisionNumber
+import java.awt.event.HierarchyEvent
+import java.awt.event.HierarchyListener
 import javax.swing.SwingUtilities
 
 private val DIFF_WALKTHROUGH_CONTROLLER_KEY: Key<DiffWalkthroughController> =
@@ -111,15 +110,6 @@ fun showDiffWalkthroughSession(
         onInteractionEnd = { saveCurrentGeometry(popupRef) }
     )
 
-    project.messageBus.connect(sessionDisposable).subscribe(
-        FileEditorManagerListener.FILE_EDITOR_MANAGER,
-        object : FileEditorManagerListener {
-            override fun selectionChanged(event: FileEditorManagerEvent) {
-                val selectedEditor = FileEditorManager.getInstance(project).selectedTextEditor
-                popupRef?.connectorHidden = selectedEditor?.document !== currentEditor?.document
-            }
-        }
-    )
     ApplicationManager.getApplication().messageBus.connect(sessionDisposable).subscribe(
         WalkthroughSettingsListener.TOPIC,
         object : WalkthroughSettingsListener {
@@ -178,13 +168,36 @@ private class DiffWalkthroughController(
     }
 
     fun attachToViewer(viewer: FrameDiffTool.DiffViewer, item: WalkthroughItem) {
-        if (!sessionDisposable.isDisposed && viewer is EditorDiffViewer) {
-            val editor = selectEditor(viewer, item.diffSide ?: DiffSide.Right)
-            val popup = popupProvider()
-            if (editor != null && popup != null) {
-                attachPopupToEditor(popup, editor, item)
+        if (sessionDisposable.isDisposed || viewer !is EditorDiffViewer) return
+        val editor = selectEditor(viewer, item.diffSide ?: DiffSide.Right)
+        val popup = popupProvider()
+        if (editor != null && popup != null) {
+            attachWhenShowing(popup, editor, item)
+        }
+    }
+
+    private fun attachWhenShowing(popup: WalkthroughPopupSurface, editor: Editor, item: WalkthroughItem) {
+        val component = editor.contentComponent
+        if (component.isShowing) {
+            attachPopupToEditor(popup, editor, item)
+            return
+        }
+        val listener = object : HierarchyListener {
+            override fun hierarchyChanged(event: HierarchyEvent) {
+                val showingChanged = event.changeFlags and HierarchyEvent.SHOWING_CHANGED.toLong() != 0L
+                if (showingChanged && component.isShowing) {
+                    component.removeHierarchyListener(this)
+                    if (!sessionDisposable.isDisposed) {
+                        attachPopupToEditor(popup, editor, item)
+                    }
+                }
             }
         }
+        component.addHierarchyListener(listener)
+        Disposer.register(
+            sessionDisposable,
+            Disposable { component.removeHierarchyListener(listener) }
+        )
     }
 
     private fun attachPopupToEditor(popup: WalkthroughPopupSurface, editor: Editor, item: WalkthroughItem) {
