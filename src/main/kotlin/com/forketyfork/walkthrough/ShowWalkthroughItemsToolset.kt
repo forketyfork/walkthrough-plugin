@@ -14,14 +14,38 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
 
-private data class WalkthroughItemJson(val text: String?, val file: String?, val line: Int?)
+private data class WalkthroughItemJson(
+    val text: String?,
+    val file: String?,
+    val line: Int?,
+    val diffId: String?,
+    val diffFile: String?,
+    val diffSide: String?
+)
+
+private data class DiffWalkthroughPayloadJson(
+    val diffs: List<ToolDiffWalkthroughDescriptorJson>?,
+    val items: List<WalkthroughItemJson>?
+)
+
+private data class ToolDiffWalkthroughDescriptorJson(
+    val id: String?,
+    val file: String?,
+    val leftFile: String?,
+    val rightFile: String?,
+    val leftCommit: String?,
+    val rightCommit: String?
+)
 
 class ShowWalkthroughItemsToolset : McpToolset {
     // Discovered and invoked via reflection by the MCP server framework
     @Suppress("unused")
     @McpTool(name = "show_walkthrough_items")
     @McpDescription(
-        "Shows and stores walkthrough items with navigation support. " +
+        "Shows and stores a file walkthrough anchored to normal project files. " +
+            "Use this when the user asks how code works, wants an architecture tour, asks for onboarding, " +
+            "or needs an explanation of existing behavior. Do not use this for PR review, branch review, " +
+            "commit review, or 'what changed' requests; use show_diff_walkthrough_items instead. " +
             "Accepts one or more walkthrough items; the user can cycle through them " +
             "with Previous and Next buttons. The walkthrough is saved to this project's history. " +
             "Top-level items are auto-labeled '1', '2', '3', etc. " +
@@ -40,7 +64,7 @@ class ShowWalkthroughItemsToolset : McpToolset {
             "JSON array of walkthrough items to display, e.g. " +
             "[{\"text\":\"Note 1\",\"file\":\"src/Foo.kt\",\"line\":10},{\"text\":\"Note 2\"}]. " +
             "Each item requires 'text'; 'file' (path relative to project root) and 'line' (1-based) are optional. " +
-            "The 'line' value navigates the editor to that exact position, so it must be accurate. " +
+            "The 'line' value is a line in the current full file, not a diff hunk line, so it must be accurate. " +
             "Verify line numbers by reading the actual file before calling this tool — do not estimate from diffs or memory."
         ) items: String
     ): String {
@@ -48,7 +72,7 @@ class ShowWalkthroughItemsToolset : McpToolset {
         val trimmedDescription = description.trim()
         if (trimmedDescription.isBlank()) mcpFail("description must not be blank")
 
-        val parsedItems = parseItems(items)
+        val parsedItems = parseFileItems(items)
         if (parsedItems.isEmpty()) mcpFail("items must not be empty")
 
         val labeledItems = assignTopLevelLabels(parsedItems)
@@ -70,13 +94,72 @@ class ShowWalkthroughItemsToolset : McpToolset {
     }
 
     @Suppress("unused")
+    @McpTool(name = "show_diff_walkthrough_items")
+    @McpDescription(
+        "Shows and stores a diff walkthrough anchored to IntelliJ IDEA diff viewers. " +
+            "Use this when the user asks about changes, a PR, a review, a commit, a branch comparison, " +
+            "a patch, or 'what changed'. Do not use this for general code explanation unless the user " +
+            "specifically wants the explanation in terms of a change. All items in one call must target " +
+            "Git commit-backed file diffs; do not mix file walkthrough items and diff walkthrough items. " +
+            "Do not submit file contents. Submit commit hashes for the two file revisions to compare. " +
+            "After this tool returns, immediately call await_walkthrough_question with the returned walkthroughId."
+    )
+    suspend fun showDiffWalkthroughItems(
+        @McpDescription(
+            "Short human-readable description shown in the project walkthrough history. " +
+            "Use a concise phrase that helps the user recognize this walkthrough later."
+        ) description: String,
+        @McpDescription(
+            "JSON object with 'diffs' and 'items'. 'diffs' supplies Git revisions to compare: " +
+            "'id', 'file', 'leftCommit', and 'rightCommit'; for renames, use 'leftFile' and 'rightFile' " +
+            "instead of 'file'. 'items' is an array with 'text', 'diffId', 'diffFile', 'diffSide', and 'line'. " +
+            "'diffSide' is 'left' or 'right'. 'line' is 1-based in that side's full file text at that commit, " +
+            "not the patch hunk line. Use 'right' for added or modified new code and 'left' for removed old code. " +
+            "For PRs, pass the merge-base commit as 'leftCommit' and the PR head commit as 'rightCommit'. " +
+            "Verify every line by inspecting that exact file at that exact commit before calling."
+        ) payload: String
+    ): String {
+        val project = requireProject()
+        val trimmedDescription = description.trim()
+        if (trimmedDescription.isBlank()) mcpFail("description must not be blank")
+
+        val parsedPayload = parseDiffPayload(payload)
+        val labeledItems = assignTopLevelLabels(parsedPayload.items)
+
+        val session = withContext(Dispatchers.EDT) {
+            showDiffWalkthroughSession(
+                project = project,
+                descriptors = parsedPayload.descriptors,
+                items = labeledItems,
+                acceptsQuestions = true
+            )
+        } ?: mcpFail("No diff walkthrough items to show")
+
+        val record = WalkthroughHistoryService.getInstance(project).save(
+            description = trimmedDescription,
+            targetKind = WalkthroughTargetKind.Diff,
+            diffDescriptors = parsedPayload.descriptors,
+            items = session.snapshotItems()
+        )
+
+        val labels = labeledItems.mapNotNull { it.label }.joinToString(", ")
+        val historySuffix = record
+            ?.let { "; saved to history as ${it.id}" }
+            ?: "; history was not saved"
+        return "Diff walkthrough shown with walkthroughId=${session.id} (steps: $labels)$historySuffix. " +
+            "Next: immediately call await_walkthrough_question with walkthroughId=${session.id} " +
+            "and keep waiting for questions until it returns dismissed."
+    }
+
+    @Suppress("unused")
     @McpTool(name = "await_walkthrough_question")
     @McpDescription(
         "Suspends until the user types a follow-up question into the active walkthrough popup " +
             "and presses Send, then returns the question text along with the label of the step " +
             "the user was viewing. Returns 'dismissed' if the user closes the popup before asking. " +
-            "Call this immediately after show_walkthrough_items returns, and call it again after each " +
-            "insert_walkthrough_tangents response. Keep waiting in this loop until this tool returns dismissed. " +
+            "Call this immediately after show_walkthrough_items or show_diff_walkthrough_items returns, " +
+            "and call it again after each insert_walkthrough_tangents response. " +
+            "Keep waiting in this loop until this tool returns dismissed. " +
             "Call insert_walkthrough_tangents to splice each answer into the walkthrough as labeled child steps."
     )
     suspend fun awaitWalkthroughQuestion(
@@ -115,9 +198,10 @@ class ShowWalkthroughItemsToolset : McpToolset {
             "Must match the parentLabel reported by await_walkthrough_question."
         ) parentLabel: String,
         @McpDescription(
-            "JSON array of walkthrough items to insert as children, same shape as show_walkthrough_items: " +
-            "[{\"text\":\"…\",\"file\":\"src/Foo.kt\",\"line\":10}, …]. " +
-            "Verify line numbers against the actual file before calling."
+            "JSON array of walkthrough items to insert as children. For file walkthroughs, use the same item " +
+            "shape as show_walkthrough_items. For diff walkthroughs, use diff item fields from " +
+            "show_diff_walkthrough_items: 'text', 'diffId', 'diffFile', 'diffSide', and 'line'. " +
+            "Verify line numbers against the actual file or exact diff side before calling."
         ) items: String
     ): String {
         val project = requireProject()
@@ -125,7 +209,10 @@ class ShowWalkthroughItemsToolset : McpToolset {
         if (trimmedParent.isBlank()) mcpFail("parentLabel must not be blank")
         val session = WalkthroughSessionRegistry.getInstance(project).get(walkthroughId)
             ?: mcpFail("Unknown walkthroughId: $walkthroughId")
-        val parsedItems = parseItems(items)
+        val parsedItems = when (session.targetKind) {
+            WalkthroughTargetKind.File -> parseFileItems(items)
+            WalkthroughTargetKind.Diff -> parseDiffItems(items, session.diffDescriptors)
+        }
         if (parsedItems.isEmpty()) mcpFail("items must not be empty")
 
         val inserted = withContext(Dispatchers.EDT) {
@@ -138,7 +225,7 @@ class ShowWalkthroughItemsToolset : McpToolset {
     private suspend fun requireProject(): Project =
         currentCoroutineContext().projectOrNull ?: mcpFail("No active project")
 
-    private fun parseItems(items: String): List<WalkthroughItem> = try {
+    private fun parseFileItems(items: String): List<WalkthroughItem> = try {
         val type = object : TypeToken<List<WalkthroughItemJson>>() {}.type
         val parsed: List<WalkthroughItemJson> = Gson().fromJson(items, type)
         parsed.map { entry ->
@@ -153,4 +240,91 @@ class ShowWalkthroughItemsToolset : McpToolset {
     } catch (exception: IllegalStateException) {
         mcpFail("Invalid items JSON: ${exception.message}")
     }
+
+    private data class ParsedDiffPayload(
+        val descriptors: List<DiffWalkthroughDescriptor>,
+        val items: List<WalkthroughItem>
+    )
+
+    private fun parseDiffPayload(payload: String): ParsedDiffPayload = try {
+        val parsed = Gson().fromJson(payload, DiffWalkthroughPayloadJson::class.java)
+            ?: mcpFail("payload must be a JSON object")
+        val descriptors = parseDiffDescriptors(parsed.diffs.orEmpty())
+        if (descriptors.isEmpty()) mcpFail("diffs must not be empty")
+        val items = parseDiffItems(parsed.items.orEmpty(), descriptors)
+        if (items.isEmpty()) mcpFail("items must not be empty")
+        ParsedDiffPayload(descriptors = descriptors, items = items)
+    } catch (exception: JsonParseException) {
+        mcpFail("Invalid payload JSON: ${exception.message}")
+    } catch (exception: IllegalStateException) {
+        mcpFail("Invalid payload JSON: ${exception.message}")
+    }
+
+    private fun parseDiffDescriptors(
+        entries: List<ToolDiffWalkthroughDescriptorJson>
+    ): List<DiffWalkthroughDescriptor> {
+        val descriptors = entries.map { entry ->
+            val file = entry.file?.trim()?.takeIf { it.isNotBlank() }
+            val leftFile = entry.leftFile?.trim()?.takeIf { it.isNotBlank() }
+            val rightFile = entry.rightFile?.trim()?.takeIf { it.isNotBlank() }
+            if (file == null && (leftFile == null || rightFile == null)) {
+                mcpFail("Each diff requires either 'file' or both 'leftFile' and 'rightFile'")
+            }
+            DiffWalkthroughDescriptor(
+                id = entry.id?.trim()?.takeIf { it.isNotBlank() }
+                    ?: mcpFail("Each diff must have an 'id' field"),
+                file = file,
+                leftFile = leftFile,
+                rightFile = rightFile,
+                leftCommit = entry.leftCommit?.trim()?.takeIf { it.isNotBlank() }
+                    ?: mcpFail("Each diff must have a 'leftCommit' field"),
+                rightCommit = entry.rightCommit?.trim()?.takeIf { it.isNotBlank() }
+                    ?: mcpFail("Each diff must have a 'rightCommit' field")
+            )
+        }
+        val duplicateId = descriptors.groupBy { it.id }.entries.firstOrNull { it.value.size > 1 }?.key
+        if (duplicateId != null) mcpFail("Duplicate diff id: $duplicateId")
+        return descriptors
+    }
+
+    private fun parseDiffItems(
+        items: String,
+        descriptors: List<DiffWalkthroughDescriptor>
+    ): List<WalkthroughItem> = try {
+        val type = object : TypeToken<List<WalkthroughItemJson>>() {}.type
+        val parsed: List<WalkthroughItemJson> = Gson().fromJson(items, type)
+        parseDiffItems(parsed, descriptors)
+    } catch (exception: JsonParseException) {
+        mcpFail("Invalid items JSON: ${exception.message}")
+    } catch (exception: IllegalStateException) {
+        mcpFail("Invalid items JSON: ${exception.message}")
+    }
+
+    private fun parseDiffItems(
+        entries: List<WalkthroughItemJson>,
+        descriptors: List<DiffWalkthroughDescriptor>
+    ): List<WalkthroughItem> =
+        entries.map { entry ->
+            val diffId = entry.diffId?.trim()?.takeIf { it.isNotBlank() }
+                ?: mcpFail("Each diff item must have a 'diffId' field")
+            val descriptor = descriptors.firstOrNull { it.id == diffId }
+                ?: mcpFail("Unknown diffId: $diffId")
+            WalkthroughItem(
+                text = entry.text ?: mcpFail("Each item must have a 'text' field"),
+                line = entry.line ?: mcpFail("Each diff item must have a 'line' field"),
+                diffId = diffId,
+                diffFile = entry.diffFile?.trim()?.takeIf { it.isNotBlank() }
+                    ?: descriptor.file
+                    ?: descriptor.rightFile
+                    ?: descriptor.leftFile,
+                diffSide = parseDiffSide(entry.diffSide)
+            )
+        }
+
+    private fun parseDiffSide(value: String?): DiffSide =
+        when (value?.trim()?.lowercase()) {
+            "left" -> DiffSide.Left
+            "right" -> DiffSide.Right
+            else -> mcpFail("Each diff item must have 'diffSide' set to 'left' or 'right'")
+        }
 }

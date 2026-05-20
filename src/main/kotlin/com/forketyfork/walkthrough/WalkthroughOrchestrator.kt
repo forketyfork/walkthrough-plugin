@@ -153,7 +153,7 @@ fun showWalkthroughSession(
     return session
 }
 
-private fun saveCurrentGeometry(popup: WalkthroughPopupSurface?) {
+internal fun saveCurrentGeometry(popup: WalkthroughPopupSurface?) {
     val location = popup?.popupLocationOnScreen() ?: return
     val size = resolvePopupSize(popup) ?: return
     WalkthroughSettings.getInstance().saveGeometry(
@@ -161,7 +161,7 @@ private fun saveCurrentGeometry(popup: WalkthroughPopupSurface?) {
     )
 }
 
-private fun applyPopupGeometryForItem(
+internal fun applyPopupGeometryForItem(
     popup: WalkthroughPopupSurface,
     editor: Editor,
     item: WalkthroughItem
@@ -198,7 +198,7 @@ private fun applyPopupGeometryForItem(
     }
 }
 
-private fun createWalkthroughPanel(
+internal fun createWalkthroughPanel(
     project: Project,
     session: WalkthroughSession,
     paletteProvider: () -> WalkthroughPalette,
