@@ -65,27 +65,15 @@ internal fun installPopupInteractionHandler(
         }
 
         override fun mouseDragged(event: MouseEvent) {
-            val mode = interactionMode ?: return
-            val popup = popupProvider() ?: return
-            val previousScreenPoint = lastScreenPoint ?: event.locationOnScreen
-            val currentScreenPoint = event.locationOnScreen
-            when (mode) {
-                PopupInteractionMode.Drag -> movePopupBy(
-                    popup = popup,
-                    editor = editorProvider() ?: return,
-                    deltaX = (currentScreenPoint.x - previousScreenPoint.x).toFloat(),
-                    deltaY = (currentScreenPoint.y - previousScreenPoint.y).toFloat()
-                )
-
-                PopupInteractionMode.Resize -> resizePopupBy(
-                    popup = popup,
-                    panel = panel,
-                    editor = editorProvider() ?: return,
-                    deltaX = (currentScreenPoint.x - previousScreenPoint.x).toFloat(),
-                    deltaY = (currentScreenPoint.y - previousScreenPoint.y).toFloat()
-                )
+            val mode = interactionMode
+            val popup = popupProvider()
+            val editor = editorProvider()
+            if (mode != null && popup != null && editor != null) {
+                val previousScreenPoint = lastScreenPoint ?: event.locationOnScreen
+                val currentScreenPoint = event.locationOnScreen
+                handlePopupDrag(panel, mode, popup, editor, previousScreenPoint, currentScreenPoint)
+                lastScreenPoint = currentScreenPoint
             }
-            lastScreenPoint = currentScreenPoint
         }
 
         override fun mouseMoved(event: MouseEvent) {
@@ -157,6 +145,32 @@ private fun updateInteractionCursor(panel: JComponent, component: Component, poi
     }
     component.cursor = cursor
     panel.cursor = cursor
+}
+
+private fun handlePopupDrag(
+    panel: JComponent,
+    mode: PopupInteractionMode,
+    popup: WalkthroughPopupSurface,
+    editor: Editor,
+    previousScreenPoint: Point,
+    currentScreenPoint: Point
+) {
+    when (mode) {
+        PopupInteractionMode.Drag -> movePopupBy(
+            popup = popup,
+            editor = editor,
+            deltaX = (currentScreenPoint.x - previousScreenPoint.x).toFloat(),
+            deltaY = (currentScreenPoint.y - previousScreenPoint.y).toFloat()
+        )
+
+        PopupInteractionMode.Resize -> resizePopupBy(
+            popup = popup,
+            panel = panel,
+            editor = editor,
+            deltaX = (currentScreenPoint.x - previousScreenPoint.x).toFloat(),
+            deltaY = (currentScreenPoint.y - previousScreenPoint.y).toFloat()
+        )
+    }
 }
 
 private fun isWithinDragHandle(panel: JComponent, component: Component, point: Point): Boolean {

@@ -178,8 +178,16 @@ private class DiffWalkthroughController(
     }
 
     fun attachToViewer(viewer: FrameDiffTool.DiffViewer, item: WalkthroughItem) {
-        if (sessionDisposable.isDisposed || viewer !is EditorDiffViewer) return
-        val editor = selectEditor(viewer, item.diffSide ?: DiffSide.Right) ?: return
+        if (!sessionDisposable.isDisposed && viewer is EditorDiffViewer) {
+            val editor = selectEditor(viewer, item.diffSide ?: DiffSide.Right)
+            val popup = popupProvider()
+            if (editor != null && popup != null) {
+                attachPopupToEditor(popup, editor, item)
+            }
+        }
+    }
+
+    private fun attachPopupToEditor(popup: WalkthroughPopupSurface, editor: Editor, item: WalkthroughItem) {
         val popupItem = if (isResolvableWalkthroughLine(item.line, editor.document.lineCount)) {
             moveCaretToLine(editor, item.line)
             item
@@ -187,7 +195,6 @@ private class DiffWalkthroughController(
             item.copy(line = null)
         }
         currentEditorUpdater(editor)
-        val popup = popupProvider() ?: return
         popup.update(editor, popupItem)
         popup.connectorHidden = false
         applyPopupGeometryForItem(popup, editor, popupItem)
@@ -209,16 +216,18 @@ private class DiffWalkthroughController(
         )
     }
 
-    private fun resolveDescriptor(item: WalkthroughItem): DiffWalkthroughDescriptor? {
-        item.diffId?.let { id ->
-            return descriptors.firstOrNull { descriptor -> descriptor.id == id }
-        }
-        val diffFile = item.diffFile ?: return descriptors.singleOrNull()
-        val matching = descriptors.filter { descriptor ->
-            diffFile == descriptor.file || diffFile == descriptor.leftFile || diffFile == descriptor.rightFile
-        }
-        return matching.singleOrNull()
-    }
+    private fun resolveDescriptor(item: WalkthroughItem): DiffWalkthroughDescriptor? =
+        item.diffId
+            ?.let { id -> descriptors.firstOrNull { descriptor -> descriptor.id == id } }
+            ?: item.diffFile?.let(::resolveDescriptorByFile)
+            ?: descriptors.singleOrNull()
+
+    private fun resolveDescriptorByFile(diffFile: String): DiffWalkthroughDescriptor? =
+        descriptors
+            .filter { descriptor ->
+                diffFile == descriptor.file || diffFile == descriptor.leftFile || diffFile == descriptor.rightFile
+            }
+            .singleOrNull()
 
     private fun selectEditor(viewer: EditorDiffViewer, side: DiffSide): Editor? {
         val editors = viewer.editors

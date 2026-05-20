@@ -24,11 +24,11 @@ private data class WalkthroughItemJson(
 )
 
 private data class DiffWalkthroughPayloadJson(
-    val diffs: List<DiffWalkthroughDescriptorJson>?,
+    val diffs: List<ToolDiffWalkthroughDescriptorJson>?,
     val items: List<WalkthroughItemJson>?
 )
 
-private data class DiffWalkthroughDescriptorJson(
+private data class ToolDiffWalkthroughDescriptorJson(
     val id: String?,
     val file: String?,
     val leftFile: String?,
@@ -260,7 +260,9 @@ class ShowWalkthroughItemsToolset : McpToolset {
         mcpFail("Invalid payload JSON: ${exception.message}")
     }
 
-    private fun parseDiffDescriptors(entries: List<DiffWalkthroughDescriptorJson>): List<DiffWalkthroughDescriptor> {
+    private fun parseDiffDescriptors(
+        entries: List<ToolDiffWalkthroughDescriptorJson>
+    ): List<DiffWalkthroughDescriptor> {
         val descriptors = entries.map { entry ->
             val file = entry.file?.trim()?.takeIf { it.isNotBlank() }
             val leftFile = entry.leftFile?.trim()?.takeIf { it.isNotBlank() }
@@ -285,7 +287,10 @@ class ShowWalkthroughItemsToolset : McpToolset {
         return descriptors
     }
 
-    private fun parseDiffItems(items: String, descriptors: List<DiffWalkthroughDescriptor>): List<WalkthroughItem> = try {
+    private fun parseDiffItems(
+        items: String,
+        descriptors: List<DiffWalkthroughDescriptor>
+    ): List<WalkthroughItem> = try {
         val type = object : TypeToken<List<WalkthroughItemJson>>() {}.type
         val parsed: List<WalkthroughItemJson> = Gson().fromJson(items, type)
         parseDiffItems(parsed, descriptors)
