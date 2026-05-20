@@ -120,7 +120,7 @@ internal fun WalkthroughItemContent(
     val animationState = rememberPopupAnimationState()
     val scrollbarStyle = rememberPopupScrollbarStyle(palette)
     val showScrollbar = scrollState.maxValue > 0
-    val isLoading by session.loadingState
+    val questionStatus by session.questionStatusState
 
     LaunchedEffect(item) {
         scrollState.scrollTo(0)
@@ -134,7 +134,7 @@ internal fun WalkthroughItemContent(
             items = items,
             currentIndex = safeIndex,
             acceptsQuestions = session.acceptsQuestions,
-            isLoading = isLoading,
+            questionStatus = questionStatus,
             palette = palette,
             scrollState = scrollState,
             showScrollbar = showScrollbar,
@@ -193,7 +193,7 @@ private fun WalkthroughPopupFrame(
     items: List<WalkthroughItem>,
     currentIndex: Int,
     acceptsQuestions: Boolean,
-    isLoading: Boolean,
+    questionStatus: WalkthroughQuestionStatus,
     palette: WalkthroughPalette,
     scrollState: ScrollState,
     showScrollbar: Boolean,
@@ -250,7 +250,7 @@ private fun WalkthroughPopupFrame(
             }
             if (acceptsQuestions) {
                 WalkthroughQuestionInput(
-                    isLoading = isLoading,
+                    status = questionStatus,
                     palette = palette,
                     onSubmit = onSubmitQuestion
                 )

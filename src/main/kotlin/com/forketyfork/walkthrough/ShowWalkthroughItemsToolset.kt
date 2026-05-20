@@ -37,6 +37,18 @@ private data class ToolDiffWalkthroughDescriptorJson(
     val rightCommit: String?
 )
 
+private const val QUESTION_TOOL_REFRESH_TIMEOUT_MILLIS = 110_000L
+
+private fun resolveAwaitQuestionResult(
+    result: WalkthroughQuestionAwaitResult,
+    wasDismissed: Boolean
+): WalkthroughQuestionAwaitResult =
+    if (wasDismissed && result == WalkthroughQuestionAwaitResult.WaitingExpired) {
+        WalkthroughQuestionAwaitResult.Dismissed
+    } else {
+        result
+    }
+
 class ShowWalkthroughItemsToolset : McpToolset {
     // Discovered and invoked via reflection by the MCP server framework
     @Suppress("unused")
@@ -157,6 +169,8 @@ class ShowWalkthroughItemsToolset : McpToolset {
         "Suspends until the user types a follow-up question into the active walkthrough popup " +
             "and presses Send, then returns the question text along with the label of the step " +
             "the user was viewing. Returns 'dismissed' if the user closes the popup before asking. " +
+            "Returns 'waiting-expired' before Codex's tool timeout if no question arrives; " +
+            "when that happens, immediately call this tool again with the same walkthroughId. " +
             "Call this immediately after show_walkthrough_items or show_diff_walkthrough_items returns, " +
             "and call it again after each insert_walkthrough_tangents response. " +
             "Keep waiting in this loop until this tool returns dismissed. " +
@@ -168,17 +182,26 @@ class ShowWalkthroughItemsToolset : McpToolset {
         val project = requireProject()
         val registry = WalkthroughSessionRegistry.getInstance(project)
         val session = registry.get(walkthroughId)
-        val question = when {
-            session != null -> session.awaitQuestion().also {
-                registry.consumeDismissed(walkthroughId)
-            }
-            registry.consumeDismissed(walkthroughId) -> null
+        val result = when {
+            session != null -> resolveAwaitQuestionResult(
+                result = session.awaitQuestionResult(QUESTION_TOOL_REFRESH_TIMEOUT_MILLIS),
+                wasDismissed = registry.consumeDismissed(walkthroughId)
+            )
+            registry.consumeDismissed(walkthroughId) -> WalkthroughQuestionAwaitResult.Dismissed
             else -> mcpFail("Unknown walkthroughId: $walkthroughId")
         }
-        return question?.let {
-            val parent = it.parentLabel ?: "(unknown)"
-            "parentLabel=$parent\nquestion=${it.question}"
-        } ?: "dismissed"
+        return when (result) {
+            is WalkthroughQuestionAwaitResult.Received -> {
+                val parent = result.question.parentLabel ?: "(unknown)"
+                "parentLabel=$parent\nquestion=${result.question.question}"
+            }
+            WalkthroughQuestionAwaitResult.Dismissed -> "dismissed"
+            WalkthroughQuestionAwaitResult.WaitingExpired ->
+                "waiting-expired\nNo question arrived before the refresh timeout. " +
+                    "Call await_walkthrough_question again immediately with walkthroughId=$walkthroughId."
+            WalkthroughQuestionAwaitResult.Replaced ->
+                "waiting-replaced\nA newer await_walkthrough_question call is already listening."
+        }
     }
 
     @Suppress("unused")
