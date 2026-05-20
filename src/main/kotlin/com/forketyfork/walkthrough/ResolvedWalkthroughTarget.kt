@@ -80,7 +80,7 @@ private fun openEditor(
     }.getOrNull()
 }
 
-private fun moveCaretToLine(editor: Editor, line: Int?) {
+internal fun moveCaretToLine(editor: Editor, line: Int?) {
     if (line == null) return
     val lineIndex = line - 1
     editor.caretModel.moveToLogicalPosition(LogicalPosition(lineIndex, 0))

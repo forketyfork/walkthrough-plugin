@@ -21,6 +21,8 @@ data class WalkthroughTangentQuestion(
 class WalkthroughSession internal constructor(
     val id: String,
     initialItems: List<WalkthroughItem>,
+    val targetKind: WalkthroughTargetKind,
+    val diffDescriptors: List<DiffWalkthroughDescriptor>,
     internal val acceptsQuestions: Boolean
 ) {
     internal val items: SnapshotStateList<WalkthroughItem> =
@@ -99,10 +101,17 @@ class WalkthroughSessionRegistry {
         activeSessionDisposable.compareAndSet(disposable, null)
     }
 
-    internal fun create(items: List<WalkthroughItem>, acceptsQuestions: Boolean): WalkthroughSession {
+    internal fun create(
+        items: List<WalkthroughItem>,
+        acceptsQuestions: Boolean,
+        targetKind: WalkthroughTargetKind = WalkthroughTargetKind.File,
+        diffDescriptors: List<DiffWalkthroughDescriptor> = emptyList()
+    ): WalkthroughSession {
         val session = WalkthroughSession(
             id = UUID.randomUUID().toString(),
             initialItems = items,
+            targetKind = targetKind,
+            diffDescriptors = diffDescriptors,
             acceptsQuestions = acceptsQuestions
         )
         sessions[session.id] = session

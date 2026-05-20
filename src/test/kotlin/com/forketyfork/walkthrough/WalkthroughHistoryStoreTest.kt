@@ -41,6 +41,44 @@ class WalkthroughHistoryStoreTest {
     }
 
     @Test
+    fun saveListAndLoadRoundTripDiffWalkthroughRecord() {
+        val store = WalkthroughHistoryStore(
+            directory = tempDir,
+            clock = Clock.fixed(Instant.parse("2026-05-09T04:34:00Z"), ZoneOffset.UTC),
+            randomSuffix = { "abc12345" }
+        )
+        val descriptors = listOf(
+            DiffWalkthroughDescriptor(
+                id = "popup-change",
+                file = "src/Foo.kt",
+                leftCommit = "1111111111111111111111111111111111111111",
+                rightCommit = "2222222222222222222222222222222222222222"
+            )
+        )
+        val items = listOf(
+            WalkthroughItem(
+                text = "Explain changed branch",
+                line = 13,
+                diffId = "popup-change",
+                diffFile = "src/Foo.kt",
+                diffSide = DiffSide.Right
+            )
+        )
+
+        val saved = store.save(
+            description = "Explain PR change",
+            targetKind = WalkthroughTargetKind.Diff,
+            diffDescriptors = descriptors,
+            items = items
+        )
+
+        assertEquals(WalkthroughTargetKind.Diff, saved.targetKind)
+        assertEquals(descriptors, saved.diffDescriptors)
+        assertEquals(items, saved.items)
+        assertEquals(saved, store.load(saved.id))
+    }
+
+    @Test
     fun listSortsNewestFirstAndSkipsCorruptFiles() {
         val corruptFiles = mutableListOf<Path>()
         val store = WalkthroughHistoryStore(

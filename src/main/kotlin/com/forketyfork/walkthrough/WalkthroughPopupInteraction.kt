@@ -43,7 +43,7 @@ internal fun makeComponentHierarchyTransparent(component: Component?) {
 internal fun installPopupInteractionHandler(
     panel: JComponent,
     popupProvider: () -> WalkthroughPopupSurface?,
-    editorProvider: () -> Editor,
+    editorProvider: () -> Editor?,
     onInteractionEnd: () -> Unit
 ) {
     var lastScreenPoint: Point? = null
@@ -72,7 +72,7 @@ internal fun installPopupInteractionHandler(
             when (mode) {
                 PopupInteractionMode.Drag -> movePopupBy(
                     popup = popup,
-                    editor = editorProvider(),
+                    editor = editorProvider() ?: return,
                     deltaX = (currentScreenPoint.x - previousScreenPoint.x).toFloat(),
                     deltaY = (currentScreenPoint.y - previousScreenPoint.y).toFloat()
                 )
@@ -80,7 +80,7 @@ internal fun installPopupInteractionHandler(
                 PopupInteractionMode.Resize -> resizePopupBy(
                     popup = popup,
                     panel = panel,
-                    editor = editorProvider(),
+                    editor = editorProvider() ?: return,
                     deltaX = (currentScreenPoint.x - previousScreenPoint.x).toFloat(),
                     deltaY = (currentScreenPoint.y - previousScreenPoint.y).toFloat()
                 )

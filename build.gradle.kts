@@ -51,6 +51,7 @@ dependencies {
         bundledModule("intellij.platform.jewel.markdown.extensions.gfmTables")
         bundledModule("intellij.platform.jewel.markdown.extensions.gfmStrikethrough")
         bundledPlugin("com.intellij.mcpServer")
+        bundledPlugin("Git4Idea")
 
     }
 }

@@ -236,7 +236,7 @@ private fun WalkthroughPopupFrame(
                 showScrollbar = showScrollbar
             )
             val showNavigation = items.size > 1
-            val sourceCallback = onNavigateToSource.takeIf { item.file != null || item.line != null }
+            val sourceCallback = onNavigateToSource.takeIf { item.hasNavigationTarget() }
             if (showNavigation || sourceCallback != null) {
                 WalkthroughPopupNavigation(
                     showNavigation = showNavigation,
@@ -258,6 +258,9 @@ private fun WalkthroughPopupFrame(
         }
     }
 }
+
+private fun WalkthroughItem.hasNavigationTarget(): Boolean =
+    file != null || line != null || diffId != null || diffFile != null
 
 private fun Modifier.walkthroughPopupBackground(
     animationState: WalkthroughPopupAnimationState,

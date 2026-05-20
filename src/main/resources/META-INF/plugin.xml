@@ -22,6 +22,7 @@
     <dependencies>
         <plugin id="com.intellij.modules.compose"/>
         <plugin id="com.intellij.mcpServer"/>
+        <plugin id="Git4Idea"/>
         <module name="intellij.platform.compose.markdown"/>
     </dependencies>
 
@@ -36,6 +37,7 @@
                 instance="com.forketyfork.walkthrough.WalkthroughSettingsConfigurable"
                 id="com.forketyfork.walkthrough.settings"
                 displayName="Walkthrough"/>
+        <diff.DiffExtension implementation="com.forketyfork.walkthrough.WalkthroughDiffExtension"/>
     </extensions>
 
     <extensions defaultExtensionNs="com.intellij.mcpServer">

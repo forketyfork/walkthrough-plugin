@@ -32,13 +32,27 @@ private data class WalkthroughRecordJson(
     val id: String?,
     val createdAt: String?,
     val description: String?,
+    val targetKind: WalkthroughTargetKind?,
+    val diffDescriptors: List<DiffWalkthroughDescriptorJson>?,
     val items: List<WalkthroughRecordItemJson>?
+)
+
+private data class DiffWalkthroughDescriptorJson(
+    val id: String?,
+    val file: String?,
+    val leftFile: String?,
+    val rightFile: String?,
+    val leftCommit: String?,
+    val rightCommit: String?
 )
 
 private data class WalkthroughRecordItemJson(
     val text: String?,
     val file: String?,
     val line: Int?,
+    val diffId: String?,
+    val diffFile: String?,
+    val diffSide: DiffSide?,
     val label: String?,
     val parentLabel: String?
 )
@@ -55,6 +69,20 @@ internal class WalkthroughHistoryStore(
         .create()
 
     fun save(description: String, items: List<WalkthroughItem>): WalkthroughRecord {
+        return save(
+            description = description,
+            targetKind = WalkthroughTargetKind.File,
+            diffDescriptors = emptyList(),
+            items = items
+        )
+    }
+
+    fun save(
+        description: String,
+        targetKind: WalkthroughTargetKind,
+        diffDescriptors: List<DiffWalkthroughDescriptor>,
+        items: List<WalkthroughItem>
+    ): WalkthroughRecord {
         require(description.isNotBlank()) { "description must not be blank" }
         require(items.isNotEmpty()) { "items must not be empty" }
 
@@ -63,6 +91,8 @@ internal class WalkthroughHistoryStore(
             id = createRecordId(createdAt, description),
             createdAt = createdAt.toString(),
             description = description,
+            targetKind = targetKind,
+            diffDescriptors = diffDescriptors,
             items = items
         )
         save(record)
@@ -158,7 +188,13 @@ internal class WalkthroughHistoryStore(
         val hasValidFields = isSafeRecordId(record.id) &&
             record.description.isNotBlank() &&
             record.items.isNotEmpty() &&
-            record.items.all { item -> item.text.isNotBlank() }
+            record.items.all { item -> item.text.isNotBlank() } &&
+            (record.targetKind == WalkthroughTargetKind.File || record.diffDescriptors.isNotEmpty()) &&
+            record.diffDescriptors.all { descriptor ->
+                descriptor.id.isNotBlank() &&
+                    descriptor.leftCommit.isNotBlank() &&
+                    descriptor.rightCommit.isNotBlank()
+            }
 
         if (!hasValidCreatedAt || !hasValidFields) {
             throw JsonParseException("Invalid walkthrough history record")
@@ -180,16 +216,42 @@ private fun WalkthroughRecordJson.toRecord(): WalkthroughRecord? {
     val parsedId = id?.takeIf(::isSafeRecordId)
     val parsedCreatedAt = createdAt?.takeIf { value -> runCatching { Instant.parse(value) }.isSuccess }
     val parsedDescription = description?.takeIf { value -> value.isNotBlank() }
+    val parsedTargetKind = targetKind ?: WalkthroughTargetKind.File
+    val parsedDiffDescriptors = diffDescriptors?.mapNotNull { descriptor ->
+        descriptor.toDiffWalkthroughDescriptorOrNull()
+    } ?: emptyList()
     val parsedItems = items?.mapNotNull { item -> item.toWalkthroughItemOrNull() }
     val hasRequiredFields = parsedId != null && parsedCreatedAt != null && parsedDescription != null
     val hasMatchingItems = parsedItems != null && parsedItems.size == items.size && parsedItems.isNotEmpty()
+    val hasMatchingDiffDescriptors = diffDescriptors == null ||
+        parsedDiffDescriptors.size == diffDescriptors.size
 
-    return if (hasRequiredFields && hasMatchingItems) {
+    return if (hasRequiredFields && hasMatchingItems && hasMatchingDiffDescriptors) {
         WalkthroughRecord(
             id = parsedId.orEmpty(),
             createdAt = parsedCreatedAt.orEmpty(),
             description = parsedDescription.orEmpty(),
+            targetKind = parsedTargetKind,
+            diffDescriptors = parsedDiffDescriptors,
             items = parsedItems.orEmpty()
+        )
+    } else {
+        null
+    }
+}
+
+private fun DiffWalkthroughDescriptorJson.toDiffWalkthroughDescriptorOrNull(): DiffWalkthroughDescriptor? {
+    val parsedId = id?.takeIf { it.isNotBlank() }
+    val parsedLeftCommit = leftCommit?.takeIf { it.isNotBlank() }
+    val parsedRightCommit = rightCommit?.takeIf { it.isNotBlank() }
+    return if (parsedId != null && parsedLeftCommit != null && parsedRightCommit != null) {
+        DiffWalkthroughDescriptor(
+            id = parsedId,
+            file = file?.takeIf { it.isNotBlank() },
+            leftFile = leftFile?.takeIf { it.isNotBlank() },
+            rightFile = rightFile?.takeIf { it.isNotBlank() },
+            leftCommit = parsedLeftCommit,
+            rightCommit = parsedRightCommit
         )
     } else {
         null
@@ -204,6 +266,9 @@ private fun WalkthroughRecordItemJson.toWalkthroughItemOrNull(): WalkthroughItem
                 text = value,
                 file = file,
                 line = line,
+                diffId = diffId?.takeIf { it.isNotBlank() },
+                diffFile = diffFile?.takeIf { it.isNotBlank() },
+                diffSide = diffSide,
                 label = label?.takeIf { it.isNotBlank() },
                 parentLabel = parentLabel?.takeIf { it.isNotBlank() }
             )

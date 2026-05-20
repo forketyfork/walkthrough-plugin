@@ -46,7 +46,15 @@ private class ReplayWalkthroughAction(
     private val record: WalkthroughRecord
 ) : AnAction(formatRecord(record)) {
     override fun actionPerformed(event: AnActionEvent) {
-        val shown = showWalkthroughItems(project, record.items)
+        val shown = when (record.targetKind) {
+            WalkthroughTargetKind.File -> showWalkthroughItems(project, record.items)
+            WalkthroughTargetKind.Diff -> showDiffWalkthroughSession(
+                project = project,
+                descriptors = record.diffDescriptors,
+                items = record.items,
+                acceptsQuestions = false
+            ) != null
+        }
         if (!shown) {
             JBPopupFactory.getInstance()
                 .createMessage("No active editor for walkthrough replay")

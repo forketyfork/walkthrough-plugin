@@ -6,7 +6,7 @@ internal fun isResolvableWalkthroughLine(line: Int?, lineCount: Int): Boolean =
     line == null || line in 1..lineCount.coerceAtLeast(1)
 
 internal fun WalkthroughItem.withFallbackAnchor(): WalkthroughItem =
-    copy(file = null, line = null)
+    copy(file = null, line = null, diffId = null, diffFile = null, diffSide = null)
 
 internal fun resolveProjectRelativeWalkthroughPath(basePath: String?, relativePath: String): Path? =
     runCatching {

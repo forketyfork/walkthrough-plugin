@@ -14,6 +14,8 @@ class WalkthroughSessionRegistryTest {
         WalkthroughSession(
             id = "test-session",
             initialItems = items,
+            targetKind = WalkthroughTargetKind.File,
+            diffDescriptors = emptyList(),
             acceptsQuestions = true
         )
 
