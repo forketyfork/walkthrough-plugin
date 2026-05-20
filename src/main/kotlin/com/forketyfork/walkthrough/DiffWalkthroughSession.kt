@@ -155,6 +155,8 @@ private class DiffWalkthroughController(
     private val currentEditorUpdater: (Editor) -> Unit
 ) {
     private var pendingNavigationId = 0
+    private var activeViewer: FrameDiffTool.DiffViewer? = null
+    private var activeDescriptorId: String? = null
 
     fun scheduleItemNavigation(item: WalkthroughItem) {
         pendingNavigationId += 1
@@ -169,11 +171,27 @@ private class DiffWalkthroughController(
 
     fun attachToViewer(viewer: FrameDiffTool.DiffViewer, item: WalkthroughItem) {
         if (sessionDisposable.isDisposed || viewer !is EditorDiffViewer) return
+        trackActiveViewer(viewer, resolveDescriptor(item)?.id)
         val editor = selectEditor(viewer, item.diffSide ?: DiffSide.Right)
         val popup = popupProvider()
         if (editor != null && popup != null) {
             attachWhenShowing(popup, editor, item)
         }
+    }
+
+    private fun trackActiveViewer(viewer: FrameDiffTool.DiffViewer, descriptorId: String?) {
+        activeDescriptorId = descriptorId
+        if (activeViewer === viewer) return
+        activeViewer = viewer
+        Disposer.register(
+            viewer,
+            Disposable {
+                if (activeViewer === viewer) {
+                    activeViewer = null
+                    activeDescriptorId = null
+                }
+            }
+        )
     }
 
     private fun attachWhenShowing(popup: WalkthroughPopupSurface, editor: Editor, item: WalkthroughItem) {
@@ -215,6 +233,11 @@ private class DiffWalkthroughController(
 
     private fun showItem(item: WalkthroughItem) {
         val descriptor = resolveDescriptor(item) ?: return
+        val existing = activeViewer
+        if (existing != null && !Disposer.isDisposed(existing) && activeDescriptorId == descriptor.id) {
+            attachToViewer(existing, item)
+            return
+        }
         DiffManager.getInstance().showDiff(
             project,
             SimpleDiffRequestChain.fromProducer(
