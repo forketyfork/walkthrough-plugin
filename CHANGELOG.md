@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0]
+
+### Added
+
+- It's now possible to attach walkthrough items to diff views by asking the agent for PR or changes review (#29)
+
+### Fixed
+
+- The popup now shows the agent status if it's not listening to user questions (#27)
+
 ## [0.3.2]
 
 ### Fixed
