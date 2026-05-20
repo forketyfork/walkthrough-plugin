@@ -7,6 +7,9 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -41,12 +44,14 @@ private data class WalkthroughQuestionWaitRegistration(
     val immediateResult: WalkthroughQuestionAwaitResult?,
 )
 
+@Suppress("TooManyFunctions")
 class WalkthroughSession internal constructor(
     val id: String,
     initialItems: List<WalkthroughItem>,
     val targetKind: WalkthroughTargetKind,
     val diffDescriptors: List<DiffWalkthroughDescriptor>,
     internal val acceptsQuestions: Boolean,
+    internal val notListeningGracePeriodMillis: Long = DEFAULT_NOT_LISTENING_GRACE_PERIOD_MILLIS,
 ) {
     internal val items: SnapshotStateList<WalkthroughItem> =
         mutableStateListOf<WalkthroughItem>().apply { addAll(initialItems) }
@@ -59,6 +64,8 @@ class WalkthroughSession internal constructor(
     private var pendingQuestion: WalkthroughTangentQuestion? = null
     private var inFlightQuestion: WalkthroughTangentQuestion? = null
     private val disposed = CompletableDeferred<Unit>()
+    private val sessionScope = CoroutineScope(SupervisorJob())
+    private var pendingNotListeningJob: Job? = null
 
     fun snapshotItems(): List<WalkthroughItem> = items.toList()
 
@@ -79,12 +86,14 @@ class WalkthroughSession internal constructor(
                     activeQuestionWaiter.also {
                         activeQuestionWaiter = null
                         inFlightQuestion = question
+                        cancelPendingAgentNotWaitingLocked()
                         setQuestionStatus(WalkthroughQuestionStatus.ProcessingQuestion)
                     }
                 }
 
                 else -> {
                     pendingQuestion = question
+                    cancelPendingAgentNotWaitingLocked()
                     setQuestionStatus(WalkthroughQuestionStatus.QuestionQueued)
                     null
                 }
@@ -145,7 +154,7 @@ class WalkthroughSession internal constructor(
         currentIndexState.intValue = lastSubtreeIndex + 1
         synchronized(questionLock) {
             inFlightQuestion = null
-            setQuestionStatus(WalkthroughQuestionStatus.AgentNotWaiting)
+            scheduleAgentNotWaitingLocked()
         }
         return labeled
     }
@@ -157,10 +166,12 @@ class WalkthroughSession internal constructor(
                     activeQuestionWaiter = null
                     pendingQuestion = null
                     inFlightQuestion = null
+                    cancelPendingAgentNotWaitingLocked()
                     setQuestionStatus(WalkthroughQuestionStatus.AgentNotWaiting)
                 }
             }
             waiter?.result?.complete(WalkthroughQuestionAwaitResult.Dismissed)
+            sessionScope.coroutineContext[Job]?.cancel()
         }
     }
 
@@ -175,6 +186,7 @@ class WalkthroughSession internal constructor(
                 )
 
                 inFlightQuestion != null -> {
+                    cancelPendingAgentNotWaitingLocked()
                     setQuestionStatus(WalkthroughQuestionStatus.ProcessingQuestion)
                     WalkthroughQuestionWaitRegistration(
                         waiter = null,
@@ -187,6 +199,7 @@ class WalkthroughSession internal constructor(
                     val question = pendingQuestion
                     pendingQuestion = null
                     inFlightQuestion = question
+                    cancelPendingAgentNotWaitingLocked()
                     setQuestionStatus(WalkthroughQuestionStatus.ProcessingQuestion)
                     WalkthroughQuestionWaitRegistration(
                         waiter = null,
@@ -198,6 +211,7 @@ class WalkthroughSession internal constructor(
                 else -> {
                     val previousWaiter = activeQuestionWaiter
                     activeQuestionWaiter = waiter
+                    cancelPendingAgentNotWaitingLocked()
                     setQuestionStatus(WalkthroughQuestionStatus.WaitingForQuestion)
                     WalkthroughQuestionWaitRegistration(
                         waiter = waiter,
@@ -213,7 +227,7 @@ class WalkthroughSession internal constructor(
         val expired = synchronized(questionLock) {
             if (activeQuestionWaiter === waiter) {
                 activeQuestionWaiter = null
-                setQuestionStatus(WalkthroughQuestionStatus.AgentNotWaiting)
+                scheduleAgentNotWaitingLocked()
                 true
             } else {
                 false
@@ -228,7 +242,7 @@ class WalkthroughSession internal constructor(
         synchronized(questionLock) {
             if (activeQuestionWaiter === waiter) {
                 activeQuestionWaiter = null
-                setQuestionStatus(WalkthroughQuestionStatus.AgentNotWaiting)
+                scheduleAgentNotWaitingLocked()
             }
         }
     }
@@ -236,6 +250,50 @@ class WalkthroughSession internal constructor(
     private fun setQuestionStatus(status: WalkthroughQuestionStatus) {
         questionStatusState.value = status
         loadingState.value = status == WalkthroughQuestionStatus.ProcessingQuestion
+    }
+
+    /**
+     * Defers the transition to [WalkthroughQuestionStatus.AgentNotWaiting] by [notListeningGracePeriodMillis]
+     * to avoid briefly showing the "agent is not listening" warning when the MCP client cancels and
+     * immediately re-issues the await call. Must be invoked while holding [questionLock].
+     */
+    private fun scheduleAgentNotWaitingLocked() {
+        cancelPendingAgentNotWaitingLocked()
+        if (notListeningGracePeriodMillis <= 0L) {
+            setQuestionStatus(WalkthroughQuestionStatus.AgentNotWaiting)
+            return
+        }
+        lateinit var scheduledJob: Job
+        scheduledJob = sessionScope.launch {
+            delay(notListeningGracePeriodMillis)
+            synchronized(questionLock) { applyPendingAgentNotWaitingLocked(scheduledJob) }
+        }
+        pendingNotListeningJob = scheduledJob
+    }
+
+    /** Must be invoked while holding [questionLock]. */
+    private fun applyPendingAgentNotWaitingLocked(scheduledJob: Job) {
+        if (pendingNotListeningJob !== scheduledJob) return
+        val hasListener = activeQuestionWaiter != null || inFlightQuestion != null || pendingQuestion != null
+        if (!hasListener) {
+            setQuestionStatus(WalkthroughQuestionStatus.AgentNotWaiting)
+        }
+        pendingNotListeningJob = null
+    }
+
+    /** Must be invoked while holding [questionLock]. */
+    private fun cancelPendingAgentNotWaitingLocked() {
+        pendingNotListeningJob?.cancel()
+        pendingNotListeningJob = null
+    }
+
+    internal companion object {
+        /**
+         * How long to wait after the agent stops listening before flipping the popup to
+         * [WalkthroughQuestionStatus.AgentNotWaiting]. MCP clients typically reconnect within
+         * milliseconds; the grace period avoids a visible warning flash during normal retries.
+         */
+        const val DEFAULT_NOT_LISTENING_GRACE_PERIOD_MILLIS: Long = 5_000L
     }
 }
 

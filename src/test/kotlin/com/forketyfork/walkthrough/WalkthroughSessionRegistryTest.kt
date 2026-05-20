@@ -1,7 +1,9 @@
 package com.forketyfork.walkthrough
 
 import com.intellij.openapi.Disposable
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -13,12 +15,16 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class WalkthroughSessionRegistryTest {
-    private fun newSession(items: List<WalkthroughItem>) = WalkthroughSession(
+    private fun newSession(
+        items: List<WalkthroughItem>,
+        notListeningGracePeriodMillis: Long = 0L,
+    ) = WalkthroughSession(
         id = "test-session",
         initialItems = items,
         targetKind = WalkthroughTargetKind.File,
         diffDescriptors = emptyList(),
         acceptsQuestions = true,
+        notListeningGracePeriodMillis = notListeningGracePeriodMillis,
     )
 
     @Test
@@ -237,6 +243,72 @@ class WalkthroughSessionRegistryTest {
     }
 
     @Test
+    fun cancelledAwaitClearsWaiterAndAllowsFreshAwait() = runBlocking {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only")))
+        )
+
+        val firstAwait = async { session.awaitQuestionResult(timeoutMillis = TEST_AWAIT_TIMEOUT_MILLIS) }
+        waitUntilQuestionStatus(session, WalkthroughQuestionStatus.WaitingForQuestion)
+        firstAwait.cancel()
+        assertThrows(CancellationException::class.java) { runBlocking { firstAwait.await() } }
+
+        // After the cancelled coroutine's `finally` runs, the waiter must be cleared so a fresh
+        // `awaitQuestionResult` is not reported as `Replaced` and a new question is delivered.
+        waitUntilQuestionStatus(session, WalkthroughQuestionStatus.AgentNotWaiting)
+
+        val secondAwait = async { session.awaitQuestionResult(timeoutMillis = TEST_AWAIT_TIMEOUT_MILLIS) }
+        waitUntilQuestionStatus(session, WalkthroughQuestionStatus.WaitingForQuestion)
+        session.submitQuestion("after cancel")
+        val secondResult = secondAwait.await()
+
+        assertTrue(secondResult is WalkthroughQuestionAwaitResult.Received)
+        assertEquals(
+            "after cancel",
+            (secondResult as WalkthroughQuestionAwaitResult.Received).question.question
+        )
+    }
+
+    @Test
+    fun reconnectWithinGraceWindowAvoidsAgentNotWaitingFlash() = runBlocking {
+        val session = newSession(
+            items = assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
+            notListeningGracePeriodMillis = TEST_GRACE_PERIOD_MILLIS
+        )
+
+        val firstAwait = async { session.awaitQuestionResult(timeoutMillis = TEST_AWAIT_TIMEOUT_MILLIS) }
+        waitUntilQuestionStatus(session, WalkthroughQuestionStatus.WaitingForQuestion)
+        firstAwait.cancel()
+        assertThrows(CancellationException::class.java) { runBlocking { firstAwait.await() } }
+
+        // The status must NOT immediately flip to AgentNotWaiting — the grace window protects it.
+        assertEquals(WalkthroughQuestionStatus.WaitingForQuestion, session.questionStatusState.value)
+
+        // Reconnect within the grace window and verify the popup never showed AgentNotWaiting.
+        val secondAwait = async { session.awaitQuestionResult(timeoutMillis = TEST_AWAIT_TIMEOUT_MILLIS) }
+        waitUntilQuestionStatus(session, WalkthroughQuestionStatus.WaitingForQuestion)
+        assertEquals(WalkthroughQuestionStatus.WaitingForQuestion, session.questionStatusState.value)
+
+        secondAwait.cancel()
+        assertThrows(CancellationException::class.java) { runBlocking { secondAwait.await() } }
+    }
+
+    @Test
+    fun graceWindowExpiringWithoutReconnectFlipsToAgentNotWaiting() = runBlocking {
+        val session = newSession(
+            items = assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
+            notListeningGracePeriodMillis = TEST_GRACE_PERIOD_MILLIS
+        )
+
+        val firstAwait = async { session.awaitQuestionResult(timeoutMillis = TEST_AWAIT_TIMEOUT_MILLIS) }
+        waitUntilQuestionStatus(session, WalkthroughQuestionStatus.WaitingForQuestion)
+        firstAwait.cancel()
+        assertThrows(CancellationException::class.java) { runBlocking { firstAwait.await() } }
+
+        waitUntilQuestionStatus(session, WalkthroughQuestionStatus.AgentNotWaiting)
+    }
+
+    @Test
     fun newAwaitReplacesPreviousWaiter() = runBlocking {
         val session = newSession(
             assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
@@ -300,6 +372,7 @@ class WalkthroughSessionRegistryTest {
         repeat(TEST_STATUS_WAIT_ATTEMPTS) {
             if (session.questionStatusState.value == status) return
             yield()
+            delay(TEST_STATUS_POLL_INTERVAL_MILLIS)
         }
         assertEquals(status, session.questionStatusState.value)
     }
@@ -307,5 +380,7 @@ class WalkthroughSessionRegistryTest {
     private companion object {
         const val TEST_AWAIT_TIMEOUT_MILLIS = 1_000L
         const val TEST_STATUS_WAIT_ATTEMPTS = 100
+        const val TEST_STATUS_POLL_INTERVAL_MILLIS = 10L
+        const val TEST_GRACE_PERIOD_MILLIS = 50L
     }
 }

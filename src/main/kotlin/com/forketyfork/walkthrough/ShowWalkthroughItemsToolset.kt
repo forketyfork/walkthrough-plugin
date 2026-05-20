@@ -10,6 +10,7 @@ import com.intellij.mcpserver.mcpFail
 import com.intellij.mcpserver.projectOrNull
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.project.Project
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
@@ -186,15 +187,24 @@ class ShowWalkthroughItemsToolset : McpToolset {
         val project = requireProject()
         val registry = WalkthroughSessionRegistry.getInstance(project)
         val session = registry.get(walkthroughId)
-        val result = when {
-            session != null -> resolveAwaitQuestionResult(
-                result = session.awaitQuestionResult(QUESTION_TOOL_REFRESH_TIMEOUT_MILLIS),
-                wasDismissed = registry.consumeDismissed(walkthroughId),
-            )
+        val result = try {
+            when {
+                session != null -> resolveAwaitQuestionResult(
+                    result = session.awaitQuestionResult(QUESTION_TOOL_REFRESH_TIMEOUT_MILLIS),
+                    wasDismissed = registry.consumeDismissed(walkthroughId),
+                )
 
-            registry.consumeDismissed(walkthroughId) -> WalkthroughQuestionAwaitResult.Dismissed
+                registry.consumeDismissed(walkthroughId) -> WalkthroughQuestionAwaitResult.Dismissed
 
-            else -> mcpFail("Unknown walkthroughId: $walkthroughId")
+                else -> mcpFail("Unknown walkthroughId: $walkthroughId")
+            }
+        } catch (@Suppress("SwallowedException") cancellation: CancellationException) {
+            // The MCP client cancelled this tool call (e.g. its own request timeout or disconnect).
+            // The waiter has already been cleaned up by `awaitQuestionResult`'s `finally` block.
+            // Translate the cancellation into a clean, non-error response so it does not surface
+            // as a JobCancellationException in the IDE log. Treat it like a refresh timeout so the
+            // agent immediately re-issues the call on its next turn.
+            WalkthroughQuestionAwaitResult.WaitingExpired
         }
         return when (result) {
             is WalkthroughQuestionAwaitResult.Received -> {
