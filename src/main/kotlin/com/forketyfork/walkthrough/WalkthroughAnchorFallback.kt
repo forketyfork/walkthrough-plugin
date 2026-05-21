@@ -8,16 +8,15 @@ internal fun isResolvableWalkthroughLine(line: Int?, lineCount: Int): Boolean =
 internal fun WalkthroughItem.withFallbackAnchor(): WalkthroughItem =
     copy(file = null, line = null, diffId = null, diffFile = null, diffSide = null)
 
-internal fun resolveProjectRelativeWalkthroughPath(basePath: String?, relativePath: String): Path? =
-    runCatching {
-        val base = basePath
-            ?.takeIf { value -> value.isNotBlank() }
-            ?.let { value -> Path.of(value).toAbsolutePath().normalize() }
-            ?: return@runCatching null
-        val candidate = Path.of(relativePath)
-        if (candidate.isAbsolute) return@runCatching null
+internal fun resolveProjectRelativeWalkthroughPath(basePath: String?, relativePath: String): Path? = runCatching {
+    val base = basePath
+        ?.takeIf { value -> value.isNotBlank() }
+        ?.let { value -> Path.of(value).toAbsolutePath().normalize() }
+        ?: return@runCatching null
+    val candidate = Path.of(relativePath)
+    if (candidate.isAbsolute) return@runCatching null
 
-        base.resolve(candidate)
-            .normalize()
-            .takeIf { path -> path.startsWith(base) }
-    }.getOrNull()
+    base.resolve(candidate)
+        .normalize()
+        .takeIf { path -> path.startsWith(base) }
+}.getOrNull()

@@ -1,0 +1,38 @@
+# Qodana configuration: https://www.jetbrains.com/help/qodana/qodana-yaml.html
+# Uses Qodana for JVM (Community) since this is an open-source IntelliJ
+# platform plugin. The DevKit / UAST inspections this linter adds
+# (UElementAsPsi, IncorrectServiceRetrieving, PluginXmlValidity,
+# IncorrectParentDisposable, StatefulEp, LeakableMapKey, MissingRecentApi,
+# RequiresEdt/RequiresBackgroundThread misuse, etc.) are the same ones the
+# JetBrains plugin team runs internally and are not replicated by Detekt.
+version: "1.0"
+
+# Keep this version aligned with the JetBrains/qodana-action tag in
+# .github/workflows/qodana.yml so local runs match CI.
+linter: jetbrains/qodana-jvm-community:2026.1
+
+# qodana.recommended ships the DevKit and UAST inspections enabled by
+# default — exactly what we want for an IntelliJ platform plugin.
+profile:
+  name: qodana.recommended
+
+# Exclude generated and infrastructure paths to keep the report focused.
+exclude:
+  - name: All
+    paths:
+      - .gradle
+      - .idea
+      - .intellijPlatform
+      - build
+      - gradle
+  # Qodana's FunctionName inspection doesn't understand the Compose
+  # convention that @Composable functions are PascalCase, so it flags
+  # MarkdownContent, AiCloseButton, GoToSourceButton, etc. Detekt's
+  # naming.FunctionNaming (configured with ignoreAnnotated: [Composable]
+  # in detekt.yml) plus the Kotlin Compose compiler plugin already
+  # enforce the right rule, so this Qodana check is redundant noise on
+  # our Kotlin sources.
+  - name: FunctionName
+    paths:
+      - src/main/kotlin
+      - src/test/kotlin

@@ -8,19 +8,18 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class WalkthroughSessionRegistryTest {
-    private fun newSession(items: List<WalkthroughItem>) =
-        WalkthroughSession(
-            id = "test-session",
-            initialItems = items,
-            targetKind = WalkthroughTargetKind.File,
-            diffDescriptors = emptyList(),
-            acceptsQuestions = true
-        )
+    private fun newSession(items: List<WalkthroughItem>) = WalkthroughSession(
+        id = "test-session",
+        initialItems = items,
+        targetKind = WalkthroughTargetKind.File,
+        diffDescriptors = emptyList(),
+        acceptsQuestions = true,
+    )
 
     @Test
     fun assignsAutoLabelsFromOrdinalPosition() {
@@ -28,8 +27,8 @@ class WalkthroughSessionRegistryTest {
             listOf(
                 WalkthroughItem(text = "a"),
                 WalkthroughItem(text = "b"),
-                WalkthroughItem(text = "c")
-            )
+                WalkthroughItem(text = "c"),
+            ),
         )
         assertEquals(listOf("1", "2", "3"), labeled.map { it.label })
     }
@@ -41,9 +40,9 @@ class WalkthroughSessionRegistryTest {
                 listOf(
                     WalkthroughItem(text = "one"),
                     WalkthroughItem(text = "two"),
-                    WalkthroughItem(text = "three")
-                )
-            )
+                    WalkthroughItem(text = "three"),
+                ),
+            ),
         )
 
         val inserted = session.insertTangents("2", listOf(WalkthroughItem(text = "answer A")))
@@ -52,7 +51,7 @@ class WalkthroughSessionRegistryTest {
         assertEquals("2", inserted.single().parentLabel)
         assertEquals(
             listOf("1", "2", "2.1", "3"),
-            session.snapshotItems().map { it.label }
+            session.snapshotItems().map { it.label },
         )
         assertEquals(2, session.currentIndexState.intValue)
     }
@@ -64,9 +63,9 @@ class WalkthroughSessionRegistryTest {
                 listOf(
                     WalkthroughItem(text = "one"),
                     WalkthroughItem(text = "two"),
-                    WalkthroughItem(text = "three")
-                )
-            )
+                    WalkthroughItem(text = "three"),
+                ),
+            ),
         )
         session.insertTangents("2", listOf(WalkthroughItem(text = "answer A")))
         session.insertTangents("2.1", listOf(WalkthroughItem(text = "deeper")))
@@ -77,14 +76,14 @@ class WalkthroughSessionRegistryTest {
         assertEquals(listOf("2.2"), second.map { it.label })
         assertEquals(
             listOf("1", "2", "2.1", "2.1.1", "2.2", "3"),
-            session.snapshotItems().map { it.label }
+            session.snapshotItems().map { it.label },
         )
     }
 
     @Test
     fun nestedTangentsUseHierarchicalLabels() {
         val session = newSession(
-            assignTopLevelLabels(listOf(WalkthroughItem(text = "root")))
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "root"))),
         )
         session.insertTangents("1", listOf(WalkthroughItem(text = "child")))
         val grandchild = session.insertTangents("1.1", listOf(WalkthroughItem(text = "grandchild")))
@@ -93,14 +92,14 @@ class WalkthroughSessionRegistryTest {
         assertEquals("1.1", grandchild.single().parentLabel)
         assertEquals(
             listOf("1", "1.1", "1.1.1"),
-            session.snapshotItems().map { it.label }
+            session.snapshotItems().map { it.label },
         )
     }
 
     @Test
     fun insertTangentsRejectsUnknownParent() {
         val session = newSession(
-            assignTopLevelLabels(listOf(WalkthroughItem(text = "only")))
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
         )
         assertThrows(IllegalArgumentException::class.java) {
             session.insertTangents("9", listOf(WalkthroughItem(text = "x")))
@@ -110,7 +109,7 @@ class WalkthroughSessionRegistryTest {
     @Test
     fun insertTangentsPreservesInFlightQuestionAfterValidationFailure() = runBlocking {
         val session = newSession(
-            assignTopLevelLabels(listOf(WalkthroughItem(text = "only")))
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
         )
         session.submitQuestion("can you explain?")
         val firstResult = session.awaitQuestionResult(timeoutMillis = TEST_AWAIT_TIMEOUT_MILLIS)
@@ -133,7 +132,7 @@ class WalkthroughSessionRegistryTest {
     @Test
     fun awaitQuestionReturnsNullAfterDismiss() = runBlocking {
         val session = newSession(
-            assignTopLevelLabels(listOf(WalkthroughItem(text = "only")))
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
         )
         session.dismiss()
         assertNull(session.awaitQuestion())
@@ -145,9 +144,9 @@ class WalkthroughSessionRegistryTest {
             assignTopLevelLabels(
                 listOf(
                     WalkthroughItem(text = "one"),
-                    WalkthroughItem(text = "two")
-                )
-            )
+                    WalkthroughItem(text = "two"),
+                ),
+            ),
         )
         session.currentIndexState.intValue = 1
         session.submitQuestion("what about two?")
@@ -163,7 +162,7 @@ class WalkthroughSessionRegistryTest {
     @Test
     fun submitQuestionClearsLoadingWhenChannelIsClosed() {
         val session = newSession(
-            assignTopLevelLabels(listOf(WalkthroughItem(text = "only")))
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
         )
         session.dismiss()
 
@@ -176,7 +175,7 @@ class WalkthroughSessionRegistryTest {
     @Test
     fun submitQuestionQueuesWhenAgentIsNotWaiting() {
         val session = newSession(
-            assignTopLevelLabels(listOf(WalkthroughItem(text = "only")))
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
         )
 
         session.submitQuestion("can you explain?")
@@ -188,7 +187,7 @@ class WalkthroughSessionRegistryTest {
     @Test
     fun queuedQuestionIsDeliveredToNextAwait() = runBlocking {
         val session = newSession(
-            assignTopLevelLabels(listOf(WalkthroughItem(text = "only")))
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
         )
         session.submitQuestion("can you explain?")
 
@@ -205,7 +204,7 @@ class WalkthroughSessionRegistryTest {
     @Test
     fun inFlightQuestionCanBeClaimedAgainUntilTangentsAreInserted() = runBlocking {
         val session = newSession(
-            assignTopLevelLabels(listOf(WalkthroughItem(text = "only")))
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
         )
         session.submitQuestion("can you explain?")
 
@@ -227,7 +226,7 @@ class WalkthroughSessionRegistryTest {
     @Test
     fun awaitQuestionResultExpiresAndMarksAgentNotWaiting() = runBlocking {
         val session = newSession(
-            assignTopLevelLabels(listOf(WalkthroughItem(text = "only")))
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
         )
 
         val result = session.awaitQuestionResult(timeoutMillis = 1L)
@@ -240,7 +239,7 @@ class WalkthroughSessionRegistryTest {
     @Test
     fun newAwaitReplacesPreviousWaiter() = runBlocking {
         val session = newSession(
-            assignTopLevelLabels(listOf(WalkthroughItem(text = "only")))
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
         )
         val firstAwait = async { session.awaitQuestionResult(timeoutMillis = TEST_AWAIT_TIMEOUT_MILLIS) }
         waitUntilQuestionStatus(session, WalkthroughQuestionStatus.WaitingForQuestion)
@@ -287,7 +286,7 @@ class WalkthroughSessionRegistryTest {
         val registry = WalkthroughSessionRegistry()
         val session = registry.create(
             items = assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
-            acceptsQuestions = true
+            acceptsQuestions = true,
         )
 
         registry.remove(session.id)
@@ -297,10 +296,7 @@ class WalkthroughSessionRegistryTest {
         assertEquals(false, registry.consumeDismissed(session.id))
     }
 
-    private suspend fun waitUntilQuestionStatus(
-        session: WalkthroughSession,
-        status: WalkthroughQuestionStatus
-    ) {
+    private suspend fun waitUntilQuestionStatus(session: WalkthroughSession, status: WalkthroughQuestionStatus) {
         repeat(TEST_STATUS_WAIT_ATTEMPTS) {
             if (session.questionStatusState.value == status) return
             yield()

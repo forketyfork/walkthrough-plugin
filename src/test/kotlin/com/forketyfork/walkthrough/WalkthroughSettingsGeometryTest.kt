@@ -44,7 +44,7 @@ class WalkthroughSettingsGeometryTest {
 
         assertEquals(
             PopupGeometry(x = 10, y = 20, width = 600, height = 400),
-            restored.loadGeometry()
+            restored.loadGeometry(),
         )
     }
 

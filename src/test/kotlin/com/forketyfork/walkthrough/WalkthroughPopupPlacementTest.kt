@@ -21,7 +21,7 @@ class WalkthroughPopupPlacementTest {
         val clamped = clampPopupSize(
             Dimension(minWidth - 50, minHeight - 50),
             maxWidth = 1200,
-            maxHeight = 900
+            maxHeight = 900,
         )
 
         assertEquals(Dimension(minWidth, minHeight), clamped)
@@ -39,7 +39,7 @@ class WalkthroughPopupPlacementTest {
         val clamped = clampPopupSize(
             Dimension(800, 500),
             maxWidth = minWidth - 100,
-            maxHeight = minHeight - 100
+            maxHeight = minHeight - 100,
         )
 
         assertEquals(Dimension(minWidth, minHeight), clamped)

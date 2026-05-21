@@ -16,3 +16,164 @@ naming:
 style:
   MagicNumber:
     ignorePropertyDeclaration: true
+  # Catches `Foo.BAR` when `Foo` is already imported / the surrounding scope
+  # already resolves `BAR`. Requires Detekt's type-resolving mode (we wire
+  # `:detektMain` and `:detektTest` into the aggregate `:detekt` task in
+  # `build.gradle.kts`).
+  UnnecessaryFullyQualifiedName:
+    active: true
+
+# Detekt 2.0 ships several rule sets that are *not* part of the default build.
+# Explicit opt-ins below focus on rules that catch real bugs and platform
+# misuse rather than purely stylistic concerns. See the docs at
+# https://detekt.dev/docs/rules/overview for the full catalog.
+
+potential-bugs:
+  active: true
+  CastToNullableType:
+    active: true
+  DontDowncastCollectionTypes:
+    active: true
+  ElseCaseInsteadOfExhaustiveWhen:
+    active: true
+  EqualsWithHashCodeExist:
+    active: true
+  ExitOutsideMain:
+    active: true
+  IgnoredReturnValue:
+    active: true
+  ImplicitDefaultLocale:
+    active: true
+  UnreachableCatchBlock:
+    active: true
+  UnreachableCode:
+    active: true
+  UnsafeCallOnNullableType:
+    active: true
+
+exceptions:
+  active: true
+  ReturnFromFinally:
+    active: true
+  SwallowedException:
+    active: true
+  ThrowingExceptionFromFinally:
+    active: true
+  TooGenericExceptionCaught:
+    active: true
+    exceptionNames:
+      - Error
+      - Exception
+      - Throwable
+      - RuntimeException
+
+coroutines:
+  active: true
+  GlobalCoroutineUsage:
+    active: true
+  InjectDispatcher:
+    active: true
+    # Dispatchers.EDT is intentionally hard-coded at the UI dispatch boundary
+    # (see ShowWalkthroughItemsToolset and related Compose hosting code), so
+    # it is excluded from the inject list. IO/Default/Unconfined should still
+    # be injected to keep business logic testable.
+    dispatcherNames:
+      - IO
+      - Default
+      - Unconfined
+  RedundantSuspendModifier:
+    active: true
+  SleepInsteadOfDelay:
+    active: true
+  SuspendFunWithCoroutineScopeReceiver:
+    active: true
+
+# ktlint rules surfaced through detekt-rules-ktlint-wrapper. Naming matches the
+# ktlint rule ids exactly. Wildcard imports stay allowed because Compose
+# previews and Jewel integration regularly need them; .editorconfig drives the
+# rest of the formatting.
+ktlint-wrapper:
+  active: true
+  FunctionNaming:
+    active: false
+  NoWildcardImports:
+    active: false
+  Filename:
+    active: false
+
+Compose:
+  active: true
+  ComposableAnnotationNaming:
+    active: true
+  ComposableNaming:
+    active: true
+  ComposableParamOrder:
+    active: true
+  CompositionLocalAllowlist:
+    active: true
+  CompositionLocalNaming:
+    active: true
+  ContentEmitterReturningValues:
+    active: true
+  ContentSlotReused:
+    active: true
+  ContentTrailingLambda:
+    active: true
+  DefaultsVisibility:
+    active: true
+  LambdaParameterEventTrailing:
+    active: true
+  LambdaParameterInRestartableEffect:
+    active: true
+  Material2:
+    active: true
+  ModifierClickableOrder:
+    active: true
+  ModifierComposable:
+    active: true
+  ModifierComposed:
+    active: true
+  ModifierMissing:
+    active: true
+  ModifierNaming:
+    active: true
+  ModifierNotUsedAtRoot:
+    active: true
+  ModifierReused:
+    active: true
+  ModifierWithoutDefault:
+    active: true
+  MultipleEmitters:
+    active: true
+  MutableParams:
+    active: true
+  MutableStateAutoboxing:
+    active: true
+  MutableStateParam:
+    active: true
+  ParameterNaming:
+    active: true
+  PreviewAnnotationNaming:
+    active: true
+  PreviewNaming:
+    active: true
+  PreviewPublic:
+    active: true
+  RememberContentMissing:
+    active: true
+  RememberMissing:
+    active: true
+  RememberStateMissing:
+    active: true
+  ReusedModifierInstance:
+    active: true
+  TopLevelComposableFunctions:
+    active: false
+  UnnecessaryEventHandlerParam:
+    active: true
+  UnstableCollections:
+    active: false
+  ViewModelForwarding:
+    active: true
+  ViewModelInjection:
+    active: false

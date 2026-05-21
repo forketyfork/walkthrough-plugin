@@ -10,11 +10,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
@@ -27,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,8 +43,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.delay
-import kotlin.time.TimeSource
 import org.jetbrains.jewel.ui.component.Text
+import kotlin.time.TimeSource
 
 private object WalkthroughPopupContentStyle {
     val cornerRadius = 24.dp
@@ -98,19 +99,17 @@ private object WalkthroughPopupContentStyle {
     val scrollbarPaddingBottom = 10.dp
 }
 
-private data class WalkthroughPopupAnimationState(
-    val gradientShift: Float,
-    val glowShift: Float
-)
+private data class WalkthroughPopupAnimationState(val gradientShift: Float, val glowShift: Float)
 
+@Suppress("LongParameterList")
 @Composable
 internal fun WalkthroughItemContent(
     project: Project,
     session: WalkthroughSession,
     palette: WalkthroughPalette,
-    onItemDisplayed: (WalkthroughItem) -> Unit,
+    onItemDisplay: (WalkthroughItem) -> Unit,
     onNavigateToSource: (WalkthroughItem) -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
 ) {
     val items = session.items
     var currentIndex by session.currentIndexState
@@ -122,9 +121,18 @@ internal fun WalkthroughItemContent(
     val showScrollbar = scrollState.maxValue > 0
     val questionStatus by session.questionStatusState
 
+    // Qodana's UnusedVariable inspection doesn't see that the delegated
+    // property is read inside LaunchedEffect below, so it flags this as
+    // unused. The indirection is required by Detekt's
+    // LambdaParameterInRestartableEffect rule (Compose ruleset) — capturing
+    // `onItemDisplay` directly inside a restartable effect would restart it
+    // on every recomposition. Suppress the false positive locally.
+    @Suppress("UnusedVariable")
+    val currentOnItemDisplay by rememberUpdatedState(onItemDisplay)
+
     LaunchedEffect(item) {
         scrollState.scrollTo(0)
-        onItemDisplayed(item)
+        currentOnItemDisplay(item)
     }
 
     CompositionLocalProvider(LocalScrollbarStyle provides scrollbarStyle) {
@@ -143,7 +151,7 @@ internal fun WalkthroughItemContent(
             onNext = { currentIndex = (safeIndex + 1).coerceAtMost(items.lastIndex) },
             onNavigateToSource = { onNavigateToSource(item) },
             onSubmitQuestion = { text -> session.submitQuestion(text) },
-            onClose = onClose
+            onClose = onClose,
         )
     }
 }
@@ -154,7 +162,7 @@ private fun rememberPopupAnimationState(): WalkthroughPopupAnimationState {
         return remember {
             WalkthroughPopupAnimationState(
                 gradientShift = WalkthroughPopupContentStyle.ANIMATION_START,
-                glowShift = WalkthroughPopupContentStyle.ANIMATION_START
+                glowShift = WalkthroughPopupContentStyle.ANIMATION_START,
             )
         }
     }
@@ -173,17 +181,16 @@ private fun rememberPopupAnimationState(): WalkthroughPopupAnimationState {
 }
 
 @Composable
-private fun rememberPopupScrollbarStyle(palette: WalkthroughPalette): ScrollbarStyle =
-    remember(palette) {
-        ScrollbarStyle(
-            minimalHeight = WalkthroughPopupContentStyle.scrollbarMinHeight,
-            thickness = WalkthroughPopupContentStyle.scrollbarThickness,
-            shape = CircleShape,
-            hoverDurationMillis = WalkthroughPopupContentStyle.SCROLLBAR_HOVER_DURATION_MS,
-            unhoverColor = palette.scrollbarUnhoverColor,
-            hoverColor = palette.scrollbarHoverColor
-        )
-    }
+private fun rememberPopupScrollbarStyle(palette: WalkthroughPalette): ScrollbarStyle = remember(palette) {
+    ScrollbarStyle(
+        minimalHeight = WalkthroughPopupContentStyle.scrollbarMinHeight,
+        thickness = WalkthroughPopupContentStyle.scrollbarThickness,
+        shape = CircleShape,
+        hoverDurationMillis = WalkthroughPopupContentStyle.SCROLLBAR_HOVER_DURATION_MS,
+        unhoverColor = palette.scrollbarUnhoverColor,
+        hoverColor = palette.scrollbarHoverColor,
+    )
+}
 
 @Suppress("LongParameterList")
 @Composable
@@ -202,20 +209,20 @@ private fun WalkthroughPopupFrame(
     onNext: () -> Unit,
     onNavigateToSource: () -> Unit,
     onSubmitQuestion: (String) -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
 ) {
     val shape = RoundedCornerShape(WalkthroughPopupContentStyle.cornerRadius)
     Box(
         modifier = Modifier
             .fillMaxSize()
             .clip(shape)
-            .walkthroughPopupBackground(animationState, palette)
+            .walkthroughPopupBackground(animationState, palette),
     ) {
         AiCloseButton(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(WalkthroughPopupContentStyle.closeButtonPadding),
-            onClick = onClose
+            onClick = onClose,
         )
         Column(
             modifier = Modifier
@@ -224,16 +231,16 @@ private fun WalkthroughPopupFrame(
                     start = WalkthroughPopupContentStyle.contentPaddingStart,
                     top = WalkthroughPopupContentStyle.contentPaddingTop,
                     end = WalkthroughPopupContentStyle.contentPaddingEnd,
-                    bottom = WalkthroughPopupContentStyle.contentPaddingBottom
+                    bottom = WalkthroughPopupContentStyle.contentPaddingBottom,
                 ),
-            verticalArrangement = Arrangement.spacedBy(WalkthroughPopupContentStyle.contentSectionSpacing)
+            verticalArrangement = Arrangement.spacedBy(WalkthroughPopupContentStyle.contentSectionSpacing),
         ) {
             WalkthroughPopupHeader(item = item, items = items, currentIndex = currentIndex, palette = palette)
             WalkthroughPopupBody(
                 project = project,
                 item = item,
                 scrollState = scrollState,
-                showScrollbar = showScrollbar
+                showScrollbar = showScrollbar,
             )
             val showNavigation = items.size > 1
             val sourceCallback = onNavigateToSource.takeIf { item.hasNavigationTarget() }
@@ -245,14 +252,14 @@ private fun WalkthroughPopupFrame(
                     palette = palette,
                     onPrevious = onPrevious,
                     onNext = onNext,
-                    onNavigateToSource = sourceCallback
+                    onNavigateToSource = sourceCallback,
                 )
             }
             if (acceptsQuestions) {
                 WalkthroughQuestionInput(
                     status = questionStatus,
                     palette = palette,
-                    onSubmit = onSubmitQuestion
+                    onSubmit = onSubmitQuestion,
                 )
             }
         }
@@ -264,22 +271,22 @@ private fun WalkthroughItem.hasNavigationTarget(): Boolean =
 
 private fun Modifier.walkthroughPopupBackground(
     animationState: WalkthroughPopupAnimationState,
-    palette: WalkthroughPalette
+    palette: WalkthroughPalette,
 ): Modifier = drawWithCache {
     val cornerRadius = CornerRadius(
         WalkthroughPopupContentStyle.cornerRadius.toPx(),
-        WalkthroughPopupContentStyle.cornerRadius.toPx()
+        WalkthroughPopupContentStyle.cornerRadius.toPx(),
     )
     val backgroundBrush = Brush.linearGradient(
         colors = palette.backgroundGradientColors,
         start = Offset(
             size.width * (animationState.gradientShift - WalkthroughPopupContentStyle.BACKGROUND_START_X_SHIFT),
-            -size.height * WalkthroughPopupContentStyle.BACKGROUND_START_Y_SHIFT
+            -size.height * WalkthroughPopupContentStyle.BACKGROUND_START_Y_SHIFT,
         ),
         end = Offset(
             size.width * (animationState.gradientShift + WalkthroughPopupContentStyle.BACKGROUND_END_X_SHIFT),
-            size.height * WalkthroughPopupContentStyle.BACKGROUND_END_Y_SHIFT
-        )
+            size.height * WalkthroughPopupContentStyle.BACKGROUND_END_Y_SHIFT,
+        ),
     )
     val glowBrush = Brush.radialGradient(
         colors = palette.glowGradientColors,
@@ -288,17 +295,17 @@ private fun Modifier.walkthroughPopupBackground(
                 WalkthroughPopupContentStyle.GLOW_CENTER_BASE_X +
                     animationState.glowShift * WalkthroughPopupContentStyle.GLOW_CENTER_SHIFT_X
                 ),
-            size.height * WalkthroughPopupContentStyle.GLOW_CENTER_Y
+            size.height * WalkthroughPopupContentStyle.GLOW_CENTER_Y,
         ),
-        radius = size.minDimension * WalkthroughPopupContentStyle.GLOW_RADIUS_FACTOR
+        radius = size.minDimension * WalkthroughPopupContentStyle.GLOW_RADIUS_FACTOR,
     )
     val borderBrush = Brush.linearGradient(
         colors = palette.borderGradientColors,
         start = Offset(
             size.width * (animationState.gradientShift - WalkthroughPopupContentStyle.BORDER_GRADIENT_START_SHIFT),
-            0f
+            0f,
         ),
-        end = Offset(size.width * animationState.gradientShift, size.height)
+        end = Offset(size.width * animationState.gradientShift, size.height),
     )
 
     onDrawBehind {
@@ -309,7 +316,7 @@ private fun Modifier.walkthroughPopupBackground(
             brush = borderBrush,
             cornerRadius = cornerRadius,
             alpha = WalkthroughPopupContentStyle.BORDER_ALPHA,
-            style = Stroke(width = WalkthroughPopupContentStyle.borderStrokeWidth.toPx())
+            style = Stroke(width = WalkthroughPopupContentStyle.borderStrokeWidth.toPx()),
         )
     }
 }
@@ -319,7 +326,7 @@ private fun WalkthroughPopupHeader(
     item: WalkthroughItem,
     items: List<WalkthroughItem>,
     currentIndex: Int,
-    palette: WalkthroughPalette
+    palette: WalkthroughPalette,
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(WalkthroughPopupContentStyle.headerSpacing),
@@ -331,12 +338,12 @@ private fun WalkthroughPopupHeader(
             .border(
                 width = WalkthroughPopupContentStyle.headerBorderWidth,
                 color = Color.White.copy(alpha = WalkthroughPopupContentStyle.HEADER_BORDER_ALPHA),
-                shape = RoundedCornerShape(WalkthroughPopupContentStyle.headerPillRadius)
+                shape = RoundedCornerShape(WalkthroughPopupContentStyle.headerPillRadius),
             )
             .padding(
                 horizontal = WalkthroughPopupContentStyle.headerPaddingHorizontal,
-                vertical = WalkthroughPopupContentStyle.headerPaddingVertical
-            )
+                vertical = WalkthroughPopupContentStyle.headerPaddingVertical,
+            ),
     ) {
         AiBadge(palette)
         val meta = headerMetaText(item = item, items = items, currentIndex = currentIndex)
@@ -345,7 +352,7 @@ private fun WalkthroughPopupHeader(
                 text = meta,
                 color = palette.metaTextColor,
                 fontSize = WalkthroughPopupContentStyle.metaTextSize,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
             )
         }
     }
@@ -369,7 +376,7 @@ private fun ColumnScope.WalkthroughPopupBody(
     project: Project,
     item: WalkthroughItem,
     scrollState: ScrollState,
-    showScrollbar: Boolean
+    showScrollbar: Boolean,
 ) {
     Box(
         modifier = Modifier
@@ -381,8 +388,8 @@ private fun ColumnScope.WalkthroughPopupBody(
             .border(
                 width = WalkthroughPopupContentStyle.bodyBorderWidth,
                 color = Color.White.copy(alpha = WalkthroughPopupContentStyle.BODY_BORDER_ALPHA),
-                shape = RoundedCornerShape(WalkthroughPopupContentStyle.bodyCornerRadius)
-            )
+                shape = RoundedCornerShape(WalkthroughPopupContentStyle.bodyCornerRadius),
+            ),
     ) {
         Box(
             modifier = Modifier
@@ -391,9 +398,9 @@ private fun ColumnScope.WalkthroughPopupBody(
                     start = WalkthroughPopupContentStyle.markdownPaddingStart,
                     top = WalkthroughPopupContentStyle.markdownPaddingTop,
                     end = WalkthroughPopupContentStyle.markdownPaddingEnd,
-                    bottom = WalkthroughPopupContentStyle.markdownPaddingBottom
+                    bottom = WalkthroughPopupContentStyle.markdownPaddingBottom,
                 )
-                .verticalScroll(scrollState)
+                .verticalScroll(scrollState),
         ) {
             MarkdownContent(project, item.text)
         }
@@ -405,12 +412,12 @@ private fun ColumnScope.WalkthroughPopupBody(
                     .padding(
                         end = WalkthroughPopupContentStyle.scrollbarPaddingEnd,
                         top = WalkthroughPopupContentStyle.scrollbarPaddingTop,
-                        bottom = WalkthroughPopupContentStyle.scrollbarPaddingBottom
-                    )
+                        bottom = WalkthroughPopupContentStyle.scrollbarPaddingBottom,
+                    ),
             ) {
                 VerticalScrollbar(
                     adapter = rememberScrollbarAdapter(scrollState),
-                    modifier = Modifier.align(Alignment.CenterEnd)
+                    modifier = Modifier.align(Alignment.CenterEnd),
                 )
             }
         }
