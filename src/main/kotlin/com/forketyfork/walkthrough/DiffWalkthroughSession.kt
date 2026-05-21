@@ -223,6 +223,10 @@ private class DiffWalkthroughController(
         applyPopupGeometryForItem(popup, editor, popupItem)
     }
 
+    // Called from [createActiveViewerCleanup] via `WeakReference<DiffWalkthroughController>.get()?.…`.
+    // Qodana's UnusedSymbol inspection can't resolve the call target through the weak reference
+    // (the generic is erased to `Object?`), so it flags the function as unused — suppress here.
+    @Suppress("unused")
     fun clearActiveViewerIfMatches(viewer: FrameDiffTool.DiffViewer) {
         if (activeViewer === viewer) {
             activeViewer = null
