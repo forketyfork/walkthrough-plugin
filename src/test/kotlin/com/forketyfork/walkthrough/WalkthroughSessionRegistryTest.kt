@@ -15,10 +15,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class WalkthroughSessionRegistryTest {
-    private fun newSession(
-        items: List<WalkthroughItem>,
-        notListeningGracePeriodMillis: Long = 0L,
-    ) = WalkthroughSession(
+    private fun newSession(items: List<WalkthroughItem>, notListeningGracePeriodMillis: Long = 0L) = WalkthroughSession(
         id = "test-session",
         initialItems = items,
         targetKind = WalkthroughTargetKind.File,
@@ -245,7 +242,7 @@ class WalkthroughSessionRegistryTest {
     @Test
     fun cancelledAwaitClearsWaiterAndAllowsFreshAwait() = runBlocking {
         val session = newSession(
-            assignTopLevelLabels(listOf(WalkthroughItem(text = "only")))
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
         )
 
         val firstAwait = async { session.awaitQuestionResult(timeoutMillis = TEST_AWAIT_TIMEOUT_MILLIS) }
@@ -265,7 +262,7 @@ class WalkthroughSessionRegistryTest {
         assertTrue(secondResult is WalkthroughQuestionAwaitResult.Received)
         assertEquals(
             "after cancel",
-            (secondResult as WalkthroughQuestionAwaitResult.Received).question.question
+            (secondResult as WalkthroughQuestionAwaitResult.Received).question.question,
         )
     }
 
@@ -273,7 +270,7 @@ class WalkthroughSessionRegistryTest {
     fun reconnectWithinGraceWindowAvoidsAgentNotWaitingFlash() = runBlocking {
         val session = newSession(
             items = assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
-            notListeningGracePeriodMillis = TEST_GRACE_PERIOD_MILLIS
+            notListeningGracePeriodMillis = TEST_GRACE_PERIOD_MILLIS,
         )
 
         val firstAwait = async { session.awaitQuestionResult(timeoutMillis = TEST_AWAIT_TIMEOUT_MILLIS) }
@@ -297,7 +294,7 @@ class WalkthroughSessionRegistryTest {
     fun graceWindowExpiringWithoutReconnectFlipsToAgentNotWaiting() = runBlocking {
         val session = newSession(
             items = assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
-            notListeningGracePeriodMillis = TEST_GRACE_PERIOD_MILLIS
+            notListeningGracePeriodMillis = TEST_GRACE_PERIOD_MILLIS,
         )
 
         val firstAwait = async { session.awaitQuestionResult(timeoutMillis = TEST_AWAIT_TIMEOUT_MILLIS) }
@@ -312,7 +309,7 @@ class WalkthroughSessionRegistryTest {
     fun insertTangentsClearsLoadingImmediatelyDuringGraceWindow() = runBlocking {
         val session = newSession(
             items = assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
-            notListeningGracePeriodMillis = LONG_GRACE_PERIOD_MILLIS
+            notListeningGracePeriodMillis = LONG_GRACE_PERIOD_MILLIS,
         )
         session.submitQuestion("explain")
         val received = session.awaitQuestionResult(timeoutMillis = TEST_AWAIT_TIMEOUT_MILLIS)
