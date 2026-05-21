@@ -32,6 +32,7 @@ import git4idea.GitContentRevision
 import git4idea.GitRevisionNumber
 import java.awt.event.HierarchyEvent
 import java.awt.event.HierarchyListener
+import java.lang.ref.WeakReference
 import javax.swing.SwingUtilities
 import com.intellij.diff.util.Side as PlatformDiffSide
 
@@ -147,6 +148,8 @@ private class DiffWalkthroughController(
     private val currentEditorUpdater: (Editor) -> Unit,
 ) {
     private var pendingNavigationId = 0
+    private var activeViewer: FrameDiffTool.DiffViewer? = null
+    private var activeDescriptorId: String? = null
 
     fun scheduleItemNavigation(item: WalkthroughItem) {
         pendingNavigationId += 1
@@ -161,11 +164,26 @@ private class DiffWalkthroughController(
 
     fun attachToViewer(viewer: FrameDiffTool.DiffViewer, item: WalkthroughItem) {
         if (sessionDisposable.isDisposed || viewer !is EditorDiffViewer) return
+        trackActiveViewer(viewer, resolveDescriptor(item)?.id)
         val editor = selectEditor(viewer, item.diffSide ?: DiffSide.Right)
         val popup = popupProvider()
         if (editor != null && popup != null) {
             attachWhenShowing(popup, editor, item)
         }
+    }
+
+    private fun trackActiveViewer(viewer: FrameDiffTool.DiffViewer, descriptorId: String?) {
+        activeDescriptorId = descriptorId
+        if (activeViewer === viewer) return
+        activeViewer = viewer
+        // Avoid capturing `this` strongly inside the viewer-owned disposable: the diff viewer may
+        // outlive the walkthrough session, and a strong reference would keep the whole controller
+        // graph (session disposable, popup state, etc.) reachable until the diff tab is closed.
+        val cleanup = createActiveViewerCleanup(WeakReference(this), viewer)
+        Disposer.register(viewer, cleanup)
+        // Also dispose the cleanup when the session ends so the references held by the cleanup
+        // disposable itself are released even if the diff viewer remains open.
+        Disposer.register(sessionDisposable, cleanup)
     }
 
     private fun attachWhenShowing(popup: WalkthroughPopupSurface, editor: Editor, item: WalkthroughItem) {
@@ -205,8 +223,24 @@ private class DiffWalkthroughController(
         applyPopupGeometryForItem(popup, editor, popupItem)
     }
 
+    // Called from [createActiveViewerCleanup] via `WeakReference<DiffWalkthroughController>.get()?.…`.
+    // Qodana's UnusedSymbol inspection can't resolve the call target through the weak reference
+    // (the generic is erased to `Object?`), so it flags the function as unused — suppress here.
+    @Suppress("unused")
+    fun clearActiveViewerIfMatches(viewer: FrameDiffTool.DiffViewer) {
+        if (activeViewer === viewer) {
+            activeViewer = null
+            activeDescriptorId = null
+        }
+    }
+
     private fun showItem(item: WalkthroughItem) {
         val descriptor = resolveDescriptor(item) ?: return
+        val existing = activeViewer
+        if (existing != null && !existing.isViewerDisposed() && activeDescriptorId == descriptor.id) {
+            attachToViewer(existing, item)
+            return
+        }
         DiffManager.getInstance().showDiff(
             project,
             SimpleDiffRequestChain.fromProducer(
@@ -239,6 +273,27 @@ private class DiffWalkthroughController(
         }
     }
 }
+
+/**
+ * Creates a [Disposable] that clears the controller's reference to [viewer] when either the viewer
+ * or the walkthrough session is disposed. The controller is held weakly so a still-open diff viewer
+ * cannot keep the walkthrough session graph reachable after the session itself has been closed.
+ */
+private fun createActiveViewerCleanup(
+    controllerRef: WeakReference<DiffWalkthroughController>,
+    viewer: FrameDiffTool.DiffViewer,
+): Disposable = Disposable {
+    controllerRef.get()?.clearActiveViewerIfMatches(viewer)
+    controllerRef.clear()
+}
+
+/**
+ * Non-deprecated replacement for `Disposer.isDisposed(disposable)`: relies on [CheckedDisposable]
+ * when the viewer implements it. If the viewer doesn't expose its disposal state we conservatively
+ * treat it as not disposed; in that case the viewer-owned cleanup callback above will clear
+ * `activeViewer` once the platform actually disposes the viewer.
+ */
+private fun FrameDiffTool.DiffViewer.isViewerDisposed(): Boolean = (this as? CheckedDisposable)?.isDisposed == true
 
 private class DiffWalkthroughRequestProducer(
     private val project: Project,
