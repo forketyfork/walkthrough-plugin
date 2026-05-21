@@ -7,7 +7,9 @@
 # JetBrains plugin team runs internally and are not replicated by Detekt.
 version: "1.0"
 
-linter: jetbrains/qodana-jvm-community:latest
+# Keep this version aligned with the JetBrains/qodana-action tag in
+# .github/workflows/qodana.yml so local runs match CI.
+linter: jetbrains/qodana-jvm-community:2026.1
 
 # qodana.recommended ships the DevKit and UAST inspections enabled by
 # default — exactly what we want for an IntelliJ platform plugin.

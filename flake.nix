@@ -56,12 +56,16 @@
           };
           # Spell-check user-facing content (CHANGELOG, README, plugin.xml
           # <description>, KDoc, MCP @McpDescription strings, etc.).
+          # `typos` accepts paths positionally, so passing only the changed
+          # files keeps incremental pre-commit runs fast. CI invokes
+          # `pre-commit run --all-files`, which still gives full-repo
+          # coverage via `nix flake check`.
           typos = {
             enable = true;
             name = "typos";
             entry = "${pkgs.typos}/bin/typos";
             language = "system";
-            pass_filenames = false;
+            pass_filenames = true;
           };
           # Security linter for GitHub Actions workflows: catches expression
           # injection, missing `permissions:`, untrusted pull_request_target,

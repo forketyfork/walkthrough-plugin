@@ -1,5 +1,9 @@
 name: Qodana
 
+# `pull-requests: write` and `checks: write` are required by
+# JetBrains/qodana-action: it posts a summary comment (`post-pr-comment`)
+# and publishes check-run annotations (`use-annotations`) by default.
+# `security-events: write` is required by the SARIF upload step.
 permissions:
   contents: read
   pull-requests: write
@@ -34,7 +38,9 @@ jobs:
           java-version: '21'
 
       - name: Qodana scan
-        uses: JetBrains/qodana-action@v2025.2
+        # Keep this tag aligned with the linter image version pinned in
+        # qodana.yaml so local runs and CI use the same Qodana release.
+        uses: JetBrains/qodana-action@v2026.1.0
         with:
           # Push results to GitHub Code Scanning as SARIF.
           upload-result: true

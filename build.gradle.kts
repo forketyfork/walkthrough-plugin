@@ -6,7 +6,7 @@ plugins {
     id("org.jetbrains.kotlin.jvm") version "2.3.21"
     id("org.jetbrains.intellij.platform") version "2.16.0"
     id("org.jetbrains.kotlin.plugin.compose") version "2.3.21"
-    id("dev.detekt") version "2.0.0-alpha.3"
+    alias(libs.plugins.detekt)
 }
 
 group = "com.forketyfork"

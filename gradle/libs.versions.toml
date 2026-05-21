@@ -13,3 +13,6 @@ junit4 = { module = "junit:junit", version.ref = "junit4" }
 opentest4j = { module = "org.opentest4j:opentest4j", version.ref = "opentest4j" }
 detekt-rules-ktlint-wrapper = { module = "dev.detekt:detekt-rules-ktlint-wrapper", version.ref = "detekt" }
 detekt-compose-rules = { module = "io.nlopez.compose.rules:detekt", version.ref = "detekt-compose-rules" }
+
+[plugins]
+detekt = { id = "dev.detekt", version.ref = "detekt" }
