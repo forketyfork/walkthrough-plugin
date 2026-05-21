@@ -1,0 +1,25 @@
+# Qodana configuration: https://www.jetbrains.com/help/qodana/qodana-yaml.html
+# Uses Qodana for JVM (Community) since this is an open-source IntelliJ
+# platform plugin. The DevKit / UAST inspections this linter adds
+# (UElementAsPsi, IncorrectServiceRetrieving, PluginXmlValidity,
+# IncorrectParentDisposable, StatefulEp, LeakableMapKey, MissingRecentApi,
+# RequiresEdt/RequiresBackgroundThread misuse, etc.) are the same ones the
+# JetBrains plugin team runs internally and are not replicated by Detekt.
+version: "1.0"
+
+linter: jetbrains/qodana-jvm-community:latest
+
+# qodana.recommended ships the DevKit and UAST inspections enabled by
+# default — exactly what we want for an IntelliJ platform plugin.
+profile:
+  name: qodana.recommended
+
+# Exclude generated and infrastructure paths to keep the report focused.
+exclude:
+  - name: All
+    paths:
+      - .gradle
+      - .idea
+      - .intellijPlatform
+      - build
+      - gradle

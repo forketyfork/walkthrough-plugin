@@ -1,0 +1,39 @@
+# Configuration for `typos` (https://github.com/crate-ci/typos). Catches
+# misspellings in user-facing content: CHANGELOG.md, README.md, plugin.xml
+# <description>, KDoc, and MCP @McpDescription strings (which surface inside
+# MCP clients).
+
+[default]
+# Allow common false positives that show up in build/dependency identifiers.
+extend-ignore-identifiers-re = [
+  # SHA / Gradle wrapper hashes look like words to typos.
+  "^[0-9a-fA-F]{7,40}$",
+  # "Laf" is IntelliJ's abbreviation for "Look and Feel" and appears inside
+  # bundled module IDs like `intellij.platform.jewel.markdown.ideLafBridgeStyling`.
+  ".*[Ll]af.*",
+]
+
+[default.extend-words]
+# Project-specific terms that the dictionary would otherwise flag.
+forketyfork = "forketyfork"
+walkthroughs = "walkthroughs"
+walkthrough = "walkthrough"
+intellij = "intellij"
+jewel = "jewel"
+mcp = "mcp"
+
+[files]
+extend-exclude = [
+  ".git/",
+  ".gradle/",
+  ".idea/",
+  ".intellijPlatform/",
+  "build/",
+  "gradle/wrapper/",
+  "gradlew",
+  "gradlew.bat",
+  "detekt-baseline.xml",
+  "flake.lock",
+  "*.lock",
+  "*.sarif*",
+]

@@ -54,6 +54,27 @@
             files = "\\.md$";
             language = "system";
           };
+          # Spell-check user-facing content (CHANGELOG, README, plugin.xml
+          # <description>, KDoc, MCP @McpDescription strings, etc.).
+          typos = {
+            enable = true;
+            name = "typos";
+            entry = "${pkgs.typos}/bin/typos";
+            language = "system";
+            pass_filenames = false;
+          };
+          # Security linter for GitHub Actions workflows: catches expression
+          # injection, missing `permissions:`, untrusted pull_request_target,
+          # mutable action refs, etc. Complements actionlint. Configuration
+          # lives in .github/zizmor.yml and is auto-discovered.
+          zizmor = {
+            enable = true;
+            name = "zizmor";
+            entry = "${pkgs.zizmor}/bin/zizmor --no-online-audits .github/workflows";
+            files = "^\\.github/(workflows/.*\\.ya?ml|zizmor\\.yml)$";
+            language = "system";
+            pass_filenames = false;
+          };
         };
 
         # Exposed as flake checks — runs nix-native-hooks via nix flake check in CI.
@@ -94,6 +115,8 @@
               markdownlint-cli2
               alejandra
               statix
+              typos
+              zizmor
             ]
             ++ pre-commit-check.enabledPackages;
         };

@@ -37,6 +37,9 @@ dependencies {
     testRuntimeOnly(libs.junit.platform.launcher)
     testRuntimeOnly(libs.junit4)
 
+    detektPlugins(libs.detekt.rules.ktlint.wrapper)
+    detektPlugins(libs.detekt.compose.rules)
+
     intellijPlatform {
         intellijIdea("2026.1")
 
@@ -112,6 +115,7 @@ detekt {
     config.setFrom(files("$rootDir/detekt.yml"))
     buildUponDefaultConfig = true
     basePath.set(projectDir)
+    baseline = file("$rootDir/detekt-baseline.xml")
 }
 
 tasks.withType<Detekt>().configureEach {
@@ -125,4 +129,5 @@ tasks.withType<Detekt>().configureEach {
 
 tasks.withType<DetektCreateBaselineTask>().configureEach {
     jvmTarget.set("21")
+    baseline.set(file("$rootDir/detekt-baseline.xml"))
 }
