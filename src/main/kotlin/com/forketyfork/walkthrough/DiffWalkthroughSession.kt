@@ -1,6 +1,7 @@
 package com.forketyfork.walkthrough
 
 import androidx.compose.runtime.mutableStateOf
+import com.intellij.diff.DiffContentFactory
 import com.intellij.diff.DiffContext
 import com.intellij.diff.DiffDialogHints
 import com.intellij.diff.DiffExtension
@@ -61,15 +62,10 @@ fun showDiffWalkthroughSession(
         targetKind = WalkthroughTargetKind.Diff,
         diffDescriptors = descriptors,
     )
-    Disposer.register(
-        sessionDisposable,
-        object : Disposable {
-            override fun dispose() {
-                registry.remove(session.id)
-                registry.clearActive(sessionDisposable)
-            }
-        },
-    )
+    Disposer.register(sessionDisposable) {
+        registry.remove(session.id)
+        registry.clearActive(sessionDisposable)
+    }
 
     var popupRef: WalkthroughPopupSurface? = null
     var currentEditor: Editor? = null
@@ -231,10 +227,9 @@ private class DiffWalkthroughController(
         ?: descriptors.singleOrNull()
 
     private fun resolveDescriptorByFile(diffFile: String): DiffWalkthroughDescriptor? = descriptors
-        .filter { descriptor ->
+        .singleOrNull { descriptor ->
             diffFile == descriptor.file || diffFile == descriptor.leftFile || diffFile == descriptor.rightFile
         }
-        .singleOrNull()
 
     private fun selectEditor(viewer: EditorDiffViewer, side: DiffSide): Editor? {
         val editors = viewer.editors
@@ -293,7 +288,7 @@ private class DiffWalkthroughRequestProducer(
     private data class RevisionContent(val content: DiffContent, val loaded: Boolean)
 
     private fun loadRevisionContent(filePath: FilePath, commit: String): RevisionContent {
-        val contentFactory = com.intellij.diff.DiffContentFactory.getInstance()
+        val contentFactory = DiffContentFactory.getInstance()
         return try {
             val revision = GitContentRevision.createRevision(filePath, GitRevisionNumber(commit), project)
             val text = revision.content ?: return RevisionContent(contentFactory.createEmpty(), loaded = false)

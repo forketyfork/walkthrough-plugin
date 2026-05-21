@@ -153,6 +153,7 @@ internal object WalkthroughPalettes {
 
     fun byId(id: String?): WalkthroughPalette = byId[id] ?: default
 
+    @Suppress("LongParameterList")
     private fun palette(
         id: String,
         displayName: String,

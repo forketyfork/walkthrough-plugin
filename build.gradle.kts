@@ -131,3 +131,12 @@ tasks.withType<DetektCreateBaselineTask>().configureEach {
     jvmTarget.set("21")
     baseline.set(file("$rootDir/detekt-baseline.xml"))
 }
+
+// The default `:detekt` task runs without type resolution, which silences
+// rules like `UnnecessaryFullyQualifiedName`, `IgnoredReturnValue`,
+// `UselessCallOnNotNull`, etc. Wire the type-resolving per-source-set tasks
+// into the aggregate `:detekt` task so `just lint` / CI / pre-commit pick
+// them up automatically without changing entry points.
+tasks.named("detekt") {
+    dependsOn("detektMain", "detektTest")
+}

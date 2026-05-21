@@ -219,28 +219,33 @@ internal fun slugifyDescription(description: String): String = slugSeparatorPatt
 
 private fun isSafeRecordId(id: String): Boolean = id.isNotBlank() && recordIdPattern.matches(id)
 
+@Suppress("ComplexCondition")
 private fun WalkthroughRecordJson.toRecord(): WalkthroughRecord? {
     val parsedId = id?.takeIf(::isSafeRecordId)
     val parsedCreatedAt = createdAt?.takeIf { value -> runCatching { Instant.parse(value) }.isSuccess }
     val parsedDescription = description?.takeIf { value -> value.isNotBlank() }
     val parsedTargetKind = targetKind ?: WalkthroughTargetKind.File
-    val parsedDiffDescriptors = diffDescriptors?.mapNotNull { descriptor ->
-        descriptor.toDiffWalkthroughDescriptorOrNull()
-    } ?: emptyList()
+    val parsedDiffDescriptors = diffDescriptors
+        ?.mapNotNull { descriptor -> descriptor.toDiffWalkthroughDescriptorOrNull() }
+        .orEmpty()
     val parsedItems = items?.mapNotNull { item -> item.toWalkthroughItemOrNull() }
-    val hasRequiredFields = parsedId != null && parsedCreatedAt != null && parsedDescription != null
-    val hasMatchingItems = parsedItems != null && parsedItems.size == items.size && parsedItems.isNotEmpty()
+    // Single null-guard so Kotlin smart-casts the four locals to non-null at
+    // the construction site below; splitting it would force `!!` everywhere.
+    if (parsedId == null || parsedCreatedAt == null || parsedDescription == null || parsedItems == null) {
+        return null
+    }
+    val hasMatchingItems = parsedItems.size == items.size && parsedItems.isNotEmpty()
     val hasMatchingDiffDescriptors = diffDescriptors == null ||
         parsedDiffDescriptors.size == diffDescriptors.size
 
-    return if (hasRequiredFields && hasMatchingItems && hasMatchingDiffDescriptors) {
+    return if (hasMatchingItems && hasMatchingDiffDescriptors) {
         WalkthroughRecord(
-            id = parsedId.orEmpty(),
-            createdAt = parsedCreatedAt.orEmpty(),
-            description = parsedDescription.orEmpty(),
+            id = parsedId,
+            createdAt = parsedCreatedAt,
+            description = parsedDescription,
             targetKind = parsedTargetKind,
             diffDescriptors = parsedDiffDescriptors,
-            items = parsedItems.orEmpty(),
+            items = parsedItems,
         )
     } else {
         null

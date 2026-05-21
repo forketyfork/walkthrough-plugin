@@ -85,6 +85,7 @@ private object WalkthroughWidgetStyle {
     const val SPINNER_TRACK_ALPHA = 0.18f
 }
 
+@Suppress("LongParameterList")
 @Composable
 internal fun WalkthroughPopupNavigation(
     showNavigation: Boolean,

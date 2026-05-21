@@ -101,6 +101,7 @@ private object WalkthroughPopupContentStyle {
 
 private data class WalkthroughPopupAnimationState(val gradientShift: Float, val glowShift: Float)
 
+@Suppress("LongParameterList")
 @Composable
 internal fun WalkthroughItemContent(
     project: Project,
@@ -119,6 +120,14 @@ internal fun WalkthroughItemContent(
     val scrollbarStyle = rememberPopupScrollbarStyle(palette)
     val showScrollbar = scrollState.maxValue > 0
     val questionStatus by session.questionStatusState
+
+    // Qodana's UnusedVariable inspection doesn't see that the delegated
+    // property is read inside LaunchedEffect below, so it flags this as
+    // unused. The indirection is required by Detekt's
+    // LambdaParameterInRestartableEffect rule (Compose ruleset) — capturing
+    // `onItemDisplay` directly inside a restartable effect would restart it
+    // on every recomposition. Suppress the false positive locally.
+    @Suppress("UnusedVariable")
     val currentOnItemDisplay by rememberUpdatedState(onItemDisplay)
 
     LaunchedEffect(item) {

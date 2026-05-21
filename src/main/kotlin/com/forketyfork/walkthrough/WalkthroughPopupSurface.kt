@@ -80,7 +80,7 @@ internal class WalkthroughPopupSurface(
         content.registerKeyboardAction(
             { cancel() },
             KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
-            JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT,
+            WHEN_ANCESTOR_OF_FOCUSED_COMPONENT,
         )
     }
 

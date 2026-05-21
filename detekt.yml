@@ -16,6 +16,12 @@ naming:
 style:
   MagicNumber:
     ignorePropertyDeclaration: true
+  # Catches `Foo.BAR` when `Foo` is already imported / the surrounding scope
+  # already resolves `BAR`. Requires Detekt's type-resolving mode (we wire
+  # `:detektMain` and `:detektTest` into the aggregate `:detekt` task in
+  # `build.gradle.kts`).
+  UnnecessaryFullyQualifiedName:
+    active: true
 
 # Detekt 2.0 ships several rule sets that are *not* part of the default build.
 # Explicit opt-ins below focus on rules that catch real bugs and platform

@@ -25,3 +25,14 @@ exclude:
       - .intellijPlatform
       - build
       - gradle
+  # Qodana's FunctionName inspection doesn't understand the Compose
+  # convention that @Composable functions are PascalCase, so it flags
+  # MarkdownContent, AiCloseButton, GoToSourceButton, etc. Detekt's
+  # naming.FunctionNaming (configured with ignoreAnnotated: [Composable]
+  # in detekt.yml) plus the Kotlin Compose compiler plugin already
+  # enforce the right rule, so this Qodana check is redundant noise on
+  # our Kotlin sources.
+  - name: FunctionName
+    paths:
+      - src/main/kotlin
+      - src/test/kotlin

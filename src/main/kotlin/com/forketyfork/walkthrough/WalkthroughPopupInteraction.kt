@@ -4,6 +4,7 @@ import com.intellij.openapi.editor.Editor
 import java.awt.Component
 import java.awt.Container
 import java.awt.Cursor
+import java.awt.Dimension
 import java.awt.Point
 import java.awt.event.ContainerAdapter
 import java.awt.event.ContainerEvent
@@ -147,6 +148,7 @@ private fun updateInteractionCursor(panel: JComponent, component: Component, poi
     panel.cursor = cursor
 }
 
+@Suppress("LongParameterList")
 private fun handlePopupDrag(
     panel: JComponent,
     mode: PopupInteractionMode,
@@ -209,7 +211,7 @@ private fun resizePopupBy(
             rootLocation.y + pane.height - currentLocation.y - WalkthroughPopupLayout.VIEWPORT_PADDING
             ).coerceAtLeast(WalkthroughPopupLayout.MINIMUM_HEIGHT_PX)
     } ?: Int.MAX_VALUE
-    val targetSize = java.awt.Dimension(
+    val targetSize = Dimension(
         (currentSize.width + deltaX.toInt()).coerceIn(WalkthroughPopupLayout.MINIMUM_WIDTH_PX, maxWidth),
         (currentSize.height + deltaY.toInt()).coerceIn(WalkthroughPopupLayout.MINIMUM_HEIGHT_PX, maxHeight),
     )
