@@ -6,11 +6,7 @@ import java.awt.Point
 import javax.swing.SwingUtilities
 import kotlin.math.roundToInt
 
-internal fun movePopupNearItem(
-    popup: WalkthroughPopupSurface,
-    editor: Editor,
-    item: WalkthroughItem
-) {
+internal fun movePopupNearItem(popup: WalkthroughPopupSurface, editor: Editor, item: WalkthroughItem) {
     popup.content.revalidate()
     popup.content.doLayout()
 
@@ -28,33 +24,22 @@ internal fun movePopupNearItem(
     popup.show(editor, finalPoint)
 }
 
-internal fun movePopupBy(
-    popup: WalkthroughPopupSurface,
-    editor: Editor,
-    deltaX: Float,
-    deltaY: Float
-) {
+internal fun movePopupBy(popup: WalkthroughPopupSurface, editor: Editor, deltaX: Float, deltaY: Float) {
     val currentLocation = popup.popupLocationOnScreen() ?: return
     val popupSize = resolvePopupSize(popup) ?: WalkthroughPopupLayout.fallbackSize
     val movedPoint = Point(
         currentLocation.x + deltaX.roundToInt(),
-        currentLocation.y + deltaY.roundToInt()
+        currentLocation.y + deltaY.roundToInt(),
     )
     popup.setPopupScreenLocation(constrainPopupScreenLocation(editor, movedPoint, popupSize))
 }
 
-internal fun resolvePopupSize(popup: WalkthroughPopupSurface): Dimension? =
-    popup.content.size.usableSize()
-        ?: popup.content.preferredSize.usableSize()
+internal fun resolvePopupSize(popup: WalkthroughPopupSurface): Dimension? = popup.content.size.usableSize()
+    ?: popup.content.preferredSize.usableSize()
 
-private fun Dimension?.usableSize(): Dimension? =
-    this?.takeIf { it.width > 0 && it.height > 0 }
+private fun Dimension?.usableSize(): Dimension? = this?.takeIf { it.width > 0 && it.height > 0 }
 
-internal fun constrainPopupScreenLocation(
-    editor: Editor,
-    location: Point,
-    popupSize: Dimension
-): Point {
+internal fun constrainPopupScreenLocation(editor: Editor, location: Point, popupSize: Dimension): Point {
     val constrainedLocation = Point(location)
     val rootPane = SwingUtilities.getRootPane(editor.contentComponent)
     if (rootPane != null && rootPane.isShowing) {
@@ -80,6 +65,6 @@ internal fun clampPopupSize(size: Dimension, maxWidth: Int, maxHeight: Int): Dim
     val effectiveMaxHeight = maxHeight.coerceAtLeast(minHeight)
     return Dimension(
         size.width.coerceIn(minWidth, effectiveMaxWidth),
-        size.height.coerceIn(minHeight, effectiveMaxHeight)
+        size.height.coerceIn(minHeight, effectiveMaxHeight),
     )
 }

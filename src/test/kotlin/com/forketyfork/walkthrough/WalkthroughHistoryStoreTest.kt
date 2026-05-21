@@ -20,14 +20,14 @@ class WalkthroughHistoryStoreTest {
         val store = WalkthroughHistoryStore(
             directory = tempDir,
             clock = Clock.fixed(Instant.parse("2026-05-09T04:34:00Z"), ZoneOffset.UTC),
-            randomSuffix = { "abc12345" }
+            randomSuffix = { "abc12345" },
         )
         val items = listOf(
             WalkthroughItem(
                 text = "Explain popup placement",
                 file = "src/main/kotlin/com/forketyfork/walkthrough/WalkthroughPopupPlacement.kt",
-                line = 13
-            )
+                line = 13,
+            ),
         )
 
         val saved = store.save("Explain popup placement", items)
@@ -46,15 +46,15 @@ class WalkthroughHistoryStoreTest {
         val store = WalkthroughHistoryStore(
             directory = tempDir,
             clock = Clock.fixed(Instant.parse("2026-05-09T04:34:00Z"), ZoneOffset.UTC),
-            randomSuffix = { "abc12345" }
+            randomSuffix = { "abc12345" },
         )
         val descriptors = listOf(
             DiffWalkthroughDescriptor(
                 id = "popup-change",
                 file = "src/Foo.kt",
                 leftCommit = "1111111111111111111111111111111111111111",
-                rightCommit = "2222222222222222222222222222222222222222"
-            )
+                rightCommit = "2222222222222222222222222222222222222222",
+            ),
         )
         val items = listOf(
             WalkthroughItem(
@@ -62,15 +62,15 @@ class WalkthroughHistoryStoreTest {
                 line = 13,
                 diffId = "popup-change",
                 diffFile = "src/Foo.kt",
-                diffSide = DiffSide.Right
-            )
+                diffSide = DiffSide.Right,
+            ),
         )
 
         val saved = store.save(
             description = "Explain PR change",
             targetKind = WalkthroughTargetKind.Diff,
             diffDescriptors = descriptors,
-            items = items
+            items = items,
         )
 
         assertEquals(WalkthroughTargetKind.Diff, saved.targetKind)
@@ -84,20 +84,20 @@ class WalkthroughHistoryStoreTest {
         val corruptFiles = mutableListOf<Path>()
         val store = WalkthroughHistoryStore(
             directory = tempDir,
-            onCorruptFile = { path, _ -> corruptFiles.add(path) }
+            onCorruptFile = { path, _ -> corruptFiles.add(path) },
         )
         val items = listOf(WalkthroughItem(text = "Step"))
         val older = WalkthroughRecord(
             id = "older",
             createdAt = "2026-05-09T04:30:00Z",
             description = "Older",
-            items = items
+            items = items,
         )
         val newer = WalkthroughRecord(
             id = "newer",
             createdAt = "2026-05-09T04:35:00Z",
             description = "Newer",
-            items = items
+            items = items,
         )
         store.save(older)
         store.save(newer)
@@ -133,10 +133,10 @@ class WalkthroughHistoryStoreTest {
                     id = "stray",
                     file = "src/Foo.kt",
                     leftCommit = "1111111111111111111111111111111111111111",
-                    rightCommit = "2222222222222222222222222222222222222222"
-                )
+                    rightCommit = "2222222222222222222222222222222222222222",
+                ),
             ),
-            items = listOf(WalkthroughItem(text = "Step"))
+            items = listOf(WalkthroughItem(text = "Step")),
         )
 
         assertThrows(com.google.gson.JsonParseException::class.java) { store.save(record) }
@@ -156,9 +156,9 @@ class WalkthroughHistoryStoreTest {
                     text = "Step",
                     line = 1,
                     diffId = "missing",
-                    diffSide = DiffSide.Right
-                )
-            )
+                    diffSide = DiffSide.Right,
+                ),
+            ),
         )
 
         assertThrows(com.google.gson.JsonParseException::class.java) { store.save(record) }
@@ -176,17 +176,17 @@ class WalkthroughHistoryStoreTest {
                 DiffWalkthroughDescriptor(
                     id = "no-path",
                     leftCommit = "1111111111111111111111111111111111111111",
-                    rightCommit = "2222222222222222222222222222222222222222"
-                )
+                    rightCommit = "2222222222222222222222222222222222222222",
+                ),
             ),
             items = listOf(
                 WalkthroughItem(
                     text = "Step",
                     line = 1,
                     diffId = "no-path",
-                    diffSide = DiffSide.Right
-                )
-            )
+                    diffSide = DiffSide.Right,
+                ),
+            ),
         )
 
         assertThrows(com.google.gson.JsonParseException::class.java) { store.save(record) }
@@ -197,7 +197,7 @@ class WalkthroughHistoryStoreTest {
         val store = WalkthroughHistoryStore(
             directory = tempDir,
             clock = Clock.fixed(Instant.parse("2026-05-09T04:34:00Z"), ZoneOffset.UTC),
-            randomSuffix = { "abc12345" }
+            randomSuffix = { "abc12345" },
         )
         val descriptors = listOf(
             DiffWalkthroughDescriptor(
@@ -205,8 +205,8 @@ class WalkthroughHistoryStoreTest {
                 leftFile = "src/Old.kt",
                 rightFile = "src/New.kt",
                 leftCommit = "1111111111111111111111111111111111111111",
-                rightCommit = "2222222222222222222222222222222222222222"
-            )
+                rightCommit = "2222222222222222222222222222222222222222",
+            ),
         )
         val items = listOf(
             WalkthroughItem(
@@ -214,15 +214,15 @@ class WalkthroughHistoryStoreTest {
                 line = 1,
                 diffId = "renamed",
                 diffFile = "src/New.kt",
-                diffSide = DiffSide.Right
-            )
+                diffSide = DiffSide.Right,
+            ),
         )
 
         val saved = store.save(
             description = "Renamed",
             targetKind = WalkthroughTargetKind.Diff,
             diffDescriptors = descriptors,
-            items = items
+            items = items,
         )
 
         assertEquals(descriptors, saved.diffDescriptors)

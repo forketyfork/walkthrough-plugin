@@ -1,7 +1,6 @@
 package com.forketyfork.walkthrough
 
 import com.intellij.openapi.editor.Editor
-import java.awt.Color as AwtColor
 import java.awt.Component
 import java.awt.Container
 import java.awt.Cursor
@@ -14,6 +13,7 @@ import javax.swing.JComponent
 import javax.swing.JLayeredPane
 import javax.swing.JRootPane
 import javax.swing.SwingUtilities
+import java.awt.Color as AwtColor
 
 private const val DRAG_HANDLE_HEIGHT_PX = 64
 private const val CLOSE_BUTTON_HIT_BOX_PX = 60
@@ -24,7 +24,7 @@ private const val INTERACTION_CONTAINER_LISTENER_CLIENT_PROPERTY =
 
 private enum class PopupInteractionMode {
     Drag,
-    Resize
+    Resize,
 }
 
 internal fun makeComponentHierarchyTransparent(component: Component?) {
@@ -44,7 +44,7 @@ internal fun installPopupInteractionHandler(
     panel: JComponent,
     popupProvider: () -> WalkthroughPopupSurface?,
     editorProvider: () -> Editor?,
-    onInteractionEnd: () -> Unit
+    onInteractionEnd: () -> Unit,
 ) {
     var lastScreenPoint: Point? = null
     var interactionMode: PopupInteractionMode? = null
@@ -104,7 +104,7 @@ internal fun installPopupInteractionHandler(
 private fun attachMouseListenersRecursively(component: Component, listener: MouseAdapter) {
     if (component is JComponent) {
         if (component.getClientProperty(
-                INTERACTION_LISTENER_CLIENT_PROPERTY
+                INTERACTION_LISTENER_CLIENT_PROPERTY,
             ) !== listener
         ) {
             component.addMouseListener(listener)
@@ -153,14 +153,14 @@ private fun handlePopupDrag(
     popup: WalkthroughPopupSurface,
     editor: Editor,
     previousScreenPoint: Point,
-    currentScreenPoint: Point
+    currentScreenPoint: Point,
 ) {
     when (mode) {
         PopupInteractionMode.Drag -> movePopupBy(
             popup = popup,
             editor = editor,
             deltaX = (currentScreenPoint.x - previousScreenPoint.x).toFloat(),
-            deltaY = (currentScreenPoint.y - previousScreenPoint.y).toFloat()
+            deltaY = (currentScreenPoint.y - previousScreenPoint.y).toFloat(),
         )
 
         PopupInteractionMode.Resize -> resizePopupBy(
@@ -168,7 +168,7 @@ private fun handlePopupDrag(
             panel = panel,
             editor = editor,
             deltaX = (currentScreenPoint.x - previousScreenPoint.x).toFloat(),
-            deltaY = (currentScreenPoint.y - previousScreenPoint.y).toFloat()
+            deltaY = (currentScreenPoint.y - previousScreenPoint.y).toFloat(),
         )
     }
 }
@@ -190,7 +190,7 @@ private fun resizePopupBy(
     panel: JComponent,
     editor: Editor,
     deltaX: Float,
-    deltaY: Float
+    deltaY: Float,
 ) {
     val currentLocation = popup.popupLocationOnScreen() ?: return
     val currentSize = resolvePopupSize(popup)
@@ -211,7 +211,7 @@ private fun resizePopupBy(
     } ?: Int.MAX_VALUE
     val targetSize = java.awt.Dimension(
         (currentSize.width + deltaX.toInt()).coerceIn(WalkthroughPopupLayout.MINIMUM_WIDTH_PX, maxWidth),
-        (currentSize.height + deltaY.toInt()).coerceIn(WalkthroughPopupLayout.MINIMUM_HEIGHT_PX, maxHeight)
+        (currentSize.height + deltaY.toInt()).coerceIn(WalkthroughPopupLayout.MINIMUM_HEIGHT_PX, maxHeight),
     )
 
     panel.preferredSize = targetSize

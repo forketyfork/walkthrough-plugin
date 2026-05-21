@@ -4,7 +4,6 @@ import androidx.compose.ui.graphics.toArgb
 import com.intellij.openapi.options.Configurable
 import com.intellij.ui.JBColor
 import com.intellij.util.ui.JBUI
-import java.awt.Color as AwtColor
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.Font
@@ -24,6 +23,7 @@ import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JRadioButton
+import java.awt.Color as AwtColor
 
 private object WalkthroughSettingsStyle {
     const val HEADING_BOTTOM_GAP = 4
@@ -58,11 +58,11 @@ internal class WalkthroughSettingsConfigurable : Configurable {
 
         panel.add(
             settingsHeading(),
-            fullWidthConstraints(gridRow++, WalkthroughSettingsStyle.HEADING_BOTTOM_GAP)
+            fullWidthConstraints(gridRow++, WalkthroughSettingsStyle.HEADING_BOTTOM_GAP),
         )
         panel.add(
             settingsDescription(),
-            fullWidthConstraints(gridRow++, WalkthroughSettingsStyle.DESCRIPTION_BOTTOM_GAP)
+            fullWidthConstraints(gridRow++, WalkthroughSettingsStyle.DESCRIPTION_BOTTOM_GAP),
         )
 
         WalkthroughPalettes.all.forEach { palette ->
@@ -94,8 +94,7 @@ internal class WalkthroughSettingsConfigurable : Configurable {
         return panel
     }
 
-    override fun isModified(): Boolean =
-        selectedPaletteId != WalkthroughSettings.getInstance().selectedPaletteId
+    override fun isModified(): Boolean = selectedPaletteId != WalkthroughSettings.getInstance().selectedPaletteId
 
     override fun apply() {
         WalkthroughSettings.getInstance().selectedPaletteId = selectedPaletteId
@@ -118,49 +117,42 @@ internal class WalkthroughSettingsConfigurable : Configurable {
     }
 }
 
-private fun settingsHeading(): JLabel =
-    JLabel("Walkthrough popup colors").apply {
-        font = font.deriveFont(Font.BOLD)
-    }
+private fun settingsHeading(): JLabel = JLabel("Walkthrough popup colors").apply {
+    font = font.deriveFont(Font.BOLD)
+}
 
 private fun settingsDescription(): JLabel =
     JLabel("These palettes style the popup background, border, controls, scrollbar, and source connector.").apply {
         foreground = JBColor.GRAY
     }
 
-private fun fullWidthConstraints(gridRow: Int, bottomInset: Int): GridBagConstraints =
-    GridBagConstraints().apply {
-        gridx = 0
-        gridy = gridRow
-        weightx = 1.0
-        fill = GridBagConstraints.HORIZONTAL
-        anchor = GridBagConstraints.NORTHWEST
-        insets = Insets(0, 0, bottomInset, 0)
-    }
+private fun fullWidthConstraints(gridRow: Int, bottomInset: Int): GridBagConstraints = GridBagConstraints().apply {
+    gridx = 0
+    gridy = gridRow
+    weightx = 1.0
+    fill = GridBagConstraints.HORIZONTAL
+    anchor = GridBagConstraints.NORTHWEST
+    insets = Insets(0, 0, bottomInset, 0)
+}
 
-private fun rowConstraints(gridRow: Int): GridBagConstraints =
-    GridBagConstraints().apply {
-        gridx = 0
-        gridy = gridRow
-        weightx = 1.0
-        fill = GridBagConstraints.HORIZONTAL
-        anchor = GridBagConstraints.NORTHWEST
-        insets = Insets(0, 0, WalkthroughSettingsStyle.ROW_GAP, 0)
-    }
+private fun rowConstraints(gridRow: Int): GridBagConstraints = GridBagConstraints().apply {
+    gridx = 0
+    gridy = gridRow
+    weightx = 1.0
+    fill = GridBagConstraints.HORIZONTAL
+    anchor = GridBagConstraints.NORTHWEST
+    insets = Insets(0, 0, WalkthroughSettingsStyle.ROW_GAP, 0)
+}
 
-private fun fillerConstraints(gridRow: Int): GridBagConstraints =
-    GridBagConstraints().apply {
-        gridx = 0
-        gridy = gridRow
-        weightx = 1.0
-        weighty = 1.0
-        fill = GridBagConstraints.BOTH
-    }
+private fun fillerConstraints(gridRow: Int): GridBagConstraints = GridBagConstraints().apply {
+    gridx = 0
+    gridy = gridRow
+    weightx = 1.0
+    weighty = 1.0
+    fill = GridBagConstraints.BOTH
+}
 
-private class PaletteRow(
-    radioButton: JRadioButton,
-    swatch: JComponent
-) : JPanel(GridBagLayout()) {
+private class PaletteRow(radioButton: JRadioButton, swatch: JComponent) : JPanel(GridBagLayout()) {
     init {
         isOpaque = false
         cursor = radioButton.cursor
@@ -168,27 +160,23 @@ private class PaletteRow(
         add(radioButton, labelConstraints())
     }
 
-    private fun swatchConstraints(): GridBagConstraints =
-        GridBagConstraints().apply {
-            gridx = 0
-            gridy = 0
-            anchor = GridBagConstraints.WEST
-            insets = Insets(0, 0, 0, WalkthroughSettingsStyle.COLUMN_GAP)
-        }
+    private fun swatchConstraints(): GridBagConstraints = GridBagConstraints().apply {
+        gridx = 0
+        gridy = 0
+        anchor = GridBagConstraints.WEST
+        insets = Insets(0, 0, 0, WalkthroughSettingsStyle.COLUMN_GAP)
+    }
 
-    private fun labelConstraints(): GridBagConstraints =
-        GridBagConstraints().apply {
-            gridx = 1
-            gridy = 0
-            weightx = 1.0
-            fill = GridBagConstraints.HORIZONTAL
-            anchor = GridBagConstraints.WEST
-        }
+    private fun labelConstraints(): GridBagConstraints = GridBagConstraints().apply {
+        gridx = 1
+        gridy = 0
+        weightx = 1.0
+        fill = GridBagConstraints.HORIZONTAL
+        anchor = GridBagConstraints.WEST
+    }
 }
 
-private class PaletteSwatch(
-    private val palette: WalkthroughPalette
-) : JComponent() {
+private class PaletteSwatch(private val palette: WalkthroughPalette) : JComponent() {
     init {
         preferredSize = Dimension(WalkthroughSettingsStyle.SWATCH_WIDTH, WalkthroughSettingsStyle.SWATCH_HEIGHT)
         minimumSize = preferredSize
@@ -208,7 +196,7 @@ private class PaletteSwatch(
                 width.toFloat(),
                 height.toFloat(),
                 WalkthroughSettingsStyle.SWATCH_ARC.toFloat(),
-                WalkthroughSettingsStyle.SWATCH_ARC.toFloat()
+                WalkthroughSettingsStyle.SWATCH_ARC.toFloat(),
             )
 
             graphics2d.paint = swatchPaint()
@@ -218,14 +206,14 @@ private class PaletteSwatch(
                     WalkthroughSettingsStyle.RGB_MIN,
                     WalkthroughSettingsStyle.RGB_MIN,
                     WalkthroughSettingsStyle.RGB_MIN,
-                    WalkthroughSettingsStyle.SWATCH_BORDER_ALPHA
+                    WalkthroughSettingsStyle.SWATCH_BORDER_ALPHA,
                 ),
                 AwtColor(
                     WalkthroughSettingsStyle.RGB_MAX,
                     WalkthroughSettingsStyle.RGB_MAX,
                     WalkthroughSettingsStyle.RGB_MAX,
-                    WalkthroughSettingsStyle.SWATCH_BORDER_ALPHA
-                )
+                    WalkthroughSettingsStyle.SWATCH_BORDER_ALPHA,
+                ),
             )
             graphics2d.draw(shape)
         } finally {
@@ -253,7 +241,7 @@ private class PaletteSwatch(
             width.toFloat(),
             height.toFloat(),
             fractions,
-            colors.toTypedArray()
+            colors.toTypedArray(),
         )
     }
 }

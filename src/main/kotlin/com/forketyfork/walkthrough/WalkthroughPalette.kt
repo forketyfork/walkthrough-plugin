@@ -17,7 +17,7 @@ internal data class WalkthroughPalette(
     val navPrimaryGradientColors: List<Color>,
     val navPrimaryBorderColor: Color,
     val connectorStrokeColor: AwtColor,
-    val connectorArrowFillColor: AwtColor
+    val connectorArrowFillColor: AwtColor,
 ) {
     val swatchGradientColors: List<Color> = borderGradientColors
 }
@@ -30,19 +30,19 @@ internal object WalkthroughPalettes {
             WalkthroughColors.veryDarkPurple,
             WalkthroughColors.darkPurple,
             WalkthroughColors.magenta,
-            WalkthroughColors.navyBlue
+            WalkthroughColors.navyBlue,
         ),
         glowGradientColors = listOf(
             WalkthroughColors.lightPink.copy(alpha = 0.4f),
             WalkthroughColors.glowLavender,
-            Color.Transparent
+            Color.Transparent,
         ),
         overlayColor = WalkthroughColors.overlay,
         borderGradientColors = listOf(
             WalkthroughColors.purple,
             WalkthroughColors.pink,
             WalkthroughColors.blue,
-            WalkthroughColors.purple
+            WalkthroughColors.purple,
         ),
         scrollbarUnhoverColor = WalkthroughColors.scrollbarIndigo,
         scrollbarHoverColor = WalkthroughColors.pink,
@@ -50,16 +50,16 @@ internal object WalkthroughPalettes {
         badgeGradientColors = listOf(
             WalkthroughColors.purple,
             WalkthroughColors.pink,
-            WalkthroughColors.blue
+            WalkthroughColors.blue,
         ),
         navPrimaryGradientColors = listOf(
             WalkthroughColors.purple,
             WalkthroughColors.pink,
-            WalkthroughColors.deepPurple
+            WalkthroughColors.deepPurple,
         ),
         navPrimaryBorderColor = WalkthroughColors.lightPink,
         connectorStrokeColor = AwtColor(255, 136, 136, 235),
-        connectorArrowFillColor = AwtColor(255, 102, 102, 215)
+        connectorArrowFillColor = AwtColor(255, 102, 102, 215),
     )
 
     val GREEN = palette(
@@ -73,7 +73,7 @@ internal object WalkthroughPalettes {
         glow = Color(0xFF6EE7B7),
         meta = Color(0xFFD1FAE5),
         connectorStroke = AwtColor(88, 207, 160, 235),
-        connectorArrow = AwtColor(45, 184, 128, 215)
+        connectorArrow = AwtColor(45, 184, 128, 215),
     )
 
     val BLUE = palette(
@@ -87,7 +87,7 @@ internal object WalkthroughPalettes {
         glow = Color(0xFF7DD3FC),
         meta = Color(0xFFDBEAFE),
         connectorStroke = AwtColor(96, 165, 250, 235),
-        connectorArrow = AwtColor(59, 130, 246, 215)
+        connectorArrow = AwtColor(59, 130, 246, 215),
     )
 
     val RED = palette(
@@ -101,7 +101,7 @@ internal object WalkthroughPalettes {
         glow = Color(0xFFFCA5A5),
         meta = Color(0xFFFEE2E2),
         connectorStroke = AwtColor(248, 113, 113, 235),
-        connectorArrow = AwtColor(239, 68, 68, 215)
+        connectorArrow = AwtColor(239, 68, 68, 215),
     )
 
     val ORANGE = palette(
@@ -115,7 +115,7 @@ internal object WalkthroughPalettes {
         glow = Color(0xFFFCD34D),
         meta = Color(0xFFFFEDD5),
         connectorStroke = AwtColor(251, 146, 60, 235),
-        connectorArrow = AwtColor(249, 115, 22, 215)
+        connectorArrow = AwtColor(249, 115, 22, 215),
     )
 
     val TEAL = palette(
@@ -129,7 +129,7 @@ internal object WalkthroughPalettes {
         glow = Color(0xFF67E8F9),
         meta = Color(0xFFCFFAFE),
         connectorStroke = AwtColor(34, 211, 238, 235),
-        connectorArrow = AwtColor(6, 182, 212, 215)
+        connectorArrow = AwtColor(6, 182, 212, 215),
     )
 
     val PINK = palette(
@@ -143,7 +143,7 @@ internal object WalkthroughPalettes {
         glow = Color(0xFFF0ABFC),
         meta = Color(0xFFFCE7F3),
         connectorStroke = AwtColor(244, 114, 182, 235),
-        connectorArrow = AwtColor(236, 72, 153, 215)
+        connectorArrow = AwtColor(236, 72, 153, 215),
     )
 
     val all: List<WalkthroughPalette> = listOf(PURPLE, GREEN, BLUE, RED, ORANGE, TEAL, PINK)
@@ -164,22 +164,21 @@ internal object WalkthroughPalettes {
         glow: Color,
         meta: Color,
         connectorStroke: AwtColor,
-        connectorArrow: AwtColor
-    ): WalkthroughPalette =
-        WalkthroughPalette(
-            id = id,
-            displayName = displayName,
-            backgroundGradientColors = listOf(darkest, dark, mid, alternate),
-            glowGradientColors = listOf(glow.copy(alpha = 0.4f), glow.copy(alpha = 0.33f), Color.Transparent),
-            overlayColor = WalkthroughColors.overlay,
-            borderGradientColors = listOf(mid, accent, alternate, mid),
-            scrollbarUnhoverColor = mid.copy(alpha = 0.4f),
-            scrollbarHoverColor = accent,
-            metaTextColor = meta,
-            badgeGradientColors = listOf(mid, accent, alternate),
-            navPrimaryGradientColors = listOf(mid, accent, dark),
-            navPrimaryBorderColor = accent,
-            connectorStrokeColor = connectorStroke,
-            connectorArrowFillColor = connectorArrow
-        )
+        connectorArrow: AwtColor,
+    ): WalkthroughPalette = WalkthroughPalette(
+        id = id,
+        displayName = displayName,
+        backgroundGradientColors = listOf(darkest, dark, mid, alternate),
+        glowGradientColors = listOf(glow.copy(alpha = 0.4f), glow.copy(alpha = 0.33f), Color.Transparent),
+        overlayColor = WalkthroughColors.overlay,
+        borderGradientColors = listOf(mid, accent, alternate, mid),
+        scrollbarUnhoverColor = mid.copy(alpha = 0.4f),
+        scrollbarHoverColor = accent,
+        metaTextColor = meta,
+        badgeGradientColors = listOf(mid, accent, alternate),
+        navPrimaryGradientColors = listOf(mid, accent, dark),
+        navPrimaryBorderColor = accent,
+        connectorStrokeColor = connectorStroke,
+        connectorArrowFillColor = connectorArrow,
+    )
 }

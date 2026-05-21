@@ -16,7 +16,7 @@ private data class LineScreenGeometry(
     val viewportLeftX: Float,
     val viewportRightX: Float,
     val viewportTopY: Float,
-    val viewportBottomY: Float
+    val viewportBottomY: Float,
 )
 
 internal fun calculatePopupScreenPoint(editor: Editor, popupSize: Dimension, line: Int?): Point {
@@ -37,7 +37,9 @@ internal fun calculatePopupScreenPoint(editor: Editor, popupSize: Dimension, lin
 
     val targetY = when {
         belowFits -> belowY
+
         aboveFits -> aboveY
+
         else -> {
             val belowSpace = visibleArea.height - (viewportLineY + editor.lineHeight)
             val aboveSpace = viewportLineY
@@ -73,6 +75,7 @@ private fun calculateLineScreenGeometry(editor: Editor, line: Int?): LineScreenG
 
     val anchorX = when {
         lineEndPoint.x.toFloat() in visibleLeft..visibleRight -> lineEndPoint.x.toFloat()
+
         else -> {
             val visibleLineLeft = maxOf(lineLeft, visibleLeft)
             val visibleLineRight = minOf(lineRight, visibleRight)
@@ -99,16 +102,11 @@ private fun calculateLineScreenGeometry(editor: Editor, line: Int?): LineScreenG
         viewportLeftX = viewportLeftX,
         viewportRightX = viewportRightX,
         viewportTopY = contentOrigin.y + visibleArea.y.toFloat(),
-        viewportBottomY = contentOrigin.y + visibleArea.y.toFloat() + visibleArea.height
+        viewportBottomY = contentOrigin.y + visibleArea.y.toFloat() + visibleArea.height,
     )
 }
 
-internal fun avoidLineOverlap(
-    popupLocation: Point,
-    popupSize: Dimension,
-    editor: Editor,
-    line: Int?
-): Point {
+internal fun avoidLineOverlap(popupLocation: Point, popupSize: Dimension, editor: Editor, line: Int?): Point {
     val lineGeometry = calculateLineScreenGeometry(editor, line)
     val popupTop = popupLocation.y.toFloat()
     val popupBottom = popupTop + popupSize.height
@@ -167,7 +165,7 @@ internal fun calculateLineScreenPoint(editor: Editor, line: Int?): Point {
         ).coerceAtLeast(minY)
     return Point(
         lineGeometry.anchorX.coerceIn(minX, maxX).roundToInt(),
-        lineGeometry.centerY.coerceIn(minY, maxY).roundToInt()
+        lineGeometry.centerY.coerceIn(minY, maxY).roundToInt(),
     )
 }
 

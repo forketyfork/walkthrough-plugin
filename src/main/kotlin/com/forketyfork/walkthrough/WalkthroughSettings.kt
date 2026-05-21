@@ -9,7 +9,7 @@ internal data class PopupGeometry(val x: Int, val y: Int, val width: Int, val he
 
 @State(
     name = "com.forketyfork.walkthrough.WalkthroughSettings",
-    storages = [Storage("com.forketyfork.walkthrough.settings.xml")]
+    storages = [Storage("com.forketyfork.walkthrough.settings.xml")],
 )
 internal class WalkthroughSettings : PersistentStateComponent<WalkthroughSettings.State> {
     internal var state = State()

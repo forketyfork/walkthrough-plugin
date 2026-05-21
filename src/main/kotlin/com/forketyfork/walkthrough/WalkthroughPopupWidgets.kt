@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,19 +33,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.Canvas
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import org.jetbrains.jewel.ui.component.Icon
 import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.icons.AllIconsKeys
@@ -61,7 +61,7 @@ private object WalkthroughWidgetStyle {
     val closeButtonTextSize = 13.sp
     val navSecondaryGradientColors = listOf(
         Color.White.copy(alpha = 0.12f),
-        Color.White.copy(alpha = 0.08f)
+        Color.White.copy(alpha = 0.08f),
     )
     const val NAV_TEXT_DISABLED_ALPHA = 0.45f
     val navHorizontalPadding = 14.dp
@@ -93,12 +93,12 @@ internal fun WalkthroughPopupNavigation(
     palette: WalkthroughPalette,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
-    onNavigateToSource: (() -> Unit)?
+    onNavigateToSource: (() -> Unit)?,
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(WalkthroughWidgetStyle.navigationSpacing),
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.wrapContentWidth()
+        modifier = Modifier.wrapContentWidth(),
     ) {
         if (showNavigation) {
             AiNavButton(
@@ -106,14 +106,14 @@ internal fun WalkthroughPopupNavigation(
                 enabled = currentIndex > 0,
                 emphasized = false,
                 palette = palette,
-                onClick = onPrevious
+                onClick = onPrevious,
             )
             AiNavButton(
                 label = "Next",
                 enabled = currentIndex < lastIndex,
                 emphasized = true,
                 palette = palette,
-                onClick = onNext
+                onClick = onNext,
             )
         }
         if (onNavigateToSource != null) {
@@ -130,20 +130,20 @@ internal fun AiBadge(palette: WalkthroughPalette) {
             .background(brush = Brush.linearGradient(palette.badgeGradientColors))
             .padding(
                 horizontal = WalkthroughWidgetStyle.badgePaddingHorizontal,
-                vertical = WalkthroughWidgetStyle.badgePaddingVertical
-            )
+                vertical = WalkthroughWidgetStyle.badgePaddingVertical,
+            ),
     ) {
         Text(
             text = "Walkthrough",
             color = Color.White,
             fontSize = WalkthroughWidgetStyle.badgeTextSize,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.SemiBold,
         )
     }
 }
 
 @Composable
-internal fun AiCloseButton(modifier: Modifier = Modifier, onClick: () -> Unit) {
+internal fun AiCloseButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .size(WalkthroughWidgetStyle.closeButtonSize)
@@ -152,22 +152,22 @@ internal fun AiCloseButton(modifier: Modifier = Modifier, onClick: () -> Unit) {
             .border(
                 WalkthroughWidgetStyle.closeButtonBorderWidth,
                 Color.White.copy(alpha = WalkthroughWidgetStyle.CLOSE_BUTTON_BORDER_ALPHA),
-                CircleShape
+                CircleShape,
             )
             .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = "\u2715",
             color = Color.White,
             fontWeight = FontWeight.Bold,
-            fontSize = WalkthroughWidgetStyle.closeButtonTextSize
+            fontSize = WalkthroughWidgetStyle.closeButtonTextSize,
         )
     }
 }
 
 @Composable
-internal fun GoToSourceButton(modifier: Modifier = Modifier, onClick: () -> Unit) {
+internal fun GoToSourceButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .size(WalkthroughWidgetStyle.sendButtonSize)
@@ -176,15 +176,15 @@ internal fun GoToSourceButton(modifier: Modifier = Modifier, onClick: () -> Unit
             .border(
                 WalkthroughWidgetStyle.closeButtonBorderWidth,
                 Color.White.copy(alpha = WalkthroughWidgetStyle.CLOSE_BUTTON_BORDER_ALPHA),
-                CircleShape
+                CircleShape,
             )
             .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         Icon(
             key = AllIconsKeys.General.Locate,
             contentDescription = "Go to source",
-            tint = Color.White
+            tint = Color.White,
         )
     }
 }
@@ -195,7 +195,7 @@ internal fun AiNavButton(
     enabled: Boolean,
     emphasized: Boolean,
     palette: WalkthroughPalette,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     val backgroundBrush = if (emphasized) {
         Brush.linearGradient(palette.navPrimaryGradientColors)
@@ -221,17 +221,17 @@ internal fun AiNavButton(
             .clickable(enabled = enabled, onClick = onClick)
             .padding(
                 horizontal = WalkthroughWidgetStyle.navHorizontalPadding,
-                vertical = WalkthroughWidgetStyle.navVerticalPadding
+                vertical = WalkthroughWidgetStyle.navVerticalPadding,
             ),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
             color = Color.White.copy(
-                alpha = if (enabled) 1f else WalkthroughWidgetStyle.NAV_TEXT_DISABLED_ALPHA
+                alpha = if (enabled) 1f else WalkthroughWidgetStyle.NAV_TEXT_DISABLED_ALPHA,
             ),
             fontSize = WalkthroughWidgetStyle.navTextSize,
-            style = textStyle
+            style = textStyle,
         )
     }
 }
@@ -240,7 +240,7 @@ internal fun AiNavButton(
 internal fun WalkthroughQuestionInput(
     status: WalkthroughQuestionStatus,
     palette: WalkthroughPalette,
-    onSubmit: (String) -> Unit
+    onSubmit: (String) -> Unit,
 ) {
     var text by remember { mutableStateOf("") }
     val canType = status == WalkthroughQuestionStatus.AgentNotWaiting ||
@@ -254,12 +254,12 @@ internal fun WalkthroughQuestionInput(
     }
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(WalkthroughWidgetStyle.questionStatusSpacing)
+        verticalArrangement = Arrangement.spacedBy(WalkthroughWidgetStyle.questionStatusSpacing),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(WalkthroughWidgetStyle.questionRowSpacing),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             QuestionTextField(
                 text = text,
@@ -267,7 +267,7 @@ internal fun WalkthroughQuestionInput(
                 placeholder = questionPlaceholder(status),
                 onTextChange = { value -> text = value },
                 onSend = submit,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             if (status == WalkthroughQuestionStatus.ProcessingQuestion) {
                 QuestionSpinner(palette = palette)
@@ -286,7 +286,7 @@ private fun QuestionTextField(
     placeholder: String,
     onTextChange: (String) -> Unit,
     onSend: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = modifier
@@ -294,15 +294,15 @@ private fun QuestionTextField(
             .clip(RoundedCornerShape(WalkthroughWidgetStyle.questionFieldRadius))
             .background(
                 Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_FIELD_BACKGROUND_ALPHA),
-                RoundedCornerShape(WalkthroughWidgetStyle.questionFieldRadius)
+                RoundedCornerShape(WalkthroughWidgetStyle.questionFieldRadius),
             )
             .border(
                 WalkthroughWidgetStyle.closeButtonBorderWidth,
                 Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_FIELD_BORDER_ALPHA),
-                RoundedCornerShape(WalkthroughWidgetStyle.questionFieldRadius)
+                RoundedCornerShape(WalkthroughWidgetStyle.questionFieldRadius),
             )
             .padding(horizontal = WalkthroughWidgetStyle.questionFieldPaddingHorizontal),
-        contentAlignment = Alignment.CenterStart
+        contentAlignment = Alignment.CenterStart,
     ) {
         BasicTextField(
             value = text,
@@ -312,7 +312,7 @@ private fun QuestionTextField(
             textStyle = TextStyle(
                 color = Color.White,
                 fontSize = WalkthroughWidgetStyle.questionFieldTextSize,
-                fontWeight = FontWeight.Normal
+                fontWeight = FontWeight.Normal,
             ),
             cursorBrush = SolidColor(Color.White),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
@@ -323,11 +323,11 @@ private fun QuestionTextField(
                     Text(
                         text = placeholder,
                         color = Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_PLACEHOLDER_ALPHA),
-                        fontSize = WalkthroughWidgetStyle.questionFieldTextSize
+                        fontSize = WalkthroughWidgetStyle.questionFieldTextSize,
                     )
                 }
                 innerTextField()
-            }
+            },
         )
     }
 }
@@ -338,26 +338,30 @@ private fun QuestionStatusText(status: WalkthroughQuestionStatus) {
     Text(
         text = text,
         color = Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_STATUS_ALPHA),
-        fontSize = WalkthroughWidgetStyle.questionStatusTextSize
+        fontSize = WalkthroughWidgetStyle.questionStatusTextSize,
     )
 }
 
-private fun questionPlaceholder(status: WalkthroughQuestionStatus): String =
-    when (status) {
-        WalkthroughQuestionStatus.AgentNotWaiting,
-        WalkthroughQuestionStatus.WaitingForQuestion -> "Ask a question about this step…"
-        WalkthroughQuestionStatus.QuestionQueued -> "Question queued"
-        WalkthroughQuestionStatus.ProcessingQuestion -> "Question sent"
-    }
+private fun questionPlaceholder(status: WalkthroughQuestionStatus): String = when (status) {
+    WalkthroughQuestionStatus.AgentNotWaiting,
+    WalkthroughQuestionStatus.WaitingForQuestion,
+    -> "Ask a question about this step…"
 
-private fun questionStatusText(status: WalkthroughQuestionStatus): String? =
-    when (status) {
-        WalkthroughQuestionStatus.AgentNotWaiting,
-        WalkthroughQuestionStatus.QuestionQueued ->
-            "⚠\uFE0F Agent is not listening, it should call await_walkthrough_question"
-        WalkthroughQuestionStatus.WaitingForQuestion,
-        WalkthroughQuestionStatus.ProcessingQuestion -> null
-    }
+    WalkthroughQuestionStatus.QuestionQueued -> "Question queued"
+
+    WalkthroughQuestionStatus.ProcessingQuestion -> "Question sent"
+}
+
+private fun questionStatusText(status: WalkthroughQuestionStatus): String? = when (status) {
+    WalkthroughQuestionStatus.AgentNotWaiting,
+    WalkthroughQuestionStatus.QuestionQueued,
+    ->
+        "⚠\uFE0F Agent is not listening, it should call await_walkthrough_question"
+
+    WalkthroughQuestionStatus.WaitingForQuestion,
+    WalkthroughQuestionStatus.ProcessingQuestion,
+    -> null
+}
 
 @Composable
 private fun SendQuestionButton(enabled: Boolean, palette: WalkthroughPalette, onClick: () -> Unit) {
@@ -369,14 +373,14 @@ private fun SendQuestionButton(enabled: Boolean, palette: WalkthroughPalette, on
             .background(backgroundBrush, CircleShape)
             .border(WalkthroughWidgetStyle.closeButtonBorderWidth, palette.navPrimaryBorderColor, CircleShape)
             .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         Icon(
             key = AllIconsKeys.Actions.Forward,
             contentDescription = "Send question",
             tint = Color.White.copy(
-                alpha = if (enabled) 1f else WalkthroughWidgetStyle.NAV_TEXT_DISABLED_ALPHA
-            )
+                alpha = if (enabled) 1f else WalkthroughWidgetStyle.NAV_TEXT_DISABLED_ALPHA,
+            ),
         )
     }
 }
@@ -390,15 +394,15 @@ private fun QuestionSpinner(palette: WalkthroughPalette) {
         animationSpec = infiniteRepeatable(
             animation = tween(
                 durationMillis = WalkthroughWidgetStyle.SPINNER_ROTATION_DURATION_MS,
-                easing = LinearEasing
+                easing = LinearEasing,
             ),
-            repeatMode = RepeatMode.Restart
+            repeatMode = RepeatMode.Restart,
         ),
-        label = "walkthrough-question-spinner-rotation"
+        label = "walkthrough-question-spinner-rotation",
     )
     Box(
         modifier = Modifier.size(WalkthroughWidgetStyle.sendButtonSize),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         Canvas(modifier = Modifier.size(WalkthroughWidgetStyle.spinnerSize).rotate(rotation)) {
             drawSpinnerArc(palette = palette)
@@ -410,7 +414,7 @@ private fun DrawScope.drawSpinnerArc(palette: WalkthroughPalette) {
     val strokeWidthPx = WalkthroughWidgetStyle.spinnerStrokeWidth.toPx()
     val arcSize = Size(
         size.width - strokeWidthPx,
-        size.height - strokeWidthPx
+        size.height - strokeWidthPx,
     )
     val topLeft = Offset(strokeWidthPx / 2f, strokeWidthPx / 2f)
     drawArc(
@@ -420,7 +424,7 @@ private fun DrawScope.drawSpinnerArc(palette: WalkthroughPalette) {
         useCenter = false,
         topLeft = topLeft,
         size = arcSize,
-        style = Stroke(width = strokeWidthPx)
+        style = Stroke(width = strokeWidthPx),
     )
     drawArc(
         color = palette.navPrimaryBorderColor,
@@ -429,6 +433,6 @@ private fun DrawScope.drawSpinnerArc(palette: WalkthroughPalette) {
         useCenter = false,
         topLeft = topLeft,
         size = arcSize,
-        style = Stroke(width = strokeWidthPx)
+        style = Stroke(width = strokeWidthPx),
     )
 }

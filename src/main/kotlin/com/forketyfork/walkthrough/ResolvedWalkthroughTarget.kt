@@ -11,15 +11,12 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 
-internal data class ResolvedWalkthroughTarget(
-    val editor: Editor,
-    val popupItem: WalkthroughItem
-)
+internal data class ResolvedWalkthroughTarget(val editor: Editor, val popupItem: WalkthroughItem)
 
 internal fun resolveWalkthroughTarget(
     project: Project,
     fallbackEditor: Editor?,
-    item: WalkthroughItem
+    item: WalkthroughItem,
 ): ResolvedWalkthroughTarget? {
     val fileEditorManager = FileEditorManager.getInstance(project)
     val fileTarget = item.file
@@ -31,7 +28,7 @@ internal fun resolveWalkthroughTarget(
 private fun resolveFallbackTarget(
     fileEditorManager: FileEditorManager,
     fallbackEditor: Editor?,
-    item: WalkthroughItem
+    item: WalkthroughItem,
 ): ResolvedWalkthroughTarget? {
     val editor = fileEditorManager.selectedTextEditor ?: fallbackEditor ?: return null
     val popupItem = if (isResolvableWalkthroughLine(item.line, editor.document.lineCount)) {
@@ -47,7 +44,7 @@ private fun resolveFileTarget(
     project: Project,
     fileEditorManager: FileEditorManager,
     item: WalkthroughItem,
-    relativePath: String
+    relativePath: String,
 ): ResolvedWalkthroughTarget? {
     val virtualFile = findWalkthroughFile(project, relativePath)
     val lineCount = virtualFile?.lineCount()
@@ -72,7 +69,7 @@ private fun openEditor(
     project: Project,
     fileEditorManager: FileEditorManager,
     virtualFile: VirtualFile,
-    item: WalkthroughItem
+    item: WalkthroughItem,
 ): Editor? {
     val lineIndex = (item.line ?: 1).coerceAtLeast(1) - 1
     return runCatching {

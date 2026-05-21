@@ -2,8 +2,8 @@ package com.forketyfork.walkthrough
 
 import androidx.compose.runtime.mutableStateOf
 import com.intellij.diff.DiffContext
-import com.intellij.diff.DiffExtension
 import com.intellij.diff.DiffDialogHints
+import com.intellij.diff.DiffExtension
 import com.intellij.diff.DiffManager
 import com.intellij.diff.EditorDiffViewer
 import com.intellij.diff.FrameDiffTool
@@ -14,7 +14,6 @@ import com.intellij.diff.contents.DiffContent
 import com.intellij.diff.requests.DiffRequest
 import com.intellij.diff.requests.SimpleDiffRequest
 import com.intellij.diff.util.DiffUserDataKeys
-import com.intellij.diff.util.Side as PlatformDiffSide
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
@@ -33,6 +32,7 @@ import git4idea.GitRevisionNumber
 import java.awt.event.HierarchyEvent
 import java.awt.event.HierarchyListener
 import javax.swing.SwingUtilities
+import com.intellij.diff.util.Side as PlatformDiffSide
 
 private val DIFF_WALKTHROUGH_CONTROLLER_KEY: Key<DiffWalkthroughController> =
     Key.create("walkthrough.diff.controller")
@@ -45,7 +45,7 @@ fun showDiffWalkthroughSession(
     project: Project,
     descriptors: List<DiffWalkthroughDescriptor>,
     items: List<WalkthroughItem>,
-    acceptsQuestions: Boolean
+    acceptsQuestions: Boolean,
 ): WalkthroughSession? {
     if (descriptors.isEmpty() || items.isEmpty()) return null
 
@@ -59,7 +59,7 @@ fun showDiffWalkthroughSession(
         items = items,
         acceptsQuestions = acceptsQuestions,
         targetKind = WalkthroughTargetKind.Diff,
-        diffDescriptors = descriptors
+        diffDescriptors = descriptors,
     )
     Disposer.register(
         sessionDisposable,
@@ -68,7 +68,7 @@ fun showDiffWalkthroughSession(
                 registry.remove(session.id)
                 registry.clearActive(sessionDisposable)
             }
-        }
+        },
     )
 
     var popupRef: WalkthroughPopupSurface? = null
@@ -90,7 +90,7 @@ fun showDiffWalkthroughSession(
         descriptors = descriptors,
         sessionDisposable = sessionDisposable,
         popupProvider = { popupRef },
-        currentEditorUpdater = { editor -> currentEditor = editor }
+        currentEditorUpdater = { editor -> currentEditor = editor },
     )
 
     val panel = createWalkthroughPanel(
@@ -99,7 +99,7 @@ fun showDiffWalkthroughSession(
         paletteProvider = { paletteState.value },
         onItemDisplayed = controller::scheduleItemNavigation,
         onNavigateToSource = controller::scheduleItemNavigation,
-        onClose = { popupRef?.cancel() }
+        onClose = { popupRef?.cancel() },
     )
     makeComponentHierarchyTransparent(panel)
 
@@ -107,7 +107,7 @@ fun showDiffWalkthroughSession(
         panel = panel,
         popupProvider = { popupRef },
         editorProvider = { currentEditor },
-        onInteractionEnd = { saveCurrentGeometry(popupRef) }
+        onInteractionEnd = { saveCurrentGeometry(popupRef) },
     )
 
     ApplicationManager.getApplication().messageBus.connect(sessionDisposable).subscribe(
@@ -116,7 +116,7 @@ fun showDiffWalkthroughSession(
             override fun paletteChanged(palette: WalkthroughPalette) {
                 updatePopupPalette(palette)
             }
-        }
+        },
     )
 
     val popup = WalkthroughPopupSurface(
@@ -126,7 +126,7 @@ fun showDiffWalkthroughSession(
             popupRef = null
             registry.remove(session.id)
             Disposer.dispose(sessionDisposable)
-        }
+        },
     )
     popupRef = popup
     Disposer.register(sessionDisposable, popup)
@@ -135,11 +135,7 @@ fun showDiffWalkthroughSession(
 }
 
 class WalkthroughDiffExtension : DiffExtension() {
-    override fun onViewerCreated(
-        viewer: FrameDiffTool.DiffViewer,
-        context: DiffContext,
-        request: DiffRequest
-    ) {
+    override fun onViewerCreated(viewer: FrameDiffTool.DiffViewer, context: DiffContext, request: DiffRequest) {
         val controller = request.getUserData(DIFF_WALKTHROUGH_CONTROLLER_KEY) ?: return
         val item = request.getUserData(DIFF_WALKTHROUGH_ITEM_KEY) ?: return
         controller.attachToViewer(viewer, item)
@@ -152,7 +148,7 @@ private class DiffWalkthroughController(
     private val descriptors: List<DiffWalkthroughDescriptor>,
     private val sessionDisposable: CheckedDisposable,
     private val popupProvider: () -> WalkthroughPopupSurface?,
-    private val currentEditorUpdater: (Editor) -> Unit
+    private val currentEditorUpdater: (Editor) -> Unit,
 ) {
     private var pendingNavigationId = 0
 
@@ -196,7 +192,7 @@ private class DiffWalkthroughController(
         component.addHierarchyListener(listener)
         Disposer.register(
             sessionDisposable,
-            Disposable { component.removeHierarchyListener(listener) }
+            Disposable { component.removeHierarchyListener(listener) },
         )
     }
 
@@ -222,25 +218,23 @@ private class DiffWalkthroughController(
                     project = project,
                     descriptor = descriptor,
                     item = item,
-                    controller = this
-                )
+                    controller = this,
+                ),
             ),
-            DiffDialogHints.DEFAULT
+            DiffDialogHints.DEFAULT,
         )
     }
 
-    private fun resolveDescriptor(item: WalkthroughItem): DiffWalkthroughDescriptor? =
-        item.diffId
-            ?.let { id -> descriptors.firstOrNull { descriptor -> descriptor.id == id } }
-            ?: item.diffFile?.let(::resolveDescriptorByFile)
-            ?: descriptors.singleOrNull()
+    private fun resolveDescriptor(item: WalkthroughItem): DiffWalkthroughDescriptor? = item.diffId
+        ?.let { id -> descriptors.firstOrNull { descriptor -> descriptor.id == id } }
+        ?: item.diffFile?.let(::resolveDescriptorByFile)
+        ?: descriptors.singleOrNull()
 
-    private fun resolveDescriptorByFile(diffFile: String): DiffWalkthroughDescriptor? =
-        descriptors
-            .filter { descriptor ->
-                diffFile == descriptor.file || diffFile == descriptor.leftFile || diffFile == descriptor.rightFile
-            }
-            .singleOrNull()
+    private fun resolveDescriptorByFile(diffFile: String): DiffWalkthroughDescriptor? = descriptors
+        .filter { descriptor ->
+            diffFile == descriptor.file || diffFile == descriptor.leftFile || diffFile == descriptor.rightFile
+        }
+        .singleOrNull()
 
     private fun selectEditor(viewer: EditorDiffViewer, side: DiffSide): Editor? {
         val editors = viewer.editors
@@ -255,47 +249,46 @@ private class DiffWalkthroughRequestProducer(
     private val project: Project,
     private val descriptor: DiffWalkthroughDescriptor,
     private val item: WalkthroughItem,
-    private val controller: DiffWalkthroughController
+    private val controller: DiffWalkthroughController,
 ) : DiffRequestProducer {
     override fun getName(): String = descriptor.displayFile
 
-    override fun process(context: UserDataHolder, indicator: ProgressIndicator): DiffRequest =
-        try {
-            val leftPath = descriptor.leftFilePath()
-            val rightPath = descriptor.rightFilePath()
-            val leftContent = loadRevisionContent(
-                filePath = leftPath,
-                commit = descriptor.leftCommit
-            )
-            val rightContent = loadRevisionContent(
-                filePath = rightPath,
-                commit = descriptor.rightCommit
-            )
-            if (!leftContent.loaded && !rightContent.loaded) {
-                throw VcsException("Failed to load both revisions for ${descriptor.displayFile}")
-            }
-            SimpleDiffRequest(
-                descriptor.displayTitle,
-                leftContent.content,
-                rightContent.content,
-                descriptor.leftTitle,
-                descriptor.rightTitle
-            ).apply {
-                putUserData(DIFF_WALKTHROUGH_CONTROLLER_KEY, controller)
-                putUserData(DIFF_WALKTHROUGH_ITEM_KEY, item)
-                item.line?.let { line ->
-                    putUserData(
-                        DiffUserDataKeys.SCROLL_TO_LINE,
-                        Pair.create(item.diffSide.toPlatformSide(), (line - 1).coerceAtLeast(0))
-                    )
-                }
-                putUserData(DiffUserDataKeys.MASTER_SIDE, item.diffSide.toPlatformSide())
-            }
-        } catch (exception: VcsException) {
-            throw DiffRequestProducerException(exception)
-        } catch (exception: IllegalArgumentException) {
-            throw DiffRequestProducerException(exception)
+    override fun process(context: UserDataHolder, indicator: ProgressIndicator): DiffRequest = try {
+        val leftPath = descriptor.leftFilePath()
+        val rightPath = descriptor.rightFilePath()
+        val leftContent = loadRevisionContent(
+            filePath = leftPath,
+            commit = descriptor.leftCommit,
+        )
+        val rightContent = loadRevisionContent(
+            filePath = rightPath,
+            commit = descriptor.rightCommit,
+        )
+        if (!leftContent.loaded && !rightContent.loaded) {
+            throw VcsException("Failed to load both revisions for ${descriptor.displayFile}")
         }
+        SimpleDiffRequest(
+            descriptor.displayTitle,
+            leftContent.content,
+            rightContent.content,
+            descriptor.leftTitle,
+            descriptor.rightTitle,
+        ).apply {
+            putUserData(DIFF_WALKTHROUGH_CONTROLLER_KEY, controller)
+            putUserData(DIFF_WALKTHROUGH_ITEM_KEY, item)
+            item.line?.let { line ->
+                putUserData(
+                    DiffUserDataKeys.SCROLL_TO_LINE,
+                    Pair.create(item.diffSide.toPlatformSide(), (line - 1).coerceAtLeast(0)),
+                )
+            }
+            putUserData(DiffUserDataKeys.MASTER_SIDE, item.diffSide.toPlatformSide())
+        }
+    } catch (exception: VcsException) {
+        throw DiffRequestProducerException(exception)
+    } catch (exception: IllegalArgumentException) {
+        throw DiffRequestProducerException(exception)
+    }
 
     private data class RevisionContent(val content: DiffContent, val loaded: Boolean)
 
@@ -310,11 +303,9 @@ private class DiffWalkthroughRequestProducer(
         }
     }
 
-    private fun DiffWalkthroughDescriptor.leftFilePath(): FilePath =
-        resolveDiffFilePath(leftFile ?: file ?: rightFile)
+    private fun DiffWalkthroughDescriptor.leftFilePath(): FilePath = resolveDiffFilePath(leftFile ?: file ?: rightFile)
 
-    private fun DiffWalkthroughDescriptor.rightFilePath(): FilePath =
-        resolveDiffFilePath(rightFile ?: file ?: leftFile)
+    private fun DiffWalkthroughDescriptor.rightFilePath(): FilePath = resolveDiffFilePath(rightFile ?: file ?: leftFile)
 
     private fun resolveDiffFilePath(relativePath: String?): FilePath {
         require(!relativePath.isNullOrBlank()) { "Diff file path must not be blank" }
@@ -338,8 +329,7 @@ private val DiffWalkthroughDescriptor.rightTitle: String
 
 private fun String.shortCommit(): String = take(SHORT_COMMIT_LENGTH)
 
-private fun DiffSide?.toPlatformSide(): PlatformDiffSide =
-    when (this) {
-        DiffSide.Left -> PlatformDiffSide.LEFT
-        DiffSide.Right, null -> PlatformDiffSide.RIGHT
-    }
+private fun DiffSide?.toPlatformSide(): PlatformDiffSide = when (this) {
+    DiffSide.Left -> PlatformDiffSide.LEFT
+    DiffSide.Right, null -> PlatformDiffSide.RIGHT
+}

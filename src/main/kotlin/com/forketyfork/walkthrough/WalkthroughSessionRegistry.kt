@@ -15,16 +15,13 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicReference
 
-data class WalkthroughTangentQuestion(
-    val question: String,
-    val parentLabel: String?
-)
+data class WalkthroughTangentQuestion(val question: String, val parentLabel: String?)
 
 internal enum class WalkthroughQuestionStatus {
     AgentNotWaiting,
     WaitingForQuestion,
     QuestionQueued,
-    ProcessingQuestion
+    ProcessingQuestion,
 }
 
 internal sealed interface WalkthroughQuestionAwaitResult {
@@ -41,7 +38,7 @@ private class WalkthroughQuestionWaiter {
 private data class WalkthroughQuestionWaitRegistration(
     val waiter: WalkthroughQuestionWaiter?,
     val previousWaiter: WalkthroughQuestionWaiter?,
-    val immediateResult: WalkthroughQuestionAwaitResult?
+    val immediateResult: WalkthroughQuestionAwaitResult?,
 )
 
 class WalkthroughSession internal constructor(
@@ -49,7 +46,7 @@ class WalkthroughSession internal constructor(
     initialItems: List<WalkthroughItem>,
     val targetKind: WalkthroughTargetKind,
     val diffDescriptors: List<DiffWalkthroughDescriptor>,
-    internal val acceptsQuestions: Boolean
+    internal val acceptsQuestions: Boolean,
 ) {
     internal val items: SnapshotStateList<WalkthroughItem> =
         mutableStateListOf<WalkthroughItem>().apply { addAll(initialItems) }
@@ -73,8 +70,11 @@ class WalkthroughSession internal constructor(
         val waiter = synchronized(questionLock) {
             when {
                 disposed.isCompleted -> null
+
                 pendingQuestion != null -> null
+
                 questionStatusState.value == WalkthroughQuestionStatus.ProcessingQuestion -> null
+
                 activeQuestionWaiter != null -> {
                     activeQuestionWaiter.also {
                         activeQuestionWaiter = null
@@ -82,6 +82,7 @@ class WalkthroughSession internal constructor(
                         setQuestionStatus(WalkthroughQuestionStatus.ProcessingQuestion)
                     }
                 }
+
                 else -> {
                     pendingQuestion = question
                     setQuestionStatus(WalkthroughQuestionStatus.QuestionQueued)
@@ -137,7 +138,7 @@ class WalkthroughSession internal constructor(
         val labeled = newItems.mapIndexed { offset, item ->
             item.copy(
                 label = "$parentLabel.${existingDirectChildren + offset + 1}",
-                parentLabel = parentLabel
+                parentLabel = parentLabel,
             )
         }
         items.addAll(lastSubtreeIndex + 1, labeled)
@@ -170,16 +171,18 @@ class WalkthroughSession internal constructor(
                 disposed.isCompleted -> WalkthroughQuestionWaitRegistration(
                     waiter = null,
                     previousWaiter = null,
-                    immediateResult = WalkthroughQuestionAwaitResult.Dismissed
+                    immediateResult = WalkthroughQuestionAwaitResult.Dismissed,
                 )
+
                 inFlightQuestion != null -> {
                     setQuestionStatus(WalkthroughQuestionStatus.ProcessingQuestion)
                     WalkthroughQuestionWaitRegistration(
                         waiter = null,
                         previousWaiter = null,
-                        immediateResult = WalkthroughQuestionAwaitResult.Received(requireNotNull(inFlightQuestion))
+                        immediateResult = WalkthroughQuestionAwaitResult.Received(requireNotNull(inFlightQuestion)),
                     )
                 }
+
                 pendingQuestion != null -> {
                     val question = pendingQuestion
                     pendingQuestion = null
@@ -188,9 +191,10 @@ class WalkthroughSession internal constructor(
                     WalkthroughQuestionWaitRegistration(
                         waiter = null,
                         previousWaiter = null,
-                        immediateResult = WalkthroughQuestionAwaitResult.Received(requireNotNull(question))
+                        immediateResult = WalkthroughQuestionAwaitResult.Received(requireNotNull(question)),
                     )
                 }
+
                 else -> {
                     val previousWaiter = activeQuestionWaiter
                     activeQuestionWaiter = waiter
@@ -198,7 +202,7 @@ class WalkthroughSession internal constructor(
                     WalkthroughQuestionWaitRegistration(
                         waiter = waiter,
                         previousWaiter = previousWaiter,
-                        immediateResult = null
+                        immediateResult = null,
                     )
                 }
             }
@@ -241,8 +245,7 @@ class WalkthroughSessionRegistry {
     private val dismissedSessionOrder = ConcurrentLinkedQueue<String>()
     private val activeSessionDisposable = AtomicReference<Disposable?>()
 
-    internal fun swapActive(newDisposable: Disposable): Disposable? =
-        activeSessionDisposable.getAndSet(newDisposable)
+    internal fun swapActive(newDisposable: Disposable): Disposable? = activeSessionDisposable.getAndSet(newDisposable)
 
     internal fun clearActive(disposable: Disposable) {
         activeSessionDisposable.compareAndSet(disposable, null)
@@ -252,14 +255,14 @@ class WalkthroughSessionRegistry {
         items: List<WalkthroughItem>,
         acceptsQuestions: Boolean,
         targetKind: WalkthroughTargetKind = WalkthroughTargetKind.File,
-        diffDescriptors: List<DiffWalkthroughDescriptor> = emptyList()
+        diffDescriptors: List<DiffWalkthroughDescriptor> = emptyList(),
     ): WalkthroughSession {
         val session = WalkthroughSession(
             id = UUID.randomUUID().toString(),
             initialItems = items,
             targetKind = targetKind,
             diffDescriptors = diffDescriptors,
-            acceptsQuestions = acceptsQuestions
+            acceptsQuestions = acceptsQuestions,
         )
         sessions[session.id] = session
         return session
