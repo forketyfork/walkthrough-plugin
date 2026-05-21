@@ -20,6 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `.github/zizmor.yml` configuration files documenting the intentional exemptions.
 - `verifyPlugin` now runs on every pull request, not just on pushes to `main`.
 
+### Fixed
+
+- The popup no longer briefly flashes the "agent is not listening" warning when the MCP client
+  cancels and immediately re-issues `await_walkthrough_question`. The status now waits for a
+  short grace period (5 s) before flipping. The underlying `CancellationException` is also no
+  longer surfaced to the IDE log as a tool-call error. The inline spinner is now cleared as soon
+  as `insert_walkthrough_tangents` returns, instead of staying on screen until the grace window
+  expires.
+
 ## [0.4.0]
 
 ### Added
