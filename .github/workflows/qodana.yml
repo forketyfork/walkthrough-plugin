@@ -1,0 +1,54 @@
+name: Qodana
+
+# `pull-requests: write` and `checks: write` are required by
+# JetBrains/qodana-action: it posts a summary comment (`post-pr-comment`)
+# and publishes check-run annotations (`use-annotations`) by default.
+# `security-events: write` is required by the SARIF upload step.
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+  security-events: write
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qodana:
+    name: Qodana JVM Community
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          # Qodana needs the full history to attribute findings to commits.
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Qodana scan
+        # Keep this tag aligned with the linter image version pinned in
+        # qodana.yaml so local runs and CI use the same Qodana release.
+        uses: JetBrains/qodana-action@v2026.1.0
+        with:
+          # Push results to GitHub Code Scanning as SARIF.
+          upload-result: true
+        env:
+          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
+
+      - name: Upload SARIF to GitHub Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: ${{ runner.temp }}/qodana/results/qodana.sarif.json

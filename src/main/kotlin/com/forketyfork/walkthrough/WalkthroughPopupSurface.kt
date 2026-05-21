@@ -23,7 +23,6 @@ import javax.swing.SwingUtilities
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
-import kotlin.math.roundToInt
 import kotlin.math.sign
 import kotlin.math.sin
 
@@ -46,14 +45,16 @@ internal object WalkthroughConnectorStyle {
 private data class ConnectorPaintContext(
     val editor: Editor,
     val item: WalkthroughItem,
-    val popupBounds: Rectangle2D.Float
+    val popupBounds: Rectangle2D.Float,
 )
 
 internal class WalkthroughPopupSurface(
     val content: JComponent,
     private var palette: WalkthroughPalette,
-    private val onCloseRequested: () -> Unit
-) : JComponent(), VisibleAreaListener, Disposable {
+    private val onCloseRequested: () -> Unit,
+) : JComponent(),
+    VisibleAreaListener,
+    Disposable {
     private var editor: Editor? = null
     private var item: WalkthroughItem? = null
     private var layeredPane: JLayeredPane? = null
@@ -79,12 +80,11 @@ internal class WalkthroughPopupSurface(
         content.registerKeyboardAction(
             { cancel() },
             KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
-            JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT
+            WHEN_ANCESTOR_OF_FOCUSED_COMPONENT,
         )
     }
 
-    override fun contains(x: Int, y: Int): Boolean =
-        content.isVisible && content.bounds.contains(x, y)
+    override fun contains(x: Int, y: Int): Boolean = content.isVisible && content.bounds.contains(x, y)
 
     fun update(editor: Editor, item: WalkthroughItem) {
         if (this.editor !== editor) {
@@ -136,20 +136,20 @@ internal class WalkthroughPopupSurface(
         val arrowTarget = Point2D.Float(targetPoint.x.toFloat(), targetPoint.y.toFloat())
         val connector = buildConnector(
             nearestBorderAnchor(context.popupBounds, arrowTarget),
-            arrowTarget
+            arrowTarget,
         )
 
         val graphics2D = graphics.create() as Graphics2D
         try {
             graphics2D.setRenderingHint(
                 RenderingHints.KEY_ANTIALIASING,
-                RenderingHints.VALUE_ANTIALIAS_ON
+                RenderingHints.VALUE_ANTIALIAS_ON,
             )
             graphics2D.color = palette.connectorStrokeColor
             graphics2D.stroke = BasicStroke(
                 WalkthroughConnectorStyle.STROKE_WIDTH,
                 BasicStroke.CAP_ROUND,
-                BasicStroke.JOIN_ROUND
+                BasicStroke.JOIN_ROUND,
             )
             graphics2D.draw(connector.path)
             drawArrowHead(graphics2D, connector.end, connector.endControl, palette)
@@ -185,8 +185,8 @@ internal class WalkthroughPopupSurface(
                     popupBounds.x.toFloat(),
                     popupBounds.y.toFloat(),
                     popupBounds.width.toFloat(),
-                    popupBounds.height.toFloat()
-                )
+                    popupBounds.height.toFloat(),
+                ),
             )
         } else {
             null
@@ -211,12 +211,11 @@ internal fun WalkthroughPopupSurface.show(editor: Editor, screenPoint: Point) {
     repaint()
 }
 
-internal fun WalkthroughPopupSurface.popupLocationOnScreen(): Point? =
-    if (content.isShowing) {
-        Point(0, 0).also { SwingUtilities.convertPointToScreen(it, content) }
-    } else {
-        null
-    }
+internal fun WalkthroughPopupSurface.popupLocationOnScreen(): Point? = if (content.isShowing) {
+    Point(0, 0).also { SwingUtilities.convertPointToScreen(it, content) }
+} else {
+    null
+}
 
 internal fun WalkthroughPopupSurface.setPopupScreenLocation(screenPoint: Point) {
     val localPoint = Point(screenPoint)
@@ -247,19 +246,12 @@ private enum class ConnectorSide {
     Left,
     Right,
     Top,
-    Bottom
+    Bottom,
 }
 
-private data class ConnectorAnchor(
-    val point: Point2D.Float,
-    val side: ConnectorSide
-)
+private data class ConnectorAnchor(val point: Point2D.Float, val side: ConnectorSide)
 
-private data class ConnectorPath(
-    val path: Path2D.Float,
-    val end: Point2D.Float,
-    val endControl: Point2D.Float
-)
+private data class ConnectorPath(val path: Path2D.Float, val end: Point2D.Float, val endControl: Point2D.Float)
 
 private fun nearestBorderAnchor(popupRect: Rectangle2D.Float, target: Point2D.Float): ConnectorAnchor {
     val inset = WalkthroughConnectorStyle.BORDER_INSET
@@ -270,20 +262,20 @@ private fun nearestBorderAnchor(popupRect: Rectangle2D.Float, target: Point2D.Fl
     val candidates = listOf(
         ConnectorAnchor(
             Point2D.Float(popupRect.x, target.y.coerceIn(minY, maxY)),
-            ConnectorSide.Left
+            ConnectorSide.Left,
         ),
         ConnectorAnchor(
             Point2D.Float(popupRect.x + popupRect.width, target.y.coerceIn(minY, maxY)),
-            ConnectorSide.Right
+            ConnectorSide.Right,
         ),
         ConnectorAnchor(
             Point2D.Float(target.x.coerceIn(minX, maxX), popupRect.y),
-            ConnectorSide.Top
+            ConnectorSide.Top,
         ),
         ConnectorAnchor(
             Point2D.Float(target.x.coerceIn(minX, maxX), popupRect.y + popupRect.height),
-            ConnectorSide.Bottom
-        )
+            ConnectorSide.Bottom,
+        ),
     )
     return candidates.minBy { anchor ->
         val dx = anchor.point.x - target.x
@@ -311,13 +303,13 @@ private fun buildConnector(anchor: ConnectorAnchor, end: Point2D.Float): Connect
         Point2D.Float(
             end.x - nonZeroDxSign * (abs(dx) * WalkthroughConnectorStyle.END_PULL_FACTOR)
                 .coerceAtLeast(WalkthroughConnectorStyle.END_HORIZONTAL_PULL_MINIMUM),
-            end.y - dy * WalkthroughConnectorStyle.END_CURVE_FACTOR
+            end.y - dy * WalkthroughConnectorStyle.END_CURVE_FACTOR,
         )
     } else {
         Point2D.Float(
             end.x - dx * WalkthroughConnectorStyle.END_CURVE_FACTOR,
             end.y - nonZeroDySign * (abs(dy) * WalkthroughConnectorStyle.END_PULL_FACTOR)
-                .coerceAtLeast(WalkthroughConnectorStyle.END_VERTICAL_PULL_MINIMUM)
+                .coerceAtLeast(WalkthroughConnectorStyle.END_VERTICAL_PULL_MINIMUM),
         )
     }
     val path = Path2D.Float().apply {
@@ -328,7 +320,7 @@ private fun buildConnector(anchor: ConnectorAnchor, end: Point2D.Float): Connect
             endControl.x.toDouble(),
             endControl.y.toDouble(),
             end.x.toDouble(),
-            end.y.toDouble()
+            end.y.toDouble(),
         )
     }
     return ConnectorPath(path, end, endControl)
@@ -338,7 +330,7 @@ private fun drawArrowHead(
     graphics: Graphics2D,
     end: Point2D.Float,
     endControl: Point2D.Float,
-    palette: WalkthroughPalette
+    palette: WalkthroughPalette,
 ) {
     val angle = atan2((end.y - endControl.y).toDouble(), (end.x - endControl.x).toDouble())
     val spread = Math.toRadians(WalkthroughConnectorStyle.ARROW_SPREAD_DEGREES)

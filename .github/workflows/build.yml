@@ -109,7 +109,6 @@ jobs:
 
   verify-plugin:
     name: Verify Plugin
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
@@ -145,20 +144,20 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-          cache-read-only: false
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Verify plugin compatibility
         run: ./gradlew verifyPlugin
 
       - name: Save IntelliJ Platform cache
-        if: steps.verify-intellij-platform-cache.outputs.cache-hit != 'true'
+        if: github.ref == 'refs/heads/main' && steps.verify-intellij-platform-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
           path: .intellijPlatform
           key: ${{ steps.verify-intellij-platform-cache.outputs.cache-primary-key }}
 
       - name: Save Plugin Verifier cache
-        if: steps.plugin-verifier-cache.outputs.cache-hit != 'true'
+        if: github.ref == 'refs/heads/main' && steps.plugin-verifier-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/pluginVerifier

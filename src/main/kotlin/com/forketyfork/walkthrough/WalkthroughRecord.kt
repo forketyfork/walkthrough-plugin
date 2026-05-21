@@ -8,7 +8,7 @@ data class WalkthroughRecord(
     val description: String,
     val targetKind: WalkthroughTargetKind = WalkthroughTargetKind.File,
     val diffDescriptors: List<DiffWalkthroughDescriptor> = emptyList(),
-    val items: List<WalkthroughItem>
+    val items: List<WalkthroughItem>,
 )
 
 internal fun WalkthroughRecord.createdAtInstantOrEpoch(): Instant =

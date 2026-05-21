@@ -10,7 +10,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -54,11 +53,7 @@ private val PopupMarkdownBlockBackground = WalkthroughColors.blockBackground
 private val PopupMarkdownDividerColor = WalkthroughColors.divider
 
 @Composable
-internal fun MarkdownContent(
-    project: Project,
-    markdown: String,
-    modifier: Modifier = Modifier
-) {
+internal fun MarkdownContent(project: Project, markdown: String, modifier: Modifier = Modifier) {
     val baseTextStyle = rememberPopupBaseTextStyle()
     val editorTextStyle = rememberPopupEditorTextStyle()
     val markdownStyling = rememberPopupMarkdownStyling(baseTextStyle, editorTextStyle)
@@ -85,48 +80,42 @@ internal fun MarkdownContent(
 }
 
 @Composable
-private fun rememberPopupBaseTextStyle(): TextStyle =
-    remember(JewelTheme.instanceUuid) {
-        retrieveDefaultTextStyle().copy(
-            color = PopupMarkdownTextColor,
-            fontSize = 15.sp,
-            lineHeight = 22.sp
-        )
-    }
+private fun rememberPopupBaseTextStyle(): TextStyle = remember(JewelTheme.instanceUuid) {
+    retrieveDefaultTextStyle().copy(
+        color = PopupMarkdownTextColor,
+        fontSize = 15.sp,
+        lineHeight = 22.sp,
+    )
+}
 
 @Composable
-private fun rememberPopupEditorTextStyle(): TextStyle =
-    remember(JewelTheme.instanceUuid) {
-        retrieveEditorTextStyle().copy(
-            color = PopupMarkdownCodeTextColor,
-            fontSize = 13.sp,
-            lineHeight = 20.sp
-        )
-    }
+private fun rememberPopupEditorTextStyle(): TextStyle = remember(JewelTheme.instanceUuid) {
+    retrieveEditorTextStyle().copy(
+        color = PopupMarkdownCodeTextColor,
+        fontSize = 13.sp,
+        lineHeight = 20.sp,
+    )
+}
 
 @Composable
-private fun rememberPopupMarkdownStyling(
-    baseTextStyle: TextStyle,
-    editorTextStyle: TextStyle
-): MarkdownStyling =
+private fun rememberPopupMarkdownStyling(baseTextStyle: TextStyle, editorTextStyle: TextStyle): MarkdownStyling =
     remember(JewelTheme.instanceUuid) {
         createPopupMarkdownStyling(baseTextStyle, editorTextStyle)
     }
 
 @Composable
-private fun rememberPopupMarkdownProcessor(): MarkdownProcessor =
-    remember {
-        MarkdownProcessor(
-            listOf(
-                GitHubAlertProcessorExtension,
-                GitHubTableProcessorExtension,
-                GitHubStrikethroughProcessorExtension(),
-                AutolinkProcessorExtension,
-            ),
-            MarkdownMode.Standalone,
-            parseEmbeddedHtml = true
-        )
-    }
+private fun rememberPopupMarkdownProcessor(): MarkdownProcessor = remember {
+    MarkdownProcessor(
+        listOf(
+            GitHubAlertProcessorExtension,
+            GitHubTableProcessorExtension,
+            GitHubStrikethroughProcessorExtension(),
+            AutolinkProcessorExtension,
+        ),
+        MarkdownMode.Standalone,
+        parseEmbeddedHtml = true,
+    )
+}
 
 @Composable
 private fun rememberPopupMarkdownBlockRenderer(markdownStyling: MarkdownStyling): MarkdownBlockRenderer {
@@ -139,7 +128,7 @@ private fun rememberPopupMarkdownBlockRenderer(markdownStyling: MarkdownStyling)
     return remember(markdownStyling, tableRenderer, alertRenderer) {
         MarkdownBlockRenderer.create(
             markdownStyling,
-            listOf(tableRenderer, alertRenderer, GitHubStrikethroughRendererExtension)
+            listOf(tableRenderer, alertRenderer, GitHubStrikethroughRendererExtension),
         )
     }
 }
@@ -153,10 +142,7 @@ private fun rememberPopupCodeHighlighter(project: Project) =
         project.service<CodeHighlighterFactory>().createHighlighter()
     }
 
-private fun createPopupMarkdownStyling(
-    baseTextStyle: TextStyle,
-    editorTextStyle: TextStyle
-): MarkdownStyling {
+private fun createPopupMarkdownStyling(baseTextStyle: TextStyle, editorTextStyle: TextStyle): MarkdownStyling {
     val inlinesStyling = createPopupInlinesStyling(baseTextStyle, editorTextStyle)
     return MarkdownStyling.create(
         baseTextStyle = baseTextStyle,
@@ -215,10 +201,7 @@ private fun createPopupMarkdownStyling(
     )
 }
 
-private fun createPopupHeadingStyling(
-    baseTextStyle: TextStyle,
-    editorTextStyle: TextStyle
-): MarkdownStyling.Heading {
+private fun createPopupHeadingStyling(baseTextStyle: TextStyle, editorTextStyle: TextStyle): MarkdownStyling.Heading {
     val headerPadding = PaddingValues(top = 12.dp)
     val h1 = baseTextStyle.copy(fontSize = 22.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold)
     val h2 = baseTextStyle.copy(fontSize = 19.sp, lineHeight = 27.sp, fontWeight = FontWeight.Bold)
@@ -273,10 +256,7 @@ private fun createPopupHeadingStyling(
     )
 }
 
-private fun createPopupInlinesStyling(
-    textStyle: TextStyle,
-    editorTextStyle: TextStyle
-): InlinesStyling =
+private fun createPopupInlinesStyling(textStyle: TextStyle, editorTextStyle: TextStyle): InlinesStyling =
     InlinesStyling.create(
         textStyle = textStyle,
         editorTextStyle = editorTextStyle,

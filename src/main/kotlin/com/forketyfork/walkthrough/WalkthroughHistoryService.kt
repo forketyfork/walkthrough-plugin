@@ -11,7 +11,7 @@ class WalkthroughHistoryService(private val project: Project) {
                 directory = Path.of(basePath, ".idea", "walkthroughs"),
                 onCorruptFile = { path, exception ->
                     LOG.warn("Skipping corrupt walkthrough history file: $path", exception)
-                }
+                },
             )
         }
     }
@@ -25,11 +25,10 @@ class WalkthroughHistoryService(private val project: Project) {
         description: String,
         targetKind: WalkthroughTargetKind,
         diffDescriptors: List<DiffWalkthroughDescriptor>,
-        items: List<WalkthroughItem>
-    ): WalkthroughRecord? =
-        runHistoryOperation(operation = "save walkthrough history", fallback = null) {
-            store?.save(description, targetKind, diffDescriptors, items)
-        }
+        items: List<WalkthroughItem>,
+    ): WalkthroughRecord? = runHistoryOperation(operation = "save walkthrough history", fallback = null) {
+        store?.save(description, targetKind, diffDescriptors, items)
+    }
 
     fun list(): List<WalkthroughRecord> =
         runHistoryOperation(operation = "list walkthrough history", fallback = emptyList()) {

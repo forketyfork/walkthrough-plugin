@@ -4,12 +4,12 @@ import java.awt.Dimension
 
 enum class WalkthroughTargetKind {
     File,
-    Diff
+    Diff,
 }
 
 enum class DiffSide {
     Left,
-    Right
+    Right,
 }
 
 data class DiffWalkthroughDescriptor(
@@ -18,7 +18,7 @@ data class DiffWalkthroughDescriptor(
     val leftFile: String? = null,
     val rightFile: String? = null,
     val leftCommit: String,
-    val rightCommit: String
+    val rightCommit: String,
 )
 
 internal object WalkthroughPopupLayout {
@@ -37,5 +37,5 @@ data class WalkthroughItem(
     val diffFile: String? = null,
     val diffSide: DiffSide? = null,
     val label: String? = null,
-    val parentLabel: String? = null
+    val parentLabel: String? = null,
 )

@@ -34,7 +34,7 @@ private data class WalkthroughRecordJson(
     val description: String?,
     val targetKind: WalkthroughTargetKind?,
     val diffDescriptors: List<DiffWalkthroughDescriptorJson>?,
-    val items: List<WalkthroughRecordItemJson>?
+    val items: List<WalkthroughRecordItemJson>?,
 )
 
 private data class DiffWalkthroughDescriptorJson(
@@ -43,7 +43,7 @@ private data class DiffWalkthroughDescriptorJson(
     val leftFile: String?,
     val rightFile: String?,
     val leftCommit: String?,
-    val rightCommit: String?
+    val rightCommit: String?,
 )
 
 private data class WalkthroughRecordItemJson(
@@ -54,34 +54,32 @@ private data class WalkthroughRecordItemJson(
     val diffFile: String?,
     val diffSide: DiffSide?,
     val label: String?,
-    val parentLabel: String?
+    val parentLabel: String?,
 )
 
 internal class WalkthroughHistoryStore(
     private val directory: Path,
     private val clock: Clock = Clock.systemUTC(),
     private val randomSuffix: () -> String = { UUID.randomUUID().toString().take(RANDOM_SUFFIX_LENGTH) },
-    private val onCorruptFile: (Path, Exception) -> Unit = { _, _ -> }
+    private val onCorruptFile: (Path, Exception) -> Unit = { _, _ -> },
 ) {
     private val gson: Gson = GsonBuilder()
         .disableHtmlEscaping()
         .setPrettyPrinting()
         .create()
 
-    fun save(description: String, items: List<WalkthroughItem>): WalkthroughRecord {
-        return save(
-            description = description,
-            targetKind = WalkthroughTargetKind.File,
-            diffDescriptors = emptyList(),
-            items = items
-        )
-    }
+    fun save(description: String, items: List<WalkthroughItem>): WalkthroughRecord = save(
+        description = description,
+        targetKind = WalkthroughTargetKind.File,
+        diffDescriptors = emptyList(),
+        items = items,
+    )
 
     fun save(
         description: String,
         targetKind: WalkthroughTargetKind,
         diffDescriptors: List<DiffWalkthroughDescriptor>,
-        items: List<WalkthroughItem>
+        items: List<WalkthroughItem>,
     ): WalkthroughRecord {
         require(description.isNotBlank()) { "description must not be blank" }
         require(items.isNotEmpty()) { "items must not be empty" }
@@ -93,7 +91,7 @@ internal class WalkthroughHistoryStore(
             description = description,
             targetKind = targetKind,
             diffDescriptors = diffDescriptors,
-            items = items
+            items = items,
         )
         save(record)
         return record
@@ -124,7 +122,7 @@ internal class WalkthroughHistoryStore(
                     .filterNotNull()
                     .sortedWith(
                         compareByDescending<WalkthroughRecord> { record -> record.createdAtInstantOrEpoch() }
-                            .thenByDescending { record -> record.id }
+                            .thenByDescending { record -> record.id },
                     )
             }
         } catch (exception: DirectoryIteratorException) {
@@ -167,21 +165,20 @@ internal class WalkthroughHistoryStore(
             fileName != INDEX_FILE_NAME
     }
 
-    private fun readRecordOrNull(path: Path): WalkthroughRecord? =
-        try {
-            gson.fromJson(Files.readString(path), WalkthroughRecordJson::class.java)
-                ?.toRecord()
-                ?: throw JsonParseException("Invalid walkthrough history record")
-        } catch (exception: JsonParseException) {
-            onCorruptFile(path, exception)
-            null
-        } catch (exception: IOException) {
-            onCorruptFile(path, exception)
-            null
-        } catch (exception: IllegalStateException) {
-            onCorruptFile(path, exception)
-            null
-        }
+    private fun readRecordOrNull(path: Path): WalkthroughRecord? = try {
+        gson.fromJson(Files.readString(path), WalkthroughRecordJson::class.java)
+            ?.toRecord()
+            ?: throw JsonParseException("Invalid walkthrough history record")
+    } catch (exception: JsonParseException) {
+        onCorruptFile(path, exception)
+        null
+    } catch (exception: IOException) {
+        onCorruptFile(path, exception)
+        null
+    } catch (exception: IllegalStateException) {
+        onCorruptFile(path, exception)
+        null
+    }
 
     private fun validateRecord(record: WalkthroughRecord) {
         val hasValidCreatedAt = runCatching { Instant.parse(record.createdAt) }.isSuccess
@@ -214,38 +211,41 @@ private fun DiffWalkthroughDescriptor.hasUsablePath(): Boolean {
     return hasSharedFile || hasBothSideFiles
 }
 
-internal fun slugifyDescription(description: String): String =
-    slugSeparatorPattern
-        .replace(description.lowercase(Locale.US), "-")
-        .trim('-')
-        .take(MAX_SLUG_LENGTH)
-        .trim('-')
+internal fun slugifyDescription(description: String): String = slugSeparatorPattern
+    .replace(description.lowercase(Locale.US), "-")
+    .trim('-')
+    .take(MAX_SLUG_LENGTH)
+    .trim('-')
 
-private fun isSafeRecordId(id: String): Boolean =
-    id.isNotBlank() && recordIdPattern.matches(id)
+private fun isSafeRecordId(id: String): Boolean = id.isNotBlank() && recordIdPattern.matches(id)
 
+@Suppress("ComplexCondition")
 private fun WalkthroughRecordJson.toRecord(): WalkthroughRecord? {
     val parsedId = id?.takeIf(::isSafeRecordId)
     val parsedCreatedAt = createdAt?.takeIf { value -> runCatching { Instant.parse(value) }.isSuccess }
     val parsedDescription = description?.takeIf { value -> value.isNotBlank() }
     val parsedTargetKind = targetKind ?: WalkthroughTargetKind.File
-    val parsedDiffDescriptors = diffDescriptors?.mapNotNull { descriptor ->
-        descriptor.toDiffWalkthroughDescriptorOrNull()
-    } ?: emptyList()
+    val parsedDiffDescriptors = diffDescriptors
+        ?.mapNotNull { descriptor -> descriptor.toDiffWalkthroughDescriptorOrNull() }
+        .orEmpty()
     val parsedItems = items?.mapNotNull { item -> item.toWalkthroughItemOrNull() }
-    val hasRequiredFields = parsedId != null && parsedCreatedAt != null && parsedDescription != null
-    val hasMatchingItems = parsedItems != null && parsedItems.size == items.size && parsedItems.isNotEmpty()
+    // Single null-guard so Kotlin smart-casts the four locals to non-null at
+    // the construction site below; splitting it would force `!!` everywhere.
+    if (parsedId == null || parsedCreatedAt == null || parsedDescription == null || parsedItems == null) {
+        return null
+    }
+    val hasMatchingItems = parsedItems.size == items.size && parsedItems.isNotEmpty()
     val hasMatchingDiffDescriptors = diffDescriptors == null ||
         parsedDiffDescriptors.size == diffDescriptors.size
 
-    return if (hasRequiredFields && hasMatchingItems && hasMatchingDiffDescriptors) {
+    return if (hasMatchingItems && hasMatchingDiffDescriptors) {
         WalkthroughRecord(
-            id = parsedId.orEmpty(),
-            createdAt = parsedCreatedAt.orEmpty(),
-            description = parsedDescription.orEmpty(),
+            id = parsedId,
+            createdAt = parsedCreatedAt,
+            description = parsedDescription,
             targetKind = parsedTargetKind,
             diffDescriptors = parsedDiffDescriptors,
-            items = parsedItems.orEmpty()
+            items = parsedItems,
         )
     } else {
         null
@@ -263,25 +263,24 @@ private fun DiffWalkthroughDescriptorJson.toDiffWalkthroughDescriptorOrNull(): D
             leftFile = leftFile?.takeIf { it.isNotBlank() },
             rightFile = rightFile?.takeIf { it.isNotBlank() },
             leftCommit = parsedLeftCommit,
-            rightCommit = parsedRightCommit
+            rightCommit = parsedRightCommit,
         )
     } else {
         null
     }
 }
 
-private fun WalkthroughRecordItemJson.toWalkthroughItemOrNull(): WalkthroughItem? =
-    text
-        ?.takeIf { value -> value.isNotBlank() }
-        ?.let { value ->
-            WalkthroughItem(
-                text = value,
-                file = file,
-                line = line,
-                diffId = diffId?.takeIf { it.isNotBlank() },
-                diffFile = diffFile?.takeIf { it.isNotBlank() },
-                diffSide = diffSide,
-                label = label?.takeIf { it.isNotBlank() },
-                parentLabel = parentLabel?.takeIf { it.isNotBlank() }
-            )
-        }
+private fun WalkthroughRecordItemJson.toWalkthroughItemOrNull(): WalkthroughItem? = text
+    ?.takeIf { value -> value.isNotBlank() }
+    ?.let { value ->
+        WalkthroughItem(
+            text = value,
+            file = file,
+            line = line,
+            diffId = diffId?.takeIf { it.isNotBlank() },
+            diffFile = diffFile?.takeIf { it.isNotBlank() },
+            diffSide = diffSide,
+            label = label?.takeIf { it.isNotBlank() },
+            parentLabel = parentLabel?.takeIf { it.isNotBlank() },
+        )
+    }

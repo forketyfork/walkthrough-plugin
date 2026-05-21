@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Expanded Detekt rule sets with `potential-bugs`, `exceptions`, and `coroutines` audits, plus
+  the `ktlint-wrapper` formatting rules and the `io.nlopez.compose.rules:detekt` Compose-specific
+  ruleset. Existing findings are grandfathered through `detekt-baseline.xml`.
+- `.editorconfig` at the repo root to keep IDE-, Detekt-, and ktlint-managed formatting in sync.
+- Qodana JVM (Community) static analysis via the `JetBrains/qodana-action` GitHub Actions
+  workflow, configured by `qodana.yaml`. Catches DevKit / IntelliJ Platform inspections that
+  Detekt does not implement.
+- `typos` and `zizmor` pre-commit hooks (wired through `flake.nix`), with `.typos.toml` and
+  `.github/zizmor.yml` configuration files documenting the intentional exemptions.
+- `verifyPlugin` now runs on every pull request, not just on pushes to `main`.
+
 ## [0.4.0]
 
 ### Added

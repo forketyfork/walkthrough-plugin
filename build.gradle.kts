@@ -6,7 +6,7 @@ plugins {
     id("org.jetbrains.kotlin.jvm") version "2.3.21"
     id("org.jetbrains.intellij.platform") version "2.16.0"
     id("org.jetbrains.kotlin.plugin.compose") version "2.3.21"
-    id("dev.detekt") version "2.0.0-alpha.3"
+    alias(libs.plugins.detekt)
 }
 
 group = "com.forketyfork"
@@ -36,6 +36,9 @@ dependencies {
     testImplementation(libs.opentest4j)
     testRuntimeOnly(libs.junit.platform.launcher)
     testRuntimeOnly(libs.junit4)
+
+    detektPlugins(libs.detekt.rules.ktlint.wrapper)
+    detektPlugins(libs.detekt.compose.rules)
 
     intellijPlatform {
         intellijIdea("2026.1")
@@ -112,6 +115,7 @@ detekt {
     config.setFrom(files("$rootDir/detekt.yml"))
     buildUponDefaultConfig = true
     basePath.set(projectDir)
+    baseline = file("$rootDir/detekt-baseline.xml")
 }
 
 tasks.withType<Detekt>().configureEach {
@@ -125,4 +129,14 @@ tasks.withType<Detekt>().configureEach {
 
 tasks.withType<DetektCreateBaselineTask>().configureEach {
     jvmTarget.set("21")
+    baseline.set(file("$rootDir/detekt-baseline.xml"))
+}
+
+// The default `:detekt` task runs without type resolution, which silences
+// rules like `UnnecessaryFullyQualifiedName`, `IgnoredReturnValue`,
+// `UselessCallOnNotNull`, etc. Wire the type-resolving per-source-set tasks
+// into the aggregate `:detekt` task so `just lint` / CI / pre-commit pick
+// them up automatically without changing entry points.
+tasks.named("detekt") {
+    dependsOn("detektMain", "detektTest")
 }

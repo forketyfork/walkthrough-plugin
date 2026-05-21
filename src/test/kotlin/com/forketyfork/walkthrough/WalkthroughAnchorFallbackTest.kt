@@ -45,7 +45,7 @@ class WalkthroughAnchorFallbackTest {
 
         assertEquals(
             base.resolve("src/Foo.kt"),
-            resolveProjectRelativeWalkthroughPath(base.toString(), "src/Foo.kt")
+            resolveProjectRelativeWalkthroughPath(base.toString(), "src/Foo.kt"),
         )
     }
 

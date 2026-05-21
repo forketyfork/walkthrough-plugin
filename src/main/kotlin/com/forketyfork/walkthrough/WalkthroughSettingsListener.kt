@@ -8,7 +8,7 @@ internal interface WalkthroughSettingsListener {
     companion object {
         val TOPIC: Topic<WalkthroughSettingsListener> = Topic.create(
             "Walkthrough settings changes",
-            WalkthroughSettingsListener::class.java
+            WalkthroughSettingsListener::class.java,
         )
     }
 }

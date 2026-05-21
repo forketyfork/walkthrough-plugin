@@ -12,7 +12,7 @@ class WalkthroughPaletteTest {
     fun allPresetsAreAvailable() {
         assertEquals(
             listOf("purple", "green", "blue", "red", "orange", "teal", "pink"),
-            WalkthroughPalettes.all.map(WalkthroughPalette::id)
+            WalkthroughPalettes.all.map(WalkthroughPalette::id),
         )
     }
 
@@ -50,9 +50,9 @@ class WalkthroughPaletteTest {
                 WalkthroughColors.veryDarkPurple,
                 WalkthroughColors.darkPurple,
                 WalkthroughColors.magenta,
-                WalkthroughColors.navyBlue
+                WalkthroughColors.navyBlue,
             ),
-            WalkthroughPalettes.PURPLE.backgroundGradientColors
+            WalkthroughPalettes.PURPLE.backgroundGradientColors,
         )
     }
 
@@ -62,9 +62,9 @@ class WalkthroughPaletteTest {
             listOf(
                 WalkthroughColors.lightPink.copy(alpha = 0.4f),
                 WalkthroughColors.glowLavender,
-                Color.Transparent
+                Color.Transparent,
             ),
-            WalkthroughPalettes.PURPLE.glowGradientColors
+            WalkthroughPalettes.PURPLE.glowGradientColors,
         )
     }
 
@@ -75,9 +75,9 @@ class WalkthroughPaletteTest {
                 WalkthroughColors.purple,
                 WalkthroughColors.pink,
                 WalkthroughColors.blue,
-                WalkthroughColors.purple
+                WalkthroughColors.purple,
             ),
-            WalkthroughPalettes.PURPLE.borderGradientColors
+            WalkthroughPalettes.PURPLE.borderGradientColors,
         )
     }
 

@@ -1,7 +1,6 @@
 package com.forketyfork.walkthrough
 
 import androidx.compose.runtime.mutableStateOf
-import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -10,11 +9,11 @@ import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import org.jetbrains.jewel.bridge.JewelComposePanel
-import java.awt.Color as AwtColor
 import java.awt.Dimension
 import java.awt.Point
 import javax.swing.JComponent
 import javax.swing.SwingUtilities
+import java.awt.Color as AwtColor
 
 fun showWalkthroughItems(project: Project, items: List<WalkthroughItem>): Boolean =
     showWalkthroughSession(project, items, acceptsQuestions = false) != null
@@ -25,7 +24,7 @@ fun showWalkthroughItems(project: Project, editor: Editor, items: List<Walkthrou
 fun showWalkthroughSession(
     project: Project,
     items: List<WalkthroughItem>,
-    acceptsQuestions: Boolean
+    acceptsQuestions: Boolean,
 ): WalkthroughSession? {
     val fallbackEditor = FileEditorManager.getInstance(project).selectedTextEditor
     val target = items.firstOrNull()
@@ -38,7 +37,7 @@ fun showWalkthroughSession(
     project: Project,
     editor: Editor,
     items: List<WalkthroughItem>,
-    acceptsQuestions: Boolean
+    acceptsQuestions: Boolean,
 ): WalkthroughSession? {
     val firstTarget = items.firstOrNull()
         ?.let { item -> resolveWalkthroughTarget(project, editor, item) }
@@ -50,15 +49,10 @@ fun showWalkthroughSession(
     val registry = WalkthroughSessionRegistry.getInstance(project)
     registry.swapActive(sessionDisposable)?.let(Disposer::dispose)
     val session = registry.create(items, acceptsQuestions)
-    Disposer.register(
-        sessionDisposable,
-        object : Disposable {
-            override fun dispose() {
-                registry.remove(session.id)
-                registry.clearActive(sessionDisposable)
-            }
-        }
-    )
+    Disposer.register(sessionDisposable) {
+        registry.remove(session.id)
+        registry.clearActive(sessionDisposable)
+    }
 
     var popupRef: WalkthroughPopupSurface? = null
     var currentEditor = firstTarget.editor
@@ -107,7 +101,7 @@ fun showWalkthroughSession(
         paletteProvider = { paletteState.value },
         onItemDisplayed = ::scheduleItemNavigation,
         onNavigateToSource = ::scheduleItemNavigation,
-        onClose = { popupRef?.cancel() }
+        onClose = { popupRef?.cancel() },
     )
     makeComponentHierarchyTransparent(panel)
 
@@ -115,7 +109,7 @@ fun showWalkthroughSession(
         panel = panel,
         popupProvider = { popupRef },
         editorProvider = { currentEditor },
-        onInteractionEnd = { saveCurrentGeometry(popupRef) }
+        onInteractionEnd = { saveCurrentGeometry(popupRef) },
     )
 
     project.messageBus.connect(sessionDisposable).subscribe(
@@ -125,7 +119,7 @@ fun showWalkthroughSession(
                 val selectedEditor = FileEditorManager.getInstance(project).selectedTextEditor
                 popupRef?.connectorHidden = selectedEditor?.document !== currentEditor.document
             }
-        }
+        },
     )
     ApplicationManager.getApplication().messageBus.connect(sessionDisposable).subscribe(
         WalkthroughSettingsListener.TOPIC,
@@ -133,7 +127,7 @@ fun showWalkthroughSession(
             override fun paletteChanged(palette: WalkthroughPalette) {
                 updatePopupPalette(palette)
             }
-        }
+        },
     )
 
     val popup = WalkthroughPopupSurface(
@@ -143,7 +137,7 @@ fun showWalkthroughSession(
             popupRef = null
             registry.remove(session.id)
             Disposer.dispose(sessionDisposable)
-        }
+        },
     )
     popupRef = popup
     Disposer.register(sessionDisposable, popup)
@@ -157,15 +151,11 @@ internal fun saveCurrentGeometry(popup: WalkthroughPopupSurface?) {
     val location = popup?.popupLocationOnScreen() ?: return
     val size = resolvePopupSize(popup) ?: return
     WalkthroughSettings.getInstance().saveGeometry(
-        PopupGeometry(location.x, location.y, size.width, size.height)
+        PopupGeometry(location.x, location.y, size.width, size.height),
     )
 }
 
-internal fun applyPopupGeometryForItem(
-    popup: WalkthroughPopupSurface,
-    editor: Editor,
-    item: WalkthroughItem
-) {
+internal fun applyPopupGeometryForItem(popup: WalkthroughPopupSurface, editor: Editor, item: WalkthroughItem) {
     val settings = WalkthroughSettings.getInstance()
     val persisted = settings.loadGeometry()
 
@@ -180,7 +170,7 @@ internal fun applyPopupGeometryForItem(
         val clampedSize = clampPopupSize(
             Dimension(persisted.width, persisted.height),
             maxWidth = maxWidth,
-            maxHeight = maxHeight
+            maxHeight = maxHeight,
         )
         popup.popupSize = clampedSize
         val avoided = avoidLineOverlap(Point(persisted.x, persisted.y), clampedSize, editor, item.line)
@@ -198,30 +188,30 @@ internal fun applyPopupGeometryForItem(
     }
 }
 
+@Suppress("LongParameterList")
 internal fun createWalkthroughPanel(
     project: Project,
     session: WalkthroughSession,
     paletteProvider: () -> WalkthroughPalette,
     onItemDisplayed: (WalkthroughItem) -> Unit,
     onNavigateToSource: (WalkthroughItem) -> Unit,
-    onClose: () -> Unit
-): JComponent =
-    JewelComposePanel {
-        WalkthroughItemContent(
-            project = project,
-            session = session,
-            palette = paletteProvider(),
-            onItemDisplayed = onItemDisplayed,
-            onNavigateToSource = onNavigateToSource,
-            onClose = onClose
-        )
-    }.apply {
-        isOpaque = false
-        @Suppress("UseJBColor")
-        background = AwtColor(0, 0, 0, 0)
-        minimumSize = Dimension(
-            WalkthroughPopupLayout.MINIMUM_WIDTH_PX,
-            WalkthroughPopupLayout.MINIMUM_HEIGHT_PX
-        )
-        preferredSize = WalkthroughPopupLayout.fallbackSize
-    }
+    onClose: () -> Unit,
+): JComponent = JewelComposePanel {
+    WalkthroughItemContent(
+        project = project,
+        session = session,
+        palette = paletteProvider(),
+        onItemDisplay = onItemDisplayed,
+        onNavigateToSource = onNavigateToSource,
+        onClose = onClose,
+    )
+}.apply {
+    isOpaque = false
+    @Suppress("UseJBColor")
+    background = AwtColor(0, 0, 0, 0)
+    minimumSize = Dimension(
+        WalkthroughPopupLayout.MINIMUM_WIDTH_PX,
+        WalkthroughPopupLayout.MINIMUM_HEIGHT_PX,
+    )
+    preferredSize = WalkthroughPopupLayout.fallbackSize
+}

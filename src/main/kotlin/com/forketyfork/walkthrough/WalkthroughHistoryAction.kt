@@ -35,24 +35,23 @@ class WalkthroughHistoryAction : AnAction() {
                 actionGroup,
                 event.dataContext,
                 JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
-                true
+                true,
             )
             .showInBestPositionFor(event.dataContext)
     }
 }
 
-private class ReplayWalkthroughAction(
-    private val project: Project,
-    private val record: WalkthroughRecord
-) : AnAction(formatRecord(record)) {
+private class ReplayWalkthroughAction(private val project: Project, private val record: WalkthroughRecord) :
+    AnAction(formatRecord(record)) {
     override fun actionPerformed(event: AnActionEvent) {
         val shown = when (record.targetKind) {
             WalkthroughTargetKind.File -> showWalkthroughItems(project, record.items)
+
             WalkthroughTargetKind.Diff -> showDiffWalkthroughSession(
                 project = project,
                 descriptors = record.diffDescriptors,
                 items = record.items,
-                acceptsQuestions = false
+                acceptsQuestions = false,
             ) != null
         }
         if (!shown) {

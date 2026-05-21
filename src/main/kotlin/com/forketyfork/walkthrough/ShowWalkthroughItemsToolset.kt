@@ -20,12 +20,12 @@ private data class WalkthroughItemJson(
     val line: Int?,
     val diffId: String?,
     val diffFile: String?,
-    val diffSide: String?
+    val diffSide: String?,
 )
 
 private data class DiffWalkthroughPayloadJson(
     val diffs: List<ToolDiffWalkthroughDescriptorJson>?,
-    val items: List<WalkthroughItemJson>?
+    val items: List<WalkthroughItemJson>?,
 )
 
 private data class ToolDiffWalkthroughDescriptorJson(
@@ -34,20 +34,19 @@ private data class ToolDiffWalkthroughDescriptorJson(
     val leftFile: String?,
     val rightFile: String?,
     val leftCommit: String?,
-    val rightCommit: String?
+    val rightCommit: String?,
 )
 
 private const val QUESTION_TOOL_REFRESH_TIMEOUT_MILLIS = 110_000L
 
 private fun resolveAwaitQuestionResult(
     result: WalkthroughQuestionAwaitResult,
-    wasDismissed: Boolean
-): WalkthroughQuestionAwaitResult =
-    if (wasDismissed && result == WalkthroughQuestionAwaitResult.WaitingExpired) {
-        WalkthroughQuestionAwaitResult.Dismissed
-    } else {
-        result
-    }
+    wasDismissed: Boolean,
+): WalkthroughQuestionAwaitResult = if (wasDismissed && result == WalkthroughQuestionAwaitResult.WaitingExpired) {
+    WalkthroughQuestionAwaitResult.Dismissed
+} else {
+    result
+}
 
 class ShowWalkthroughItemsToolset : McpToolset {
     // Discovered and invoked via reflection by the MCP server framework
@@ -65,20 +64,23 @@ class ShowWalkthroughItemsToolset : McpToolset {
             "to react to follow-up questions the user types into the popup. " +
             "After this tool returns, immediately call await_walkthrough_question with that walkthroughId. " +
             "Do not stop after showing the walkthrough; the waiting tool call is required for the plugin " +
-            "to deliver user questions back to you."
+            "to deliver user questions back to you.",
     )
     suspend fun showWalkthroughItems(
         @McpDescription(
             "Short human-readable description shown in the project walkthrough history. " +
-            "Use a concise phrase that helps the user recognize this walkthrough later."
+                "Use a concise phrase that helps the user recognize this walkthrough later.",
         ) description: String,
         @McpDescription(
             "JSON array of walkthrough items to display, e.g. " +
-            "[{\"text\":\"Note 1\",\"file\":\"src/Foo.kt\",\"line\":10},{\"text\":\"Note 2\"}]. " +
-            "Each item requires 'text'; 'file' (path relative to project root) and 'line' (1-based) are optional. " +
-            "The 'line' value is a line in the current full file, not a diff hunk line, so it must be accurate. " +
-            "Verify line numbers by reading the actual file before calling this tool — do not estimate from diffs or memory."
-        ) items: String
+                "[{\"text\":\"Note 1\",\"file\":\"src/Foo.kt\",\"line\":10},{\"text\":\"Note 2\"}]. " +
+                "Each item requires 'text'; 'file' (path relative to project root) and " +
+                "'line' (1-based) are optional. " +
+                "The 'line' value is a line in the current full file, not a diff hunk line, " +
+                "so it must be accurate. " +
+                "Verify line numbers by reading the actual file before calling this tool — " +
+                "do not estimate from diffs or memory.",
+        ) items: String,
     ): String {
         val project = requireProject()
         val trimmedDescription = description.trim()
@@ -114,22 +116,24 @@ class ShowWalkthroughItemsToolset : McpToolset {
             "specifically wants the explanation in terms of a change. All items in one call must target " +
             "Git commit-backed file diffs; do not mix file walkthrough items and diff walkthrough items. " +
             "Do not submit file contents. Submit commit hashes for the two file revisions to compare. " +
-            "After this tool returns, immediately call await_walkthrough_question with the returned walkthroughId."
+            "After this tool returns, immediately call await_walkthrough_question with the returned walkthroughId.",
     )
     suspend fun showDiffWalkthroughItems(
         @McpDescription(
             "Short human-readable description shown in the project walkthrough history. " +
-            "Use a concise phrase that helps the user recognize this walkthrough later."
+                "Use a concise phrase that helps the user recognize this walkthrough later.",
         ) description: String,
         @McpDescription(
             "JSON object with 'diffs' and 'items'. 'diffs' supplies Git revisions to compare: " +
-            "'id', 'file', 'leftCommit', and 'rightCommit'; for renames, use 'leftFile' and 'rightFile' " +
-            "instead of 'file'. 'items' is an array with 'text', 'diffId', 'diffFile', 'diffSide', and 'line'. " +
-            "'diffSide' is 'left' or 'right'. 'line' is 1-based in that side's full file text at that commit, " +
-            "not the patch hunk line. Use 'right' for added or modified new code and 'left' for removed old code. " +
-            "For PRs, pass the merge-base commit as 'leftCommit' and the PR head commit as 'rightCommit'. " +
-            "Verify every line by inspecting that exact file at that exact commit before calling."
-        ) payload: String
+                "'id', 'file', 'leftCommit', and 'rightCommit'; for renames, use 'leftFile' and 'rightFile' " +
+                "instead of 'file'. 'items' is an array with 'text', 'diffId', 'diffFile', " +
+                "'diffSide', and 'line'. " +
+                "'diffSide' is 'left' or 'right'. 'line' is 1-based in that side's full file text " +
+                "at that commit, not the patch hunk line. " +
+                "Use 'right' for added or modified new code and 'left' for removed old code. " +
+                "For PRs, pass the merge-base commit as 'leftCommit' and the PR head commit as 'rightCommit'. " +
+                "Verify every line by inspecting that exact file at that exact commit before calling.",
+        ) payload: String,
     ): String {
         val project = requireProject()
         val trimmedDescription = description.trim()
@@ -143,7 +147,7 @@ class ShowWalkthroughItemsToolset : McpToolset {
                 project = project,
                 descriptors = parsedPayload.descriptors,
                 items = labeledItems,
-                acceptsQuestions = true
+                acceptsQuestions = true,
             )
         } ?: mcpFail("No diff walkthrough items to show")
 
@@ -151,7 +155,7 @@ class ShowWalkthroughItemsToolset : McpToolset {
             description = trimmedDescription,
             targetKind = WalkthroughTargetKind.Diff,
             diffDescriptors = parsedPayload.descriptors,
-            items = session.snapshotItems()
+            items = session.snapshotItems(),
         )
 
         val labels = labeledItems.mapNotNull { it.label }.joinToString(", ")
@@ -174,10 +178,10 @@ class ShowWalkthroughItemsToolset : McpToolset {
             "Call this immediately after show_walkthrough_items or show_diff_walkthrough_items returns, " +
             "and call it again after each insert_walkthrough_tangents response. " +
             "Keep waiting in this loop until this tool returns dismissed. " +
-            "Call insert_walkthrough_tangents to splice each answer into the walkthrough as labeled child steps."
+            "Call insert_walkthrough_tangents to splice each answer into the walkthrough as labeled child steps.",
     )
     suspend fun awaitWalkthroughQuestion(
-        @McpDescription("The walkthroughId returned by show_walkthrough_items.") walkthroughId: String
+        @McpDescription("The walkthroughId returned by show_walkthrough_items.") walkthroughId: String,
     ): String {
         val project = requireProject()
         val registry = WalkthroughSessionRegistry.getInstance(project)
@@ -185,9 +189,11 @@ class ShowWalkthroughItemsToolset : McpToolset {
         val result = when {
             session != null -> resolveAwaitQuestionResult(
                 result = session.awaitQuestionResult(QUESTION_TOOL_REFRESH_TIMEOUT_MILLIS),
-                wasDismissed = registry.consumeDismissed(walkthroughId)
+                wasDismissed = registry.consumeDismissed(walkthroughId),
             )
+
             registry.consumeDismissed(walkthroughId) -> WalkthroughQuestionAwaitResult.Dismissed
+
             else -> mcpFail("Unknown walkthroughId: $walkthroughId")
         }
         return when (result) {
@@ -195,10 +201,13 @@ class ShowWalkthroughItemsToolset : McpToolset {
                 val parent = result.question.parentLabel ?: "(unknown)"
                 "parentLabel=$parent\nquestion=${result.question.question}"
             }
+
             WalkthroughQuestionAwaitResult.Dismissed -> "dismissed"
+
             WalkthroughQuestionAwaitResult.WaitingExpired ->
                 "waiting-expired\nNo question arrived before the refresh timeout. " +
                     "Call await_walkthrough_question again immediately with walkthroughId=$walkthroughId."
+
             WalkthroughQuestionAwaitResult.Replaced ->
                 "waiting-replaced\nA newer await_walkthrough_question call is already listening."
         }
@@ -212,20 +221,20 @@ class ShowWalkthroughItemsToolset : McpToolset {
             "the first tangent under '3' becomes '3.1', the next '3.2', and so on. The popup " +
             "auto-navigates to the first inserted step. Clears the inline loading spinner so " +
             "the user can ask another question. After this tool returns, immediately call " +
-            "await_walkthrough_question again with the same walkthroughId."
+            "await_walkthrough_question again with the same walkthroughId.",
     )
     suspend fun insertWalkthroughTangents(
         @McpDescription("The walkthroughId returned by show_walkthrough_items.") walkthroughId: String,
         @McpDescription(
             "Label of the parent step the user asked the question under (e.g. '3' or '3.1'). " +
-            "Must match the parentLabel reported by await_walkthrough_question."
+                "Must match the parentLabel reported by await_walkthrough_question.",
         ) parentLabel: String,
         @McpDescription(
             "JSON array of walkthrough items to insert as children. For file walkthroughs, use the same item " +
-            "shape as show_walkthrough_items. For diff walkthroughs, use diff item fields from " +
-            "show_diff_walkthrough_items: 'text', 'diffId', 'diffFile', 'diffSide', and 'line'. " +
-            "Verify line numbers against the actual file or exact diff side before calling."
-        ) items: String
+                "shape as show_walkthrough_items. For diff walkthroughs, use diff item fields from " +
+                "show_diff_walkthrough_items: 'text', 'diffId', 'diffFile', 'diffSide', and 'line'. " +
+                "Verify line numbers against the actual file or exact diff side before calling.",
+        ) items: String,
     ): String {
         val project = requireProject()
         val trimmedParent = parentLabel.trim()
@@ -255,7 +264,7 @@ class ShowWalkthroughItemsToolset : McpToolset {
             WalkthroughItem(
                 text = entry.text ?: mcpFail("Each item must have a 'text' field"),
                 file = entry.file,
-                line = entry.line
+                line = entry.line,
             )
         }
     } catch (exception: JsonParseException) {
@@ -266,7 +275,7 @@ class ShowWalkthroughItemsToolset : McpToolset {
 
     private data class ParsedDiffPayload(
         val descriptors: List<DiffWalkthroughDescriptor>,
-        val items: List<WalkthroughItem>
+        val items: List<WalkthroughItem>,
     )
 
     private fun parseDiffPayload(payload: String): ParsedDiffPayload = try {
@@ -284,7 +293,7 @@ class ShowWalkthroughItemsToolset : McpToolset {
     }
 
     private fun parseDiffDescriptors(
-        entries: List<ToolDiffWalkthroughDescriptorJson>
+        entries: List<ToolDiffWalkthroughDescriptorJson>,
     ): List<DiffWalkthroughDescriptor> {
         val descriptors = entries.map { entry ->
             val file = entry.file?.trim()?.takeIf { it.isNotBlank() }
@@ -302,7 +311,7 @@ class ShowWalkthroughItemsToolset : McpToolset {
                 leftCommit = entry.leftCommit?.trim()?.takeIf { it.isNotBlank() }
                     ?: mcpFail("Each diff must have a 'leftCommit' field"),
                 rightCommit = entry.rightCommit?.trim()?.takeIf { it.isNotBlank() }
-                    ?: mcpFail("Each diff must have a 'rightCommit' field")
+                    ?: mcpFail("Each diff must have a 'rightCommit' field"),
             )
         }
         val duplicateId = descriptors.groupBy { it.id }.entries.firstOrNull { it.value.size > 1 }?.key
@@ -310,44 +319,40 @@ class ShowWalkthroughItemsToolset : McpToolset {
         return descriptors
     }
 
-    private fun parseDiffItems(
-        items: String,
-        descriptors: List<DiffWalkthroughDescriptor>
-    ): List<WalkthroughItem> = try {
-        val type = object : TypeToken<List<WalkthroughItemJson>>() {}.type
-        val parsed: List<WalkthroughItemJson> = Gson().fromJson(items, type)
-        parseDiffItems(parsed, descriptors)
-    } catch (exception: JsonParseException) {
-        mcpFail("Invalid items JSON: ${exception.message}")
-    } catch (exception: IllegalStateException) {
-        mcpFail("Invalid items JSON: ${exception.message}")
-    }
+    private fun parseDiffItems(items: String, descriptors: List<DiffWalkthroughDescriptor>): List<WalkthroughItem> =
+        try {
+            val type = object : TypeToken<List<WalkthroughItemJson>>() {}.type
+            val parsed: List<WalkthroughItemJson> = Gson().fromJson(items, type)
+            parseDiffItems(parsed, descriptors)
+        } catch (exception: JsonParseException) {
+            mcpFail("Invalid items JSON: ${exception.message}")
+        } catch (exception: IllegalStateException) {
+            mcpFail("Invalid items JSON: ${exception.message}")
+        }
 
     private fun parseDiffItems(
         entries: List<WalkthroughItemJson>,
-        descriptors: List<DiffWalkthroughDescriptor>
-    ): List<WalkthroughItem> =
-        entries.map { entry ->
-            val diffId = entry.diffId?.trim()?.takeIf { it.isNotBlank() }
-                ?: mcpFail("Each diff item must have a 'diffId' field")
-            val descriptor = descriptors.firstOrNull { it.id == diffId }
-                ?: mcpFail("Unknown diffId: $diffId")
-            WalkthroughItem(
-                text = entry.text ?: mcpFail("Each item must have a 'text' field"),
-                line = entry.line ?: mcpFail("Each diff item must have a 'line' field"),
-                diffId = diffId,
-                diffFile = entry.diffFile?.trim()?.takeIf { it.isNotBlank() }
-                    ?: descriptor.file
-                    ?: descriptor.rightFile
-                    ?: descriptor.leftFile,
-                diffSide = parseDiffSide(entry.diffSide)
-            )
-        }
+        descriptors: List<DiffWalkthroughDescriptor>,
+    ): List<WalkthroughItem> = entries.map { entry ->
+        val diffId = entry.diffId?.trim()?.takeIf { it.isNotBlank() }
+            ?: mcpFail("Each diff item must have a 'diffId' field")
+        val descriptor = descriptors.firstOrNull { it.id == diffId }
+            ?: mcpFail("Unknown diffId: $diffId")
+        WalkthroughItem(
+            text = entry.text ?: mcpFail("Each item must have a 'text' field"),
+            line = entry.line ?: mcpFail("Each diff item must have a 'line' field"),
+            diffId = diffId,
+            diffFile = entry.diffFile?.trim()?.takeIf { it.isNotBlank() }
+                ?: descriptor.file
+                ?: descriptor.rightFile
+                ?: descriptor.leftFile,
+            diffSide = parseDiffSide(entry.diffSide),
+        )
+    }
 
-    private fun parseDiffSide(value: String?): DiffSide =
-        when (value?.trim()?.lowercase()) {
-            "left" -> DiffSide.Left
-            "right" -> DiffSide.Right
-            else -> mcpFail("Each diff item must have 'diffSide' set to 'left' or 'right'")
-        }
+    private fun parseDiffSide(value: String?): DiffSide = when (value?.trim()?.lowercase()) {
+        "left" -> DiffSide.Left
+        "right" -> DiffSide.Right
+        else -> mcpFail("Each diff item must have 'diffSide' set to 'left' or 'right'")
+    }
 }

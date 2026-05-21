@@ -1,0 +1,63 @@
+# Configuration for zizmor (https://docs.zizmor.sh/configuration/).
+#
+# This codebase pins GitHub Actions to floating major-version tags (e.g.
+# `actions/checkout@v6`) and relies on Dependabot's GitHub Actions ecosystem
+# to keep those tags current. Switching every workflow to SHA pinning is a
+# separate, mechanical refactor tracked outside this lint integration, so
+# `unpinned-uses` is muted until that change lands. The other audits below
+# are intentional design choices, not bugs to fix.
+
+rules:
+  unpinned-uses:
+    # TODO: pin all third-party actions to commit SHAs (a `pinact`-style
+    # rewrite) once Dependabot is configured to maintain SHA-pinned uses.
+    config:
+      policies:
+        "*": ref-pin
+
+  cache-poisoning:
+    # gradle/actions/setup-gradle is used precisely *because* it caches the
+    # Gradle wrapper / dependency graph between PR runs. The cache key
+    # already includes the build script hashes, and writes happen only on
+    # the main branch (see `cache-read-only: ${{ github.ref != 'refs/heads/main' }}`).
+    ignore:
+      - build.yml
+      - release.yml
+
+  excessive-permissions:
+    # The top-level `permissions:` block in each workflow is intentionally
+    # minimal (`contents: read`); zizmor flags any job whose effective scope
+    # is broader than required, but the publish/release job actually does
+    # need `contents: write`, so the warnings are expected.
+    ignore:
+      - release.yml
+
+  artipacked:
+    # actions/checkout caches credentials by default. None of our jobs run
+    # untrusted code that could exfiltrate the token before `actions/checkout`
+    # is invoked again, and disabling credential persistence would break
+    # downstream Gradle steps that fetch from the same repository.
+    ignore:
+      - build.yml
+      - release.yml
+      - qodana.yml
+
+  secrets-outside-env:
+    # All of our jobs run on push/pull_request triggers against `main` and
+    # consume only secrets injected by the Setup Gradle, Qodana, and
+    # JetBrains Marketplace publish actions (GRADLE_ENCRYPTION_KEY,
+    # QODANA_TOKEN, PUBLISH_TOKEN, PRIVATE_KEY, CERTIFICATE_CHAIN). They're
+    # never logged or written to outputs; moving them into per-job GitHub
+    # Environments would be an improvement but is outside the scope of this
+    # lint integration.
+    ignore:
+      - build.yml
+      - qodana.yml
+      - release.yml
+
+  superfluous-actions:
+    # `softprops/action-gh-release` is intentionally used in release.yml for
+    # its template support; rewriting it as `gh release create` is a
+    # separate, behavior-changing refactor that is out of scope here.
+    ignore:
+      - release.yml
