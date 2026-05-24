@@ -136,3 +136,9 @@ so the project does not depend on a machine-specific local IDE path.
 8. Keep user-facing walkthrough UI in JetBrains Compose / Jewel. If Swing hosting glue is needed,
    keep it minimal and limited to integration layers such as popup surfaces or Compose bridges.
 9. Keep all external dependency versions in `gradle/libs.versions.toml` (Gradle version catalog).
+10. After completing a user-visible change, add a short entry to the `## [Unreleased]` section of
+    `CHANGELOG.md` under `### Added`, `### Changed`, `### Fixed`, or `### Removed` as appropriate.
+    Keep the entry user-focused (what changed from the user's perspective, not implementation
+    detail) and include the related issue and/or PR number, e.g. `(#42)` or `(PR #42)`. Skip the
+    entry for purely internal changes (refactors, test-only changes, CI tweaks) that a user would
+    not notice.
