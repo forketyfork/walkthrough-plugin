@@ -60,7 +60,7 @@ class WalkthroughSession internal constructor(
     internal val loadingState = mutableStateOf(false)
 
     @Volatile
-    var historyRecordId: String? = null
+    internal var historyRecordId: String? = null
 
     private val questionLock = Any()
     private var activeQuestionWaiter: WalkthroughQuestionWaiter? = null
