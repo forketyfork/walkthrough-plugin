@@ -7,27 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.1]
+
 ### Added
 
-- Expanded Detekt rule sets with `potential-bugs`, `exceptions`, and `coroutines` audits, plus
-  the `ktlint-wrapper` formatting rules and the `io.nlopez.compose.rules:detekt` Compose-specific
-  ruleset. Existing findings are grandfathered through `detekt-baseline.xml`.
-- `.editorconfig` at the repo root to keep IDE-, Detekt-, and ktlint-managed formatting in sync.
-- Qodana JVM (Community) static analysis via the `JetBrains/qodana-action` GitHub Actions
-  workflow, configured by `qodana.yaml`. Catches DevKit / IntelliJ Platform inspections that
-  Detekt does not implement.
-- `typos` and `zizmor` pre-commit hooks (wired through `flake.nix`), with `.typos.toml` and
-  `.github/zizmor.yml` configuration files documenting the intentional exemptions.
-- `verifyPlugin` now runs on every pull request, not just on pushes to `main`.
+- Improved linting and quality tooling configuration (PR #33).
 
 ### Fixed
 
+- Stepping between diff walkthrough items now reuses the already-open diff viewer instead of
+  opening a new tab (PR #32).
 - The popup no longer briefly flashes the "agent is not listening" warning when the MCP client
-  cancels and immediately re-issues `await_walkthrough_question`. The status now waits for a
-  short grace period (5 s) before flipping. The underlying `CancellationException` is also no
-  longer surfaced to the IDE log as a tool-call error. The inline spinner is now cleared as soon
-  as `insert_walkthrough_tangents` returns, instead of staying on screen until the grace window
-  expires.
+  cancels and immediately re-issues a question wait (PR #31).
+- Answer steps inserted via follow-up questions are now persisted to walkthrough history and
+  restored when the walkthrough is reopened (#34, PR #35).
 
 ## [0.4.0]
 
