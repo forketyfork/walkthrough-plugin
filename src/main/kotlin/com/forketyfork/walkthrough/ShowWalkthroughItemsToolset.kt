@@ -98,6 +98,7 @@ class ShowWalkthroughItemsToolset : McpToolset {
 
         val record = WalkthroughHistoryService.getInstance(project)
             .save(trimmedDescription, session.snapshotItems())
+        session.historyRecordId = record?.id
 
         val labels = labeledItems.mapNotNull { it.label }.joinToString(", ")
         val historySuffix = record
@@ -158,6 +159,7 @@ class ShowWalkthroughItemsToolset : McpToolset {
             diffDescriptors = parsedPayload.descriptors,
             items = session.snapshotItems(),
         )
+        session.historyRecordId = record?.id
 
         val labels = labeledItems.mapNotNull { it.label }.joinToString(", ")
         val historySuffix = record
@@ -259,6 +261,9 @@ class ShowWalkthroughItemsToolset : McpToolset {
 
         val inserted = withContext(Dispatchers.EDT) {
             session.insertTangents(trimmedParent, parsedItems)
+        }
+        session.historyRecordId?.let { recordId ->
+            WalkthroughHistoryService.getInstance(project).updateItems(recordId, session.snapshotItems())
         }
         val labels = inserted.mapNotNull { it.label }.joinToString(", ")
         return "Inserted ${inserted.size} tangent step(s) under $trimmedParent: $labels"

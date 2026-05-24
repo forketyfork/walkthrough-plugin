@@ -40,6 +40,16 @@ class WalkthroughHistoryService(private val project: Project) {
             store?.load(id)
         }
 
+    fun updateItems(recordId: String, items: List<WalkthroughItem>): WalkthroughRecord? =
+        runHistoryOperation(operation = "update walkthrough history", fallback = null) {
+            store?.let { backing ->
+                val existing = backing.load(recordId) ?: return@let null
+                val updated = existing.copy(items = items)
+                backing.save(updated)
+                updated
+            }
+        }
+
     private fun <T> runHistoryOperation(operation: String, fallback: T, block: () -> T): T =
         runCatching(block).getOrElse { exception ->
             LOG.warn("Failed to $operation", exception)

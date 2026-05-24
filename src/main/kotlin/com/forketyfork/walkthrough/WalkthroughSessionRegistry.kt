@@ -59,6 +59,9 @@ class WalkthroughSession internal constructor(
     internal val questionStatusState = mutableStateOf(WalkthroughQuestionStatus.AgentNotWaiting)
     internal val loadingState = mutableStateOf(false)
 
+    @Volatile
+    var historyRecordId: String? = null
+
     private val questionLock = Any()
     private var activeQuestionWaiter: WalkthroughQuestionWaiter? = null
     private var pendingQuestion: WalkthroughTangentQuestion? = null
