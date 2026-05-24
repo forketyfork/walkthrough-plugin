@@ -194,6 +194,84 @@ class WalkthroughHistoryStoreTest {
     }
 
     @Test
+    fun resavingFileRecordWithSameIdReplacesItemsAndPreservesMetadata() {
+        val store = WalkthroughHistoryStore(
+            directory = tempDir,
+            clock = Clock.fixed(Instant.parse("2026-05-09T04:34:00Z"), ZoneOffset.UTC),
+            randomSuffix = { "abc12345" },
+        )
+        val initialItems = listOf(
+            WalkthroughItem(text = "step one", label = "1"),
+            WalkthroughItem(text = "step two", label = "2"),
+        )
+        val saved = store.save("Persisted tangents", initialItems)
+
+        val updatedItems = listOf(
+            WalkthroughItem(text = "step one", label = "1"),
+            WalkthroughItem(text = "step two", label = "2"),
+            WalkthroughItem(text = "answer A", label = "2.1", parentLabel = "2"),
+        )
+        store.save(saved.copy(items = updatedItems))
+
+        val reloaded = store.load(saved.id)
+        assertEquals(updatedItems, reloaded?.items)
+        assertEquals(saved.id, reloaded?.id)
+        assertEquals(saved.createdAt, reloaded?.createdAt)
+        assertEquals(saved.description, reloaded?.description)
+        assertEquals(saved.targetKind, reloaded?.targetKind)
+        assertEquals(saved.diffDescriptors, reloaded?.diffDescriptors)
+    }
+
+    @Test
+    fun resavingDiffRecordWithSameIdReplacesItemsAndPreservesDescriptors() {
+        val store = WalkthroughHistoryStore(
+            directory = tempDir,
+            clock = Clock.fixed(Instant.parse("2026-05-09T04:34:00Z"), ZoneOffset.UTC),
+            randomSuffix = { "abc12345" },
+        )
+        val descriptors = listOf(
+            DiffWalkthroughDescriptor(
+                id = "popup-change",
+                file = "src/Foo.kt",
+                leftCommit = "1111111111111111111111111111111111111111",
+                rightCommit = "2222222222222222222222222222222222222222",
+            ),
+        )
+        val initialItems = listOf(
+            WalkthroughItem(
+                text = "step one",
+                line = 13,
+                diffId = "popup-change",
+                diffFile = "src/Foo.kt",
+                diffSide = DiffSide.Right,
+                label = "1",
+            ),
+        )
+        val saved = store.save(
+            description = "Diff tangents",
+            targetKind = WalkthroughTargetKind.Diff,
+            diffDescriptors = descriptors,
+            items = initialItems,
+        )
+
+        val updatedItems = initialItems + WalkthroughItem(
+            text = "answer A",
+            line = 20,
+            diffId = "popup-change",
+            diffFile = "src/Foo.kt",
+            diffSide = DiffSide.Right,
+            label = "1.1",
+            parentLabel = "1",
+        )
+        store.save(saved.copy(items = updatedItems))
+
+        val reloaded = store.load(saved.id)
+        assertEquals(updatedItems, reloaded?.items)
+        assertEquals(descriptors, reloaded?.diffDescriptors)
+        assertEquals(WalkthroughTargetKind.Diff, reloaded?.targetKind)
+    }
+
+    @Test
     fun saveAcceptsDiffDescriptorWithOnlySideFiles() {
         val store = WalkthroughHistoryStore(
             directory = tempDir,
