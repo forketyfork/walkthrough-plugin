@@ -36,6 +36,75 @@ Available on the [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/31
   </tr>
 </table>
 
+## Getting started
+
+Walkthroughs are driven by an MCP tool that the plugin exposes through the IDE. The setup is a
+one-time wiring exercise between the IDE and your agent.
+
+### 1. Install the plugin
+
+Install **Walkthrough** from the
+[JetBrains Marketplace](https://plugins.jetbrains.com/plugin/31637-walkthrough/), or from the IDE:
+**Settings → Plugins → Marketplace**, search for *Walkthrough*, and click **Install**.
+
+Requires IntelliJ IDEA 2026.1 or newer. The plugin depends on JetBrains' **MCP Server** plugin,
+which the IDE installs alongside Walkthrough automatically.
+
+### 2. Enable the MCP server
+
+1. Open **Settings → Tools → MCP Server**.
+2. Tick **Enable MCP Server** and apply.
+
+This starts a local MCP server that exposes the walkthrough tools (and other built-in IDE tools)
+to any MCP client you connect.
+
+<a href="docs/mcp.png">
+  <img src="docs/mcp.png" alt="MCP Server settings page with Enable MCP Server checked" width="260">
+</a>
+
+### 3. Connect your agent
+
+On the same **MCP Server** settings page, use the **Clients Auto-Configuration** section to wire
+up a supported client (Claude Code, Claude Desktop, Cursor, and others). The button writes the
+correct configuration to that client's config file. Restart the client afterward so it picks up
+the new server.
+
+If your client is not in the list, configure it manually using the server URL shown on the same
+settings page.
+
+### 4. Run your first walkthrough
+
+1. Open a project in IntelliJ IDEA.
+2. In your agent, ask for a tour, for example:
+   > *Use the IDEA walkthrough to explain how authentication works in this codebase.*
+3. The agent calls the `show_walkthrough_items` MCP tool and the IDE renders the explanation as
+   popups anchored to the relevant lines. Use **Previous** / **Next** in the popup to step
+   through.
+4. Ask follow-up questions directly in the popup. The agent's answer is inserted as a child step
+   in the same walkthrough.
+
+Walkthroughs are saved per project under `.idea/walkthroughs/` and can be replayed via
+**Tools → Walkthrough → Show Walkthrough History** (bindable to a keymap shortcut).
+
+### 5. Optional: companion walkthrough skill
+
+A companion [walkthrough skill](https://github.com/forketyfork/agentic-skills) teaches the agent
+how to structure good walkthroughs and when to reach for them. It is published in the
+`agentic-skills` marketplace as a plain markdown skill and can be loaded by any agent that
+supports markdown skills or custom instructions. If your client does not have a skills mechanism,
+paste the skill contents into your agent's instructions file (`CLAUDE.md`, `AGENTS.md`,
+`.cursor/rules`, or equivalent).
+
+For Claude Code, install it directly from the marketplace:
+
+```bash
+/plugin marketplace add forketyfork/agentic-skills
+/plugin install walkthrough@agentic-skills
+```
+
+Once loaded, the skill activates whenever you ask for a guided tour or step-by-step code
+walkthrough.
+
 ## Features
 
 - Three MCP tools: `show_walkthrough_items`, `await_walkthrough_question`, and
@@ -50,21 +119,9 @@ Available on the [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/31
 - User-selectable popup color palettes under the IDE settings.
 - A Compose-based popup UI rendered through Jewel on the IntelliJ Platform.
 
-## Claude Code skill
+## Development
 
-A companion skill that teaches agents how to author walkthroughs is published in the
-[agentic-skills](https://github.com/forketyfork/agentic-skills) marketplace. Install it in
-Claude Code with:
-
-```bash
-/plugin marketplace add forketyfork/agentic-skills
-/plugin install walkthrough@agentic-skills
-```
-
-Once installed, the skill activates whenever you ask for a guided tour or step-by-step code
-walkthrough, and can be invoked explicitly as `/walkthrough`.
-
-## Prerequisites
+### Prerequisites
 
 **Recommended:** Install [Nix](https://nixos.org/download) and [direnv](https://direnv.net), then
 run `direnv allow` in the project directory. This provides JDK 21, pre-commit hooks, and all
@@ -72,7 +129,7 @@ development tooling automatically.
 
 **Manual:** Install JDK 21. The Gradle wrapper is included in the repository.
 
-## Development
+### Commands
 
 | Command | Description |
 | --- | --- |
