@@ -92,6 +92,27 @@ class WalkthroughMarkdownExporterTest {
     }
 
     @Test
+    fun preservesSignificantLeadingAndTrailingBodyWhitespace() {
+        val record = WalkthroughRecord(
+            id = "20260509-043400-000-code-block-abc12345",
+            createdAt = "2026-05-09T04:34:00Z",
+            description = "Indented code block",
+            items = listOf(
+                WalkthroughItem(
+                    text = "    val x = 1\n    val y = 2\n",
+                    label = "1",
+                ),
+            ),
+        )
+
+        val markdown = renderWalkthroughMarkdown(record)
+
+        // The indented code block (leading spaces) must survive, and the trailing newline must
+        // not be doubled even though the body already ends with one.
+        assertTrue(markdown.endsWith("## Step 1\n\n    val x = 1\n    val y = 2\n"))
+    }
+
+    @Test
     fun fallsBackToSequentialNumbersWhenLabelsAreMissing() {
         val record = WalkthroughRecord(
             id = "20260509-043400-000-unlabeled-abc12345",

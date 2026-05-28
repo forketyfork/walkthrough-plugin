@@ -34,7 +34,13 @@ internal fun renderWalkthroughMarkdown(record: WalkthroughRecord): String {
         itemLocation(item, record.targetKind)?.let { location ->
             builder.append(location).append("\n\n")
         }
-        builder.append(item.text.trim()).append('\n')
+        // Emit the Markdown body verbatim — trimming it would strip significant leading whitespace
+        // such as an indented code block. Only normalize the trailing delimiter newline the
+        // exporter itself adds between sections.
+        builder.append(item.text)
+        if (!item.text.endsWith("\n")) {
+            builder.append('\n')
+        }
     }
 
     return builder.toString()
