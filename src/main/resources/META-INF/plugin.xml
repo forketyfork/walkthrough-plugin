@@ -52,6 +52,11 @@
                 class="com.forketyfork.walkthrough.WalkthroughHistoryAction"
                 text="Show Walkthrough History"
                 description="Show previous walkthroughs for the current project"/>
+            <action
+                id="com.forketyfork.walkthrough.ExportMarkdown"
+                class="com.forketyfork.walkthrough.WalkthroughExportAction"
+                text="Export Walkthrough to Markdown…"
+                description="Export a saved walkthrough as a shareable Markdown document"/>
         </group>
     </actions>
 </idea-plugin>

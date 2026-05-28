@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- A **Tools → Walkthrough → Export Walkthrough to Markdown…** action that saves any walkthrough from
+  the project history as a shareable Markdown document, with each step (and its follow-up answer
+  steps) rendered as a section linked to its source location.
+
 ## [0.4.1]
 
 ### Added
