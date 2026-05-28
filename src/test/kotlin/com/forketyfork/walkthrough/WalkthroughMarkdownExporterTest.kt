@@ -54,6 +54,7 @@ class WalkthroughMarkdownExporterTest {
             ## Step 2
 
             Finally the session is created.
+
             """.trimIndent(),
             body,
         )

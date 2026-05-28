@@ -58,6 +58,7 @@ private fun exportWalkthrough(project: Project, record: WalkthroughRecord, dataC
     val caught = failure
     when {
         saved != null -> FileEditorManager.getInstance(project).openFile(saved, true)
+
         caught != null -> {
             LOG.warn("Failed to export walkthrough to Markdown", caught)
             JBPopupFactory.getInstance()
