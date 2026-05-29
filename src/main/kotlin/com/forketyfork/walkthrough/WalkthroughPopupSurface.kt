@@ -52,12 +52,14 @@ internal class WalkthroughPopupSurface(
     val content: JComponent,
     private var palette: WalkthroughPalette,
     private val onCloseRequested: () -> Unit,
+    private val onInteractionEnd: () -> Unit = {},
 ) : JComponent(),
     VisibleAreaListener,
     Disposable {
     private var editor: Editor? = null
     private var item: WalkthroughItem? = null
     private var layeredPane: JLayeredPane? = null
+    private var interactionHandlerInstalled = false
     var connectorHidden: Boolean = false
         set(value) {
             field = value
@@ -102,8 +104,22 @@ internal class WalkthroughPopupSurface(
                 pane.add(this)
             }
         }
+        installInteractionHandlerIfNeeded(editor)
         refreshBounds()
         repaint()
+    }
+
+    private fun installInteractionHandlerIfNeeded(editor: Editor) {
+        if (interactionHandlerInstalled) {
+            return
+        }
+        interactionHandlerInstalled = installPopupInteractionHandler(
+            editor = editor,
+            parentDisposable = this,
+            popupProvider = { this },
+            editorProvider = { this.editor },
+            onInteractionEnd = onInteractionEnd,
+        )
     }
 
     fun updatePalette(palette: WalkthroughPalette) {

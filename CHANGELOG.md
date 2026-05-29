@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Dragging or resizing a walkthrough popup that overlaps the editor tab bar no longer reorders the
+  tabs underneath (#38).
+
 ## [0.4.1]
 
 ### Added
