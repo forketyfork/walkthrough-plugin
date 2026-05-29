@@ -1,13 +1,14 @@
 package com.forketyfork.walkthrough
 
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.wm.IdeGlassPane
+import com.intellij.openapi.wm.IdeGlassPaneUtil
+import com.intellij.ui.awt.RelativePoint
 import java.awt.Component
-import java.awt.Container
 import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.Point
-import java.awt.event.ContainerAdapter
-import java.awt.event.ContainerEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.JComponent
@@ -19,9 +20,6 @@ import java.awt.Color as AwtColor
 private const val DRAG_HANDLE_HEIGHT_PX = 64
 private const val CLOSE_BUTTON_HIT_BOX_PX = 60
 private const val RESIZE_HANDLE_SIZE_PX = 26
-private const val INTERACTION_LISTENER_CLIENT_PROPERTY = "walkthrough.popup.interaction.listener"
-private const val INTERACTION_CONTAINER_LISTENER_CLIENT_PROPERTY =
-    "walkthrough.popup.interaction.container.listener"
 
 private enum class PopupInteractionMode {
     Drag,
@@ -41,112 +39,122 @@ internal fun makeComponentHierarchyTransparent(component: Component?) {
     }
 }
 
+/**
+ * Routes popup drag and resize gestures through an [IdeGlassPane] mouse preprocessor. The editor
+ * file tabs install their own [com.intellij.ui.MouseDragHelper] preprocessor (weight `2`) on the
+ * same glass pane; registering with the default weight `0` makes this listener run first, so
+ * consuming a gesture that starts on the popup prevents the covered tabs from reordering.
+ */
 internal fun installPopupInteractionHandler(
-    panel: JComponent,
+    glassPane: IdeGlassPane,
+    parentDisposable: Disposable,
     popupProvider: () -> WalkthroughPopupSurface?,
     editorProvider: () -> Editor?,
     onInteractionEnd: () -> Unit,
 ) {
-    var lastScreenPoint: Point? = null
-    var interactionMode: PopupInteractionMode? = null
-
-    val interactionListener = object : MouseAdapter() {
-        override fun mousePressed(event: MouseEvent) {
-            if (event.button != MouseEvent.BUTTON1) {
-                interactionMode = null
-                lastScreenPoint = null
-                return
-            }
-            interactionMode = when {
-                isWithinResizeHandle(panel, event.component, event.point) -> PopupInteractionMode.Resize
-                isWithinDragHandle(panel, event.component, event.point) -> PopupInteractionMode.Drag
-                else -> null
-            }
-            lastScreenPoint = interactionMode?.let { event.locationOnScreen }
-        }
-
-        override fun mouseDragged(event: MouseEvent) {
-            val mode = interactionMode
-            val popup = popupProvider()
-            val editor = editorProvider()
-            if (mode != null && popup != null && editor != null) {
-                val previousScreenPoint = lastScreenPoint ?: event.locationOnScreen
-                val currentScreenPoint = event.locationOnScreen
-                handlePopupDrag(panel, mode, popup, editor, previousScreenPoint, currentScreenPoint)
-                lastScreenPoint = currentScreenPoint
-            }
-        }
-
-        override fun mouseMoved(event: MouseEvent) {
-            updateInteractionCursor(panel, event.component, event.point)
-        }
-
-        override fun mouseReleased(event: MouseEvent) {
-            val hadInteraction = interactionMode != null
-            interactionMode = null
-            lastScreenPoint = null
-            updateInteractionCursor(panel, event.component, event.point)
-            if (hadInteraction) {
-                onInteractionEnd()
-            }
-        }
-
-        override fun mouseExited(event: MouseEvent) {
-            if (interactionMode == null) {
-                event.component.cursor = Cursor.getDefaultCursor()
-                panel.cursor = Cursor.getDefaultCursor()
-            }
-        }
-    }
-
-    attachMouseListenersRecursively(panel, interactionListener)
+    val listener = WalkthroughPopupInteractionListener(
+        glassPane = glassPane,
+        popupProvider = popupProvider,
+        editorProvider = editorProvider,
+        onInteractionEnd = onInteractionEnd,
+    )
+    glassPane.addMousePreprocessor(listener, parentDisposable)
+    glassPane.addMouseMotionPreprocessor(listener, parentDisposable)
 }
 
-private fun attachMouseListenersRecursively(component: Component, listener: MouseAdapter) {
-    if (component is JComponent) {
-        if (component.getClientProperty(
-                INTERACTION_LISTENER_CLIENT_PROPERTY,
-            ) !== listener
-        ) {
-            component.addMouseListener(listener)
-            component.addMouseMotionListener(listener)
-            component.putClientProperty(INTERACTION_LISTENER_CLIENT_PROPERTY, listener)
-        }
-    } else {
-        component.addMouseListener(listener)
-        component.addMouseMotionListener(listener)
+internal fun findGlassPane(editor: Editor): IdeGlassPane? {
+    val component = editor.contentComponent
+    if (!component.isShowing) {
+        return null
     }
-    if (component is Container) {
-        component.components.forEach { child ->
-            attachMouseListenersRecursively(child, listener)
+    return runCatching { IdeGlassPaneUtil.find(component) }.getOrNull()
+}
+
+private class WalkthroughPopupInteractionListener(
+    private val glassPane: IdeGlassPane,
+    private val popupProvider: () -> WalkthroughPopupSurface?,
+    private val editorProvider: () -> Editor?,
+    private val onInteractionEnd: () -> Unit,
+) : MouseAdapter() {
+    private var interactionMode: PopupInteractionMode? = null
+    private var lastScreenPoint: Point? = null
+
+    override fun mousePressed(event: MouseEvent) {
+        val mode = popupProvider()
+            ?.takeIf { event.button == MouseEvent.BUTTON1 }
+            ?.let { handleRegionAt(it, event) }
+        if (mode == null) {
+            reset()
+            return
         }
-        if (component is JComponent &&
-            component.getClientProperty(INTERACTION_CONTAINER_LISTENER_CLIENT_PROPERTY) == null
-        ) {
-            val containerListener = object : ContainerAdapter() {
-                override fun componentAdded(event: ContainerEvent) {
-                    attachMouseListenersRecursively(event.child, listener)
-                }
-            }
-            component.addContainerListener(containerListener)
-            component.putClientProperty(INTERACTION_CONTAINER_LISTENER_CLIENT_PROPERTY, containerListener)
+        interactionMode = mode
+        lastScreenPoint = RelativePoint(event).screenPoint
+        event.consume()
+    }
+
+    override fun mouseDragged(event: MouseEvent) {
+        val mode = interactionMode ?: return
+        val popup = popupProvider()
+        val editor = editorProvider()
+        if (popup == null || editor == null) {
+            return
         }
+        val currentScreenPoint = RelativePoint(event).screenPoint
+        val previousScreenPoint = lastScreenPoint ?: currentScreenPoint
+        handlePopupDrag(popup.content, mode, popup, editor, previousScreenPoint, currentScreenPoint)
+        lastScreenPoint = currentScreenPoint
+        event.consume()
+    }
+
+    override fun mouseReleased(event: MouseEvent) {
+        if (interactionMode == null) {
+            return
+        }
+        reset()
+        event.consume()
+        onInteractionEnd()
+    }
+
+    override fun mouseMoved(event: MouseEvent) {
+        glassPane.setCursor(popupProvider()?.let { resolveHandleCursor(it, event) }, this)
+    }
+
+    private fun resolveHandleCursor(popup: WalkthroughPopupSurface, event: MouseEvent): Cursor? =
+        when (handleRegionAt(popup, event)) {
+            PopupInteractionMode.Resize -> Cursor.getPredefinedCursor(Cursor.SE_RESIZE_CURSOR)
+            PopupInteractionMode.Drag -> Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR)
+            null -> null
+        }
+
+    private fun reset() {
+        interactionMode = null
+        lastScreenPoint = null
     }
 }
 
-private fun updateInteractionCursor(panel: JComponent, component: Component, point: Point) {
-    val cursor = when {
-        isWithinResizeHandle(panel, component, point) ->
-            Cursor.getPredefinedCursor(Cursor.SE_RESIZE_CURSOR)
-
-        isWithinDragHandle(panel, component, point) ->
-            Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR)
-
-        else -> Cursor.getDefaultCursor()
-    }
-    component.cursor = cursor
-    panel.cursor = cursor
+private fun pointInContent(popup: WalkthroughPopupSurface, event: MouseEvent): Point? {
+    val contentLocation = popup.popupLocationOnScreen() ?: return null
+    val screenPoint = RelativePoint(event).screenPoint
+    return Point(screenPoint.x - contentLocation.x, screenPoint.y - contentLocation.y)
 }
+
+private fun handleRegionAt(popup: WalkthroughPopupSurface, event: MouseEvent): PopupInteractionMode? {
+    val point = pointInContent(popup, event) ?: return null
+    val content = popup.content
+    val withinBounds = point.x in 0 until content.width && point.y in 0 until content.height
+    return when {
+        !withinBounds -> null
+        resizeHandleContains(content.width, content.height, point) -> PopupInteractionMode.Resize
+        dragHandleContains(content.width, point) -> PopupInteractionMode.Drag
+        else -> null
+    }
+}
+
+internal fun dragHandleContains(width: Int, point: Point): Boolean =
+    point.y in 0..DRAG_HANDLE_HEIGHT_PX && point.x in 0..(width - CLOSE_BUTTON_HIT_BOX_PX)
+
+internal fun resizeHandleContains(width: Int, height: Int, point: Point): Boolean =
+    point.x in (width - RESIZE_HANDLE_SIZE_PX) until width && point.y in (height - RESIZE_HANDLE_SIZE_PX) until height
 
 @Suppress("LongParameterList")
 private fun handlePopupDrag(
@@ -173,18 +181,6 @@ private fun handlePopupDrag(
             deltaY = (currentScreenPoint.y - previousScreenPoint.y).toFloat(),
         )
     }
-}
-
-private fun isWithinDragHandle(panel: JComponent, component: Component, point: Point): Boolean {
-    val pointInPanel = SwingUtilities.convertPoint(component, point, panel)
-    return pointInPanel.y <= DRAG_HANDLE_HEIGHT_PX &&
-        pointInPanel.x <= panel.width - CLOSE_BUTTON_HIT_BOX_PX
-}
-
-private fun isWithinResizeHandle(panel: JComponent, component: Component, point: Point): Boolean {
-    val pointInPanel = SwingUtilities.convertPoint(component, point, panel)
-    return pointInPanel.x >= panel.width - RESIZE_HANDLE_SIZE_PX &&
-        pointInPanel.y >= panel.height - RESIZE_HANDLE_SIZE_PX
 }
 
 private fun resizePopupBy(

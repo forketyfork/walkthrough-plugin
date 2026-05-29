@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - A **Tools → Walkthrough → Export Walkthrough to Markdown…** action that saves any walkthrough from
   the project history as a shareable Markdown document, with each step (and its follow-up answer
   steps) rendered as a section annotated with its source location (PR #37).
+  
+### Fixed
+
+- Dragging or resizing a walkthrough popup that overlaps the editor tab bar no longer reorders the
+  tabs underneath (#38).
 
 ## [0.4.1]
 

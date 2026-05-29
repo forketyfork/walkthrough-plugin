@@ -69,7 +69,6 @@ fun showDiffWalkthroughSession(
     }
 
     var popupRef: WalkthroughPopupSurface? = null
-    var currentEditor: Editor? = null
     lateinit var controller: DiffWalkthroughController
 
     fun updatePopupPalette(palette: WalkthroughPalette) {
@@ -87,7 +86,6 @@ fun showDiffWalkthroughSession(
         descriptors = descriptors,
         sessionDisposable = sessionDisposable,
         popupProvider = { popupRef },
-        currentEditorUpdater = { editor -> currentEditor = editor },
     )
 
     val panel = createWalkthroughPanel(
@@ -99,13 +97,6 @@ fun showDiffWalkthroughSession(
         onClose = { popupRef?.cancel() },
     )
     makeComponentHierarchyTransparent(panel)
-
-    installPopupInteractionHandler(
-        panel = panel,
-        popupProvider = { popupRef },
-        editorProvider = { currentEditor },
-        onInteractionEnd = { saveCurrentGeometry(popupRef) },
-    )
 
     ApplicationManager.getApplication().messageBus.connect(sessionDisposable).subscribe(
         WalkthroughSettingsListener.TOPIC,
@@ -124,6 +115,7 @@ fun showDiffWalkthroughSession(
             registry.remove(session.id)
             Disposer.dispose(sessionDisposable)
         },
+        onInteractionEnd = { saveCurrentGeometry(popupRef) },
     )
     popupRef = popup
     Disposer.register(sessionDisposable, popup)
@@ -139,13 +131,11 @@ class WalkthroughDiffExtension : DiffExtension() {
     }
 }
 
-@Suppress("LongParameterList")
 private class DiffWalkthroughController(
     private val project: Project,
     private val descriptors: List<DiffWalkthroughDescriptor>,
     private val sessionDisposable: CheckedDisposable,
     private val popupProvider: () -> WalkthroughPopupSurface?,
-    private val currentEditorUpdater: (Editor) -> Unit,
 ) {
     private var pendingNavigationId = 0
     private var activeViewer: FrameDiffTool.DiffViewer? = null
@@ -217,7 +207,6 @@ private class DiffWalkthroughController(
         } else {
             item.copy(line = null)
         }
-        currentEditorUpdater(editor)
         popup.update(editor, popupItem)
         popup.connectorHidden = false
         applyPopupGeometryForItem(popup, editor, popupItem)
