@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0]
+
 ### Added
 
 - A **Tools → Walkthrough → Export Walkthrough to Markdown…** action that saves any walkthrough from
