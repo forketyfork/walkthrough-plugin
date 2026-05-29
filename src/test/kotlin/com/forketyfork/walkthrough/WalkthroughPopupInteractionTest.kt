@@ -54,4 +54,14 @@ class WalkthroughPopupInteractionTest {
     fun resizeHandleExcludesPointBeyondWidth() {
         assertFalse(resizeHandleContains(width, height, Point(width + 10, height - 5)))
     }
+
+    @Test
+    fun resizeHandleExcludesRightEdgeOutsideContent() {
+        assertFalse(resizeHandleContains(width, height, Point(width, height - 5)))
+    }
+
+    @Test
+    fun resizeHandleExcludesBottomEdgeOutsideContent() {
+        assertFalse(resizeHandleContains(width, height, Point(width - 5, height)))
+    }
 }

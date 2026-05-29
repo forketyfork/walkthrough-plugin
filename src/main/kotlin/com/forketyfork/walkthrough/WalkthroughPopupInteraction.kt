@@ -46,13 +46,12 @@ internal fun makeComponentHierarchyTransparent(component: Component?) {
  * consuming a gesture that starts on the popup prevents the covered tabs from reordering.
  */
 internal fun installPopupInteractionHandler(
-    editor: Editor,
+    glassPane: IdeGlassPane,
     parentDisposable: Disposable,
     popupProvider: () -> WalkthroughPopupSurface?,
     editorProvider: () -> Editor?,
     onInteractionEnd: () -> Unit,
-): Boolean {
-    val glassPane = findGlassPane(editor) ?: return false
+) {
     val listener = WalkthroughPopupInteractionListener(
         glassPane = glassPane,
         popupProvider = popupProvider,
@@ -61,10 +60,9 @@ internal fun installPopupInteractionHandler(
     )
     glassPane.addMousePreprocessor(listener, parentDisposable)
     glassPane.addMouseMotionPreprocessor(listener, parentDisposable)
-    return true
 }
 
-private fun findGlassPane(editor: Editor): IdeGlassPane? {
+internal fun findGlassPane(editor: Editor): IdeGlassPane? {
     val component = editor.contentComponent
     if (!component.isShowing) {
         return null
@@ -118,15 +116,14 @@ private class WalkthroughPopupInteractionListener(
     }
 
     override fun mouseMoved(event: MouseEvent) {
-        val popup = popupProvider()
-        glassPane.setCursor(popup?.let { resolveCursor(it, event) }, this)
+        glassPane.setCursor(popupProvider()?.let { resolveHandleCursor(it, event) }, this)
     }
 
-    private fun resolveCursor(popup: WalkthroughPopupSurface, event: MouseEvent): Cursor? =
+    private fun resolveHandleCursor(popup: WalkthroughPopupSurface, event: MouseEvent): Cursor? =
         when (handleRegionAt(popup, event)) {
             PopupInteractionMode.Resize -> Cursor.getPredefinedCursor(Cursor.SE_RESIZE_CURSOR)
             PopupInteractionMode.Drag -> Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR)
-            null -> if (isWithinPopup(popup, event)) Cursor.getDefaultCursor() else null
+            null -> null
         }
 
     private fun reset() {
@@ -141,16 +138,10 @@ private fun pointInContent(popup: WalkthroughPopupSurface, event: MouseEvent): P
     return Point(screenPoint.x - contentLocation.x, screenPoint.y - contentLocation.y)
 }
 
-private fun isWithinPopup(popup: WalkthroughPopupSurface, event: MouseEvent): Boolean {
-    val point = pointInContent(popup, event) ?: return false
-    val content = popup.content
-    return point.x in 0..content.width && point.y in 0..content.height
-}
-
 private fun handleRegionAt(popup: WalkthroughPopupSurface, event: MouseEvent): PopupInteractionMode? {
     val point = pointInContent(popup, event) ?: return null
     val content = popup.content
-    val withinBounds = point.x in 0..content.width && point.y in 0..content.height
+    val withinBounds = point.x in 0 until content.width && point.y in 0 until content.height
     return when {
         !withinBounds -> null
         resizeHandleContains(content.width, content.height, point) -> PopupInteractionMode.Resize
@@ -163,7 +154,7 @@ internal fun dragHandleContains(width: Int, point: Point): Boolean =
     point.y in 0..DRAG_HANDLE_HEIGHT_PX && point.x in 0..(width - CLOSE_BUTTON_HIT_BOX_PX)
 
 internal fun resizeHandleContains(width: Int, height: Int, point: Point): Boolean =
-    point.x in (width - RESIZE_HANDLE_SIZE_PX)..width && point.y in (height - RESIZE_HANDLE_SIZE_PX)..height
+    point.x in (width - RESIZE_HANDLE_SIZE_PX) until width && point.y in (height - RESIZE_HANDLE_SIZE_PX) until height
 
 @Suppress("LongParameterList")
 private fun handlePopupDrag(

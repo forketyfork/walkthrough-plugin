@@ -4,6 +4,8 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.event.VisibleAreaEvent
 import com.intellij.openapi.editor.event.VisibleAreaListener
+import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.wm.IdeGlassPane
 import java.awt.BasicStroke
 import java.awt.Dimension
 import java.awt.Graphics
@@ -59,7 +61,8 @@ internal class WalkthroughPopupSurface(
     private var editor: Editor? = null
     private var item: WalkthroughItem? = null
     private var layeredPane: JLayeredPane? = null
-    private var interactionHandlerInstalled = false
+    private var interactionGlassPane: IdeGlassPane? = null
+    private var interactionHandlerDisposable: Disposable? = null
     var connectorHidden: Boolean = false
         set(value) {
             field = value
@@ -104,22 +107,32 @@ internal class WalkthroughPopupSurface(
                 pane.add(this)
             }
         }
-        installInteractionHandlerIfNeeded(editor)
+        refreshInteractionHandler(editor)
         refreshBounds()
         repaint()
     }
 
-    private fun installInteractionHandlerIfNeeded(editor: Editor) {
-        if (interactionHandlerInstalled) {
+    private fun refreshInteractionHandler(editor: Editor) {
+        val targetGlassPane = findGlassPane(editor)
+        if (targetGlassPane === interactionGlassPane) {
             return
         }
-        interactionHandlerInstalled = installPopupInteractionHandler(
-            editor = editor,
-            parentDisposable = this,
+        interactionHandlerDisposable?.let(Disposer::dispose)
+        interactionHandlerDisposable = null
+        interactionGlassPane = targetGlassPane
+        if (targetGlassPane == null) {
+            return
+        }
+        val handlerDisposable = Disposer.newDisposable("WalkthroughPopupInteraction")
+        Disposer.register(this, handlerDisposable)
+        installPopupInteractionHandler(
+            glassPane = targetGlassPane,
+            parentDisposable = handlerDisposable,
             popupProvider = { this },
             editorProvider = { this.editor },
             onInteractionEnd = onInteractionEnd,
         )
+        interactionHandlerDisposable = handlerDisposable
     }
 
     fun updatePalette(palette: WalkthroughPalette) {
