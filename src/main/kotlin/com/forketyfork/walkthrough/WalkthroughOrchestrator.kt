@@ -105,13 +105,6 @@ fun showWalkthroughSession(
     )
     makeComponentHierarchyTransparent(panel)
 
-    installPopupInteractionHandler(
-        panel = panel,
-        popupProvider = { popupRef },
-        editorProvider = { currentEditor },
-        onInteractionEnd = { saveCurrentGeometry(popupRef) },
-    )
-
     project.messageBus.connect(sessionDisposable).subscribe(
         FileEditorManagerListener.FILE_EDITOR_MANAGER,
         object : FileEditorManagerListener {
@@ -138,6 +131,7 @@ fun showWalkthroughSession(
             registry.remove(session.id)
             Disposer.dispose(sessionDisposable)
         },
+        onInteractionEnd = { saveCurrentGeometry(popupRef) },
     )
     popupRef = popup
     Disposer.register(sessionDisposable, popup)
