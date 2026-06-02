@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Passing an empty or `null` items payload to the walkthrough MCP tools now returns a clear
+  "items must not be empty" error instead of failing with an internal error.
+
 ## [0.5.0]
 
 ### Added

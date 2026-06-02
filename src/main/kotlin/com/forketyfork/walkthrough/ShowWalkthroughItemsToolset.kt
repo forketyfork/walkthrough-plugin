@@ -274,7 +274,9 @@ class ShowWalkthroughItemsToolset : McpToolset {
 
     private fun parseFileItems(items: String): List<WalkthroughItem> = try {
         val type = object : TypeToken<List<WalkthroughItemJson>>() {}.type
-        val parsed: List<WalkthroughItemJson> = Gson().fromJson(items, type)
+        // Gson returns null for the JSON literal `null` or blank input; treat it as an empty
+        // list so the caller's emptiness check reports it cleanly instead of throwing an NPE.
+        val parsed: List<WalkthroughItemJson> = Gson().fromJson<List<WalkthroughItemJson>?>(items, type).orEmpty()
         parsed.map { entry ->
             WalkthroughItem(
                 text = entry.text ?: mcpFail("Each item must have a 'text' field"),
@@ -337,7 +339,9 @@ class ShowWalkthroughItemsToolset : McpToolset {
     private fun parseDiffItems(items: String, descriptors: List<DiffWalkthroughDescriptor>): List<WalkthroughItem> =
         try {
             val type = object : TypeToken<List<WalkthroughItemJson>>() {}.type
-            val parsed: List<WalkthroughItemJson> = Gson().fromJson(items, type)
+            // Gson returns null for the JSON literal `null` or blank input; treat it as an empty
+            // list so the caller's emptiness check reports it cleanly instead of throwing an NPE.
+            val parsed: List<WalkthroughItemJson> = Gson().fromJson<List<WalkthroughItemJson>?>(items, type).orEmpty()
             parseDiffItems(parsed, descriptors)
         } catch (exception: JsonParseException) {
             mcpFail("Invalid items JSON: ${exception.message}")
