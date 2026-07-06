@@ -181,29 +181,54 @@ class WalkthroughSession internal constructor(
     }
 
     /**
-     * Applies a review decision for the currently pending tangent groups: groups in [keptGroupIds]
-     * stay in [items], the rest have their child steps removed. Clears the pending groups either way.
+     * Applies a review decision for the currently pending tangent groups: groups in
+     * [discardedGroupIds] have their child steps removed from [items], the rest stay. A pending
+     * group whose [parentLabel][WalkthroughPendingTangentGroup.parentLabel] falls under a
+     * discarded group's subtree is discarded too, even if its own id is absent from
+     * [discardedGroupIds] — this cascades the removal to nested tangents (asked on a
+     * still-pending tangent step) whose parent no longer exists. Any pending group unknown to the
+     * caller — e.g. one inserted while the review screen was already open — defaults to kept.
+     * Clears the pending groups either way.
      * Returns whether any group was kept, i.e. whether the caller must persist [items] to history.
      */
-    internal fun applyTangentReviewDecision(keptGroupIds: Set<String>): Boolean {
+    internal fun applyTangentReviewDecision(discardedGroupIds: Set<String>): Boolean {
         val groups = pendingTangentGroups.toList()
         if (groups.isEmpty()) return false
-        val discardedLabels = groups.filterNot { it.id in keptGroupIds }
-            .flatMap { it.childLabels }
-            .toSet()
+
+        val resolvedDiscardedIds = mutableSetOf<String>()
+        val discardedLabels = mutableSetOf<String>()
+
+        fun isUnderDiscardedSubtree(label: String) = discardedLabels.any { label == it || label.startsWith("$it.") }
+
+        groups.filter { it.id in discardedGroupIds }.forEach { group ->
+            resolvedDiscardedIds += group.id
+            discardedLabels += group.childLabels
+        }
+
+        var cascaded = true
+        while (cascaded) {
+            cascaded = false
+            groups.forEach { group ->
+                if (group.id !in resolvedDiscardedIds && isUnderDiscardedSubtree(group.parentLabel)) {
+                    resolvedDiscardedIds += group.id
+                    discardedLabels += group.childLabels
+                    cascaded = true
+                }
+            }
+        }
+
         if (discardedLabels.isNotEmpty()) {
-            items.removeAll { it.label in discardedLabels }
+            items.removeAll { item -> item.label != null && isUnderDiscardedSubtree(item.label) }
         }
         pendingTangentGroups.clear()
-        return groups.any { it.id in keptGroupIds }
+        return groups.any { it.id !in resolvedDiscardedIds }
     }
 
     /**
      * Non-destructive fallback for when a session ends without an explicit review decision: keeps
      * every pending tangent group. A no-op if a decision was already applied.
      */
-    internal fun keepAllPendingTangents(): Boolean =
-        applyTangentReviewDecision(pendingTangentGroups.map { it.id }.toSet())
+    internal fun keepAllPendingTangents(): Boolean = applyTangentReviewDecision(discardedGroupIds = emptySet())
 
     internal fun dismiss() {
         if (disposed.complete(Unit)) {

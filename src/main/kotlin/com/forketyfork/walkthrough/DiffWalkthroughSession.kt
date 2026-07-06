@@ -73,12 +73,7 @@ fun showDiffWalkthroughSession(
         Disposer.dispose(sessionDisposable)
     }
 
-    val closeController = WalkthroughTangentReviewController(project, session, ::performClose)
-    Disposer.register(sessionDisposable) {
-        closeController.persistPendingTangentsOnDispose()
-        registry.remove(session.id)
-        registry.clearActive(sessionDisposable)
-    }
+    val closeController = attachTangentReviewController(project, session, sessionDisposable, registry, ::performClose)
 
     fun updatePopupPalette(palette: WalkthroughPalette) {
         SwingUtilities.invokeLater {

@@ -60,12 +60,7 @@ fun showWalkthroughSession(
         Disposer.dispose(sessionDisposable)
     }
 
-    val closeController = WalkthroughTangentReviewController(project, session, ::performClose)
-    Disposer.register(sessionDisposable) {
-        closeController.persistPendingTangentsOnDispose()
-        registry.remove(session.id)
-        registry.clearActive(sessionDisposable)
-    }
+    val closeController = attachTangentReviewController(project, session, sessionDisposable, registry, ::performClose)
 
     fun repaintPopup() {
         popupRef?.let { popup ->

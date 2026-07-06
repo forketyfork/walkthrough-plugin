@@ -139,7 +139,7 @@ class WalkthroughSessionRegistryTest {
         val groups = session.pendingTangentGroups.toList()
         assertEquals(2, groups.size)
 
-        val shouldPersist = session.applyTangentReviewDecision(setOf(groups[1].id))
+        val shouldPersist = session.applyTangentReviewDecision(setOf(groups[0].id))
 
         assertTrue(shouldPersist)
         assertEquals(
@@ -150,13 +150,14 @@ class WalkthroughSessionRegistryTest {
     }
 
     @Test
-    fun applyTangentReviewDecisionWithNoKeptGroupsRemovesAllTangentsWithoutRequiringPersistence() {
+    fun applyTangentReviewDecisionDiscardingAllGroupsRemovesAllTangentsWithoutRequiringPersistence() {
         val session = newSession(
             assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
         )
         session.insertTangents("1", listOf(WalkthroughItem(text = "answer")))
+        val groupId = session.pendingTangentGroups.single().id
 
-        val shouldPersist = session.applyTangentReviewDecision(emptySet())
+        val shouldPersist = session.applyTangentReviewDecision(setOf(groupId))
 
         assertFalse(shouldPersist)
         assertEquals(listOf("1"), session.snapshotItems().map { it.label })
@@ -173,6 +174,53 @@ class WalkthroughSessionRegistryTest {
 
         assertFalse(shouldPersist)
         assertEquals(listOf("1"), session.snapshotItems().map { it.label })
+    }
+
+    @Test
+    fun applyTangentReviewDecisionWithUnknownGroupIdDefaultsToKeepingEverything() {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
+        )
+        session.insertTangents("1", listOf(WalkthroughItem(text = "answer")))
+
+        val shouldPersist = session.applyTangentReviewDecision(setOf("late-arrival-not-yet-visible"))
+
+        assertTrue(shouldPersist)
+        assertEquals(listOf("1", "1.1"), session.snapshotItems().map { it.label })
+        assertTrue(session.pendingTangentGroups.isEmpty())
+    }
+
+    @Test
+    fun applyTangentReviewDecisionCascadesDiscardToNestedGroupUnderDiscardedParent() {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "root"))),
+        )
+        session.insertTangents("1", listOf(WalkthroughItem(text = "child")))
+        session.insertTangents("1.1", listOf(WalkthroughItem(text = "grandchild")))
+        val parentGroup = session.pendingTangentGroups.single { it.parentLabel == "1" }
+
+        // Only the parent group is explicitly discarded; the nested group under "1.1" is not
+        // mentioned, but it must be discarded too since its parent step no longer exists.
+        val shouldPersist = session.applyTangentReviewDecision(setOf(parentGroup.id))
+
+        assertFalse(shouldPersist)
+        assertEquals(listOf("1"), session.snapshotItems().map { it.label })
+        assertTrue(session.pendingTangentGroups.isEmpty())
+    }
+
+    @Test
+    fun applyTangentReviewDecisionKeepsNestedGroupWhenParentGroupIsKept() {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "root"))),
+        )
+        session.insertTangents("1", listOf(WalkthroughItem(text = "child")))
+        session.insertTangents("1.1", listOf(WalkthroughItem(text = "grandchild")))
+
+        val shouldPersist = session.applyTangentReviewDecision(emptySet())
+
+        assertTrue(shouldPersist)
+        assertEquals(listOf("1", "1.1", "1.1.1"), session.snapshotItems().map { it.label })
+        assertTrue(session.pendingTangentGroups.isEmpty())
     }
 
     @Test

@@ -43,6 +43,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.jetbrains.jewel.ui.component.Icon
@@ -83,11 +85,11 @@ private object WalkthroughWidgetStyle {
     const val SPINNER_SWEEP_DEGREES = 270f
     const val SPINNER_ROTATION_DURATION_MS = 1000
     const val SPINNER_TRACK_ALPHA = 0.18f
-    val reviewRowSpacing = 12.dp
-    val reviewCheckboxSize = 20.dp
-    val reviewCheckboxCornerRadius = 5.dp
+    val reviewRowSpacing: Dp = 12.dp
+    val reviewCheckboxSize: Dp = 20.dp
+    val reviewCheckboxCornerRadius: Dp = 5.dp
     const val REVIEW_CHECKBOX_CHECKED_ALPHA = 0.92f
-    val reviewCheckmarkTextSize = 13.sp
+    val reviewCheckmarkTextSize: TextUnit = 13.sp
 }
 
 @Suppress("LongParameterList")

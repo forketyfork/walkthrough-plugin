@@ -41,6 +41,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.intellij.openapi.project.Project
@@ -99,9 +101,9 @@ private object WalkthroughPopupContentStyle {
     val scrollbarPaddingEnd = 6.dp
     val scrollbarPaddingTop = 10.dp
     val scrollbarPaddingBottom = 10.dp
-    val reviewTitleTextSize = 15.sp
-    val reviewButtonRowSpacing = 10.dp
-    val reviewQuestionListSpacing = 10.dp
+    val reviewTitleTextSize: TextUnit = 15.sp
+    val reviewButtonRowSpacing: Dp = 10.dp
+    val reviewQuestionListSpacing: Dp = 10.dp
 }
 
 private data class WalkthroughPopupAnimationState(val gradientShift: Float, val glowShift: Float)
@@ -120,9 +122,8 @@ internal fun WalkthroughItemContent(
 ) {
     val animationState = rememberPopupAnimationState()
     if (reviewMode) {
-        val groups = remember(session) { session.pendingTangentGroups.toList() }
         WalkthroughTangentReviewFrame(
-            groups = groups,
+            session = session,
             palette = palette,
             animationState = animationState,
             onClose = onClose,
@@ -285,17 +286,24 @@ private fun WalkthroughPopupFrame(
     }
 }
 
+/**
+ * Renders the tangent review screen. Reads [WalkthroughSession.pendingTangentGroups] directly
+ * (a [androidx.compose.runtime.snapshots.SnapshotStateList]) rather than a one-shot snapshot copy,
+ * so a group inserted by the agent while this screen is already open shows up as a new row instead
+ * of being silently discarded when the user confirms.
+ */
 @Composable
 private fun WalkthroughTangentReviewFrame(
-    groups: List<WalkthroughPendingTangentGroup>,
+    session: WalkthroughSession,
     palette: WalkthroughPalette,
     animationState: WalkthroughPopupAnimationState,
     onClose: () -> Unit,
     onConfirm: (Set<String>) -> Unit,
 ) {
-    val keptGroupIds = remember(groups) {
-        mutableStateMapOf<String, Boolean>().apply { groups.forEach { put(it.id, true) } }
-    }
+    val groups = session.pendingTangentGroups
+    // Keyed on the session, not the (live) group list, so existing checkbox choices survive a
+    // late-arriving group being appended. A group missing from this map defaults to kept.
+    val discardedGroupIds = remember(session) { mutableStateMapOf<String, Boolean>() }
     val shape = RoundedCornerShape(WalkthroughPopupContentStyle.cornerRadius)
     Box(
         modifier = Modifier
@@ -326,10 +334,24 @@ private fun WalkthroughTangentReviewFrame(
                 fontWeight = FontWeight.SemiBold,
                 fontSize = WalkthroughPopupContentStyle.reviewTitleTextSize,
             )
-            WalkthroughTangentReviewList(groups = groups, keptGroupIds = keptGroupIds)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = true)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(WalkthroughPopupContentStyle.reviewQuestionListSpacing),
+            ) {
+                groups.forEach { group ->
+                    WalkthroughTangentReviewRow(
+                        question = group.questionText,
+                        checked = discardedGroupIds[group.id] != true,
+                        onToggle = { discardedGroupIds[group.id] = discardedGroupIds[group.id] != true },
+                    )
+                }
+            }
             WalkthroughTangentReviewActions(
                 groups = groups,
-                keptGroupIds = keptGroupIds,
+                discardedGroupIds = discardedGroupIds,
                 palette = palette,
                 onConfirm = onConfirm,
             )
@@ -338,31 +360,9 @@ private fun WalkthroughTangentReviewFrame(
 }
 
 @Composable
-private fun ColumnScope.WalkthroughTangentReviewList(
-    groups: List<WalkthroughPendingTangentGroup>,
-    keptGroupIds: SnapshotStateMap<String, Boolean>,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .weight(1f, fill = true)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(WalkthroughPopupContentStyle.reviewQuestionListSpacing),
-    ) {
-        groups.forEach { group ->
-            WalkthroughTangentReviewRow(
-                question = group.questionText,
-                checked = keptGroupIds[group.id] == true,
-                onToggle = { keptGroupIds[group.id] = keptGroupIds[group.id] != true },
-            )
-        }
-    }
-}
-
-@Composable
 private fun WalkthroughTangentReviewActions(
     groups: List<WalkthroughPendingTangentGroup>,
-    keptGroupIds: SnapshotStateMap<String, Boolean>,
+    discardedGroupIds: SnapshotStateMap<String, Boolean>,
     palette: WalkthroughPalette,
     onConfirm: (Set<String>) -> Unit,
 ) {
@@ -375,21 +375,21 @@ private fun WalkthroughTangentReviewActions(
             enabled = true,
             emphasized = false,
             palette = palette,
-            onClick = { groups.forEach { keptGroupIds[it.id] = true } },
+            onClick = { groups.forEach { discardedGroupIds[it.id] = false } },
         )
         AiNavButton(
             label = "Discard all",
             enabled = true,
             emphasized = false,
             palette = palette,
-            onClick = { groups.forEach { keptGroupIds[it.id] = false } },
+            onClick = { groups.forEach { discardedGroupIds[it.id] = true } },
         )
         AiNavButton(
             label = "Done",
             enabled = true,
             emphasized = true,
             palette = palette,
-            onClick = { onConfirm(keptGroupIds.filterValues { it }.keys) },
+            onClick = { onConfirm(groups.filter { discardedGroupIds[it.id] == true }.map { it.id }.toSet()) },
         )
     }
 }
