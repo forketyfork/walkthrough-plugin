@@ -82,6 +82,12 @@ class ShowWalkthroughItemsToolset : McpToolset {
                 "Verify line numbers by reading the actual file before calling this tool — " +
                 "do not estimate from diffs or memory.",
         ) items: String,
+        @McpDescription(
+            "Optional history id returned by a previous show_walkthrough_items call. When set, " +
+                "the existing history record with this id is overwritten with the new description " +
+                "and items instead of creating a new history entry — useful when iterating on a " +
+                "walkthrough's content. Leave empty to create a new history record as usual.",
+        ) historyId: String = "",
     ): String {
         val project = requireProject()
         val trimmedDescription = description.trim()
@@ -90,14 +96,25 @@ class ShowWalkthroughItemsToolset : McpToolset {
         val parsedItems = parseFileItems(items)
         if (parsedItems.isEmpty()) mcpFail("items must not be empty")
 
+        val historyService = WalkthroughHistoryService.getInstance(project)
+        val trimmedHistoryId = historyId.trim()
+        if (trimmedHistoryId.isNotBlank()) {
+            historyService.requireOverwritableRecord(trimmedHistoryId, WalkthroughTargetKind.File)
+        }
+
         val labeledItems = assignTopLevelLabels(parsedItems)
 
         val session = withContext(Dispatchers.EDT) {
             showWalkthroughSession(project, labeledItems, acceptsQuestions = true)
         } ?: mcpFail("No active editor")
 
-        val record = WalkthroughHistoryService.getInstance(project)
-            .save(trimmedDescription, session.snapshotItems())
+        val record = historyService.saveOrOverwrite(
+            historyId = trimmedHistoryId,
+            description = trimmedDescription,
+            targetKind = WalkthroughTargetKind.File,
+            diffDescriptors = emptyList(),
+            items = session.snapshotItems(),
+        )
         session.historyRecordId = record?.id
 
         val labels = labeledItems.mapNotNull { it.label }.joinToString(", ")
@@ -136,12 +153,25 @@ class ShowWalkthroughItemsToolset : McpToolset {
                 "For PRs, pass the merge-base commit as 'leftCommit' and the PR head commit as 'rightCommit'. " +
                 "Verify every line by inspecting that exact file at that exact commit before calling.",
         ) payload: String,
+        @McpDescription(
+            "Optional history id returned by a previous show_diff_walkthrough_items call. When set, " +
+                "the existing history record with this id is overwritten with the new description, " +
+                "diffs, and items instead of creating a new history entry — useful when iterating on " +
+                "a walkthrough's content. Leave empty to create a new history record as usual.",
+        ) historyId: String = "",
     ): String {
         val project = requireProject()
         val trimmedDescription = description.trim()
         if (trimmedDescription.isBlank()) mcpFail("description must not be blank")
 
         val parsedPayload = parseDiffPayload(payload)
+
+        val historyService = WalkthroughHistoryService.getInstance(project)
+        val trimmedHistoryId = historyId.trim()
+        if (trimmedHistoryId.isNotBlank()) {
+            historyService.requireOverwritableRecord(trimmedHistoryId, WalkthroughTargetKind.Diff)
+        }
+
         val labeledItems = assignTopLevelLabels(parsedPayload.items)
 
         val session = withContext(Dispatchers.EDT) {
@@ -153,7 +183,8 @@ class ShowWalkthroughItemsToolset : McpToolset {
             )
         } ?: mcpFail("No diff walkthrough items to show")
 
-        val record = WalkthroughHistoryService.getInstance(project).save(
+        val record = historyService.saveOrOverwrite(
+            historyId = trimmedHistoryId,
             description = trimmedDescription,
             targetKind = WalkthroughTargetKind.Diff,
             diffDescriptors = parsedPayload.descriptors,
@@ -373,5 +404,53 @@ class ShowWalkthroughItemsToolset : McpToolset {
         "left" -> DiffSide.Left
         "right" -> DiffSide.Right
         else -> mcpFail("Each diff item must have 'diffSide' set to 'left' or 'right'")
+    }
+}
+
+private fun historyNotFoundMessage(historyId: String) = "No walkthrough history record found for historyId=$historyId"
+
+private fun historyTargetKindMismatchMessage(historyId: String, existingKind: WalkthroughTargetKind) =
+    "historyId=$historyId belongs to a $existingKind walkthrough; use the matching tool to update it"
+
+private fun WalkthroughHistoryService.requireOverwritableRecord(
+    historyId: String,
+    expectedKind: WalkthroughTargetKind,
+) {
+    val record = load(historyId) ?: mcpFail(historyNotFoundMessage(historyId))
+    if (record.targetKind != expectedKind) {
+        mcpFail(historyTargetKindMismatchMessage(historyId, record.targetKind))
+    }
+}
+
+private fun WalkthroughHistoryService.saveOrOverwrite(
+    historyId: String,
+    description: String,
+    targetKind: WalkthroughTargetKind,
+    diffDescriptors: List<DiffWalkthroughDescriptor>,
+    items: List<WalkthroughItem>,
+): WalkthroughRecord? {
+    if (historyId.isBlank()) {
+        return save(
+            description = description,
+            targetKind = targetKind,
+            diffDescriptors = diffDescriptors,
+            items = items,
+        )
+    }
+    return when (
+        val result = overwrite(
+            historyId = historyId,
+            description = description,
+            targetKind = targetKind,
+            diffDescriptors = diffDescriptors,
+            items = items,
+        )
+    ) {
+        is WalkthroughOverwriteResult.Success -> result.record
+
+        WalkthroughOverwriteResult.NotFound -> mcpFail(historyNotFoundMessage(historyId))
+
+        is WalkthroughOverwriteResult.TargetKindMismatch ->
+            mcpFail(historyTargetKindMismatchMessage(historyId, result.existingKind))
     }
 }
