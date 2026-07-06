@@ -83,6 +83,11 @@ private object WalkthroughWidgetStyle {
     const val SPINNER_SWEEP_DEGREES = 270f
     const val SPINNER_ROTATION_DURATION_MS = 1000
     const val SPINNER_TRACK_ALPHA = 0.18f
+    val reviewRowSpacing = 12.dp
+    val reviewCheckboxSize = 20.dp
+    val reviewCheckboxCornerRadius = 5.dp
+    const val REVIEW_CHECKBOX_CHECKED_ALPHA = 0.92f
+    val reviewCheckmarkTextSize = 13.sp
 }
 
 @Suppress("LongParameterList")
@@ -407,6 +412,53 @@ private fun QuestionSpinner(palette: WalkthroughPalette) {
     ) {
         Canvas(modifier = Modifier.size(WalkthroughWidgetStyle.spinnerSize).rotate(rotation)) {
             drawSpinnerArc(palette = palette)
+        }
+    }
+}
+
+@Composable
+internal fun WalkthroughTangentReviewRow(question: String, checked: Boolean, onToggle: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle),
+        horizontalArrangement = Arrangement.spacedBy(WalkthroughWidgetStyle.reviewRowSpacing),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        WalkthroughTangentReviewCheckbox(checked = checked)
+        Text(
+            text = question,
+            color = Color.White,
+            fontSize = WalkthroughWidgetStyle.questionFieldTextSize,
+        )
+    }
+}
+
+@Composable
+private fun WalkthroughTangentReviewCheckbox(checked: Boolean) {
+    Box(
+        modifier = Modifier
+            .size(WalkthroughWidgetStyle.reviewCheckboxSize)
+            .clip(RoundedCornerShape(WalkthroughWidgetStyle.reviewCheckboxCornerRadius))
+            .background(
+                if (checked) {
+                    Color.White.copy(alpha = WalkthroughWidgetStyle.REVIEW_CHECKBOX_CHECKED_ALPHA)
+                } else {
+                    Color.White.copy(alpha = WalkthroughWidgetStyle.CLOSE_BUTTON_BACKGROUND_ALPHA)
+                },
+            )
+            .border(
+                WalkthroughWidgetStyle.closeButtonBorderWidth,
+                Color.White.copy(alpha = WalkthroughWidgetStyle.CLOSE_BUTTON_BORDER_ALPHA),
+                RoundedCornerShape(WalkthroughWidgetStyle.reviewCheckboxCornerRadius),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (checked) {
+            Text(
+                text = "✓",
+                color = Color.Black,
+                fontWeight = FontWeight.Bold,
+                fontSize = WalkthroughWidgetStyle.reviewCheckmarkTextSize,
+            )
         }
     }
 }

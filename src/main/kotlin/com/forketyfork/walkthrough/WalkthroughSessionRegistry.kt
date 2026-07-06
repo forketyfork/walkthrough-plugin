@@ -20,6 +20,13 @@ import java.util.concurrent.atomic.AtomicReference
 
 data class WalkthroughTangentQuestion(val question: String, val parentLabel: String?)
 
+data class WalkthroughPendingTangentGroup(
+    val id: String,
+    val questionText: String,
+    val parentLabel: String,
+    val childLabels: List<String>,
+)
+
 internal enum class WalkthroughQuestionStatus {
     AgentNotWaiting,
     WaitingForQuestion,
@@ -55,6 +62,7 @@ class WalkthroughSession internal constructor(
 ) {
     internal val items: SnapshotStateList<WalkthroughItem> =
         mutableStateListOf<WalkthroughItem>().apply { addAll(initialItems) }
+    internal val pendingTangentGroups: SnapshotStateList<WalkthroughPendingTangentGroup> = mutableStateListOf()
     internal val currentIndexState = mutableIntStateOf(0)
     internal val questionStatusState = mutableStateOf(WalkthroughQuestionStatus.AgentNotWaiting)
     internal val loadingState = mutableStateOf(false)
@@ -155,12 +163,47 @@ class WalkthroughSession internal constructor(
         }
         items.addAll(lastSubtreeIndex + 1, labeled)
         currentIndexState.intValue = lastSubtreeIndex + 1
-        synchronized(questionLock) {
+        val questionText = synchronized(questionLock) {
+            val text = inFlightQuestion?.question
             inFlightQuestion = null
             scheduleAgentNotWaitingLocked()
+            text
         }
+        pendingTangentGroups.add(
+            WalkthroughPendingTangentGroup(
+                id = UUID.randomUUID().toString(),
+                questionText = questionText ?: parentLabel,
+                parentLabel = parentLabel,
+                childLabels = labeled.mapNotNull { it.label },
+            ),
+        )
         return labeled
     }
+
+    /**
+     * Applies a review decision for the currently pending tangent groups: groups in [keptGroupIds]
+     * stay in [items], the rest have their child steps removed. Clears the pending groups either way.
+     * Returns whether any group was kept, i.e. whether the caller must persist [items] to history.
+     */
+    internal fun applyTangentReviewDecision(keptGroupIds: Set<String>): Boolean {
+        val groups = pendingTangentGroups.toList()
+        if (groups.isEmpty()) return false
+        val discardedLabels = groups.filterNot { it.id in keptGroupIds }
+            .flatMap { it.childLabels }
+            .toSet()
+        if (discardedLabels.isNotEmpty()) {
+            items.removeAll { it.label in discardedLabels }
+        }
+        pendingTangentGroups.clear()
+        return groups.any { it.id in keptGroupIds }
+    }
+
+    /**
+     * Non-destructive fallback for when a session ends without an explicit review decision: keeps
+     * every pending tangent group. A no-op if a decision was already applied.
+     */
+    internal fun keepAllPendingTangents(): Boolean =
+        applyTangentReviewDecision(pendingTangentGroups.map { it.id }.toSet())
 
     internal fun dismiss() {
         if (disposed.complete(Unit)) {

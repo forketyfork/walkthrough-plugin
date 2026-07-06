@@ -63,13 +63,22 @@ fun showDiffWalkthroughSession(
         targetKind = WalkthroughTargetKind.Diff,
         diffDescriptors = descriptors,
     )
-    Disposer.register(sessionDisposable) {
-        registry.remove(session.id)
-        registry.clearActive(sessionDisposable)
-    }
 
     var popupRef: WalkthroughPopupSurface? = null
     lateinit var controller: DiffWalkthroughController
+
+    fun performClose() {
+        popupRef = null
+        registry.remove(session.id)
+        Disposer.dispose(sessionDisposable)
+    }
+
+    val closeController = WalkthroughTangentReviewController(project, session, ::performClose)
+    Disposer.register(sessionDisposable) {
+        closeController.persistPendingTangentsOnDispose()
+        registry.remove(session.id)
+        registry.clearActive(sessionDisposable)
+    }
 
     fun updatePopupPalette(palette: WalkthroughPalette) {
         SwingUtilities.invokeLater {
@@ -92,9 +101,11 @@ fun showDiffWalkthroughSession(
         project = project,
         session = session,
         paletteProvider = { paletteState.value },
+        reviewModeProvider = { closeController.reviewModeState.value },
         onItemDisplayed = controller::scheduleItemNavigation,
         onNavigateToSource = controller::scheduleItemNavigation,
         onClose = { popupRef?.cancel() },
+        onConfirmReview = closeController::confirmReview,
     )
     makeComponentHierarchyTransparent(panel)
 
@@ -110,11 +121,7 @@ fun showDiffWalkthroughSession(
     val popup = WalkthroughPopupSurface(
         content = panel,
         palette = paletteState.value,
-        onCloseRequested = {
-            popupRef = null
-            registry.remove(session.id)
-            Disposer.dispose(sessionDisposable)
-        },
+        onCloseRequested = closeController::requestClose,
         onInteractionEnd = { saveCurrentGeometry(popupRef) },
     )
     popupRef = popup
