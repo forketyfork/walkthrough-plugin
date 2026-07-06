@@ -19,6 +19,7 @@ private data class WalkthroughItemJson(
     val text: String?,
     val file: String?,
     val line: Int?,
+    val endLine: Int?,
     val diffId: String?,
     val diffFile: String?,
     val diffSide: String?,
@@ -74,11 +75,13 @@ class ShowWalkthroughItemsToolset : McpToolset {
         ) description: String,
         @McpDescription(
             "JSON array of walkthrough items to display, e.g. " +
-                "[{\"text\":\"Note 1\",\"file\":\"src/Foo.kt\",\"line\":10},{\"text\":\"Note 2\"}]. " +
-                "Each item requires 'text'; 'file' (path relative to project root) and " +
-                "'line' (1-based) are optional. " +
-                "The 'line' value is a line in the current full file, not a diff hunk line, " +
-                "so it must be accurate. " +
+                "[{\"text\":\"Note 1\",\"file\":\"src/Foo.kt\",\"line\":10,\"endLine\":15},{\"text\":\"Note 2\"}]. " +
+                "Each item requires 'text'; 'file' (path relative to project root), " +
+                "'line' (1-based), and 'endLine' (1-based) are optional. " +
+                "The 'line' and 'endLine' values are lines in the current full file, not diff hunk lines, " +
+                "so they must be accurate. " +
+                "When 'endLine' is present and at least 'line', the step selects lines 'line'..'endLine' " +
+                "in the editor instead of only placing the caret at 'line'. " +
                 "Verify line numbers by reading the actual file before calling this tool — " +
                 "do not estimate from diffs or memory.",
         ) items: String,
@@ -243,7 +246,8 @@ class ShowWalkthroughItemsToolset : McpToolset {
         ) parentLabel: String,
         @McpDescription(
             "JSON array of walkthrough items to insert as children. For file walkthroughs, use the same item " +
-                "shape as show_walkthrough_items. For diff walkthroughs, use diff item fields from " +
+                "shape as show_walkthrough_items, including the optional 'endLine' field for line ranges. " +
+                "For diff walkthroughs, use diff item fields from " +
                 "show_diff_walkthrough_items: 'text', 'diffId', 'diffFile', 'diffSide', and 'line'. " +
                 "Verify line numbers against the actual file or exact diff side before calling.",
         ) items: String,
@@ -282,6 +286,7 @@ class ShowWalkthroughItemsToolset : McpToolset {
                 text = entry.text ?: mcpFail("Each item must have a 'text' field"),
                 file = entry.file,
                 line = entry.line,
+                endLine = entry.endLine,
             )
         }
     } catch (exception: JsonParseException) {

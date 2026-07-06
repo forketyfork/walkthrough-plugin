@@ -59,10 +59,16 @@ private fun itemLocation(item: WalkthroughItem, targetKind: WalkthroughTargetKin
 private fun fileLocation(item: WalkthroughItem): String? {
     val file = item.file?.takeIf { it.isNotBlank() }
     val line = item.line
+    val endLine = item.endLine?.takeIf { line != null && it >= line }
+    val lineText = when {
+        line != null && endLine != null -> "$line-$endLine"
+        line != null -> "$line"
+        else -> null
+    }
     return when {
-        file != null && line != null -> "`$file:$line`"
+        file != null && lineText != null -> "`$file:$lineText`"
         file != null -> "`$file`"
-        line != null -> "Line $line"
+        lineText != null -> "Line $lineText"
         else -> null
     }
 }
