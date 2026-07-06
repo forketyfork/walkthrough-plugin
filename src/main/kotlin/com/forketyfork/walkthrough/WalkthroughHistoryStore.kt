@@ -61,6 +61,7 @@ internal sealed interface WalkthroughOverwriteResult {
     data class Success(val record: WalkthroughRecord) : WalkthroughOverwriteResult
     data object NotFound : WalkthroughOverwriteResult
     data class TargetKindMismatch(val existingKind: WalkthroughTargetKind) : WalkthroughOverwriteResult
+    data object Failure : WalkthroughOverwriteResult
 }
 
 internal class WalkthroughHistoryStore(

@@ -58,7 +58,7 @@ class WalkthroughHistoryService(private val project: Project) {
         items: List<WalkthroughItem>,
     ): WalkthroughOverwriteResult = runHistoryOperation(
         operation = "overwrite walkthrough history",
-        fallback = WalkthroughOverwriteResult.NotFound,
+        fallback = WalkthroughOverwriteResult.Failure,
     ) {
         store?.overwrite(historyId, description, targetKind, diffDescriptors, items)
             ?: WalkthroughOverwriteResult.NotFound

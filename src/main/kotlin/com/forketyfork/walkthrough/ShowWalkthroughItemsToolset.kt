@@ -412,6 +412,9 @@ private fun historyNotFoundMessage(historyId: String) = "No walkthrough history 
 private fun historyTargetKindMismatchMessage(historyId: String, existingKind: WalkthroughTargetKind) =
     "historyId=$historyId belongs to a $existingKind walkthrough; use the matching tool to update it"
 
+private fun historyOverwriteFailureMessage(historyId: String) =
+    "Failed to update walkthrough history record historyId=$historyId; check the IDE log"
+
 private fun WalkthroughHistoryService.requireOverwritableRecord(
     historyId: String,
     expectedKind: WalkthroughTargetKind,
@@ -452,5 +455,7 @@ private fun WalkthroughHistoryService.saveOrOverwrite(
 
         is WalkthroughOverwriteResult.TargetKindMismatch ->
             mcpFail(historyTargetKindMismatchMessage(historyId, result.existingKind))
+
+        WalkthroughOverwriteResult.Failure -> mcpFail(historyOverwriteFailureMessage(historyId))
     }
 }
