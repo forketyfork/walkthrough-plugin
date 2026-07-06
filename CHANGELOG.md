@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `show_walkthrough_items` and `show_diff_walkthrough_items` accept an optional `historyId`
+  parameter to overwrite an existing walkthrough history record in place instead of creating a
+  new one, so iterating on a walkthrough's content no longer clutters the project history (#49).
+
 ### Fixed
 
 - Passing an empty or `null` items payload to the walkthrough MCP tools now returns a clear
