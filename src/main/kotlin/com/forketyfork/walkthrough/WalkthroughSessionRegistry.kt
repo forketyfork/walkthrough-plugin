@@ -62,6 +62,9 @@ class WalkthroughSession internal constructor(
     @Volatile
     internal var historyRecordId: String? = null
 
+    @Volatile
+    internal var persistTangents: Boolean = true
+
     private val questionLock = Any()
     private var activeQuestionWaiter: WalkthroughQuestionWaiter? = null
     private var pendingQuestion: WalkthroughTangentQuestion? = null

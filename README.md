@@ -114,6 +114,8 @@ walkthrough.
   before rendering.
 - Previous and Next navigation inside the popup for multi-step walkthroughs.
 - Users can ask follow-up questions in the popup; answers are inserted as labeled child steps.
+  Reusable or presentation walkthroughs can opt out of persisting these tangent steps to history
+  via the `persistTangents` tool parameter, keeping the stored walkthrough pristine.
 - Per-project walkthrough history stored under `.idea/walkthroughs/`, with a keymap-bindable
   action for replaying previous walkthroughs.
 - User-selectable popup color palettes under the IDE settings.

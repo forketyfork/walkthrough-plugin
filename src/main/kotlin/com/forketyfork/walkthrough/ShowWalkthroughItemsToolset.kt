@@ -82,6 +82,12 @@ class ShowWalkthroughItemsToolset : McpToolset {
                 "Verify line numbers by reading the actual file before calling this tool — " +
                 "do not estimate from diffs or memory.",
         ) items: String,
+        @McpDescription(
+            "Whether tangent steps inserted later via insert_walkthrough_tangents are persisted " +
+                "into this walkthrough's stored history record. Defaults to true. Set to false for " +
+                "reusable or presentation walkthroughs that should stay pristine across replays: " +
+                "tangents are still inserted and shown live, but the stored history record is left unchanged.",
+        ) persistTangents: Boolean = true,
     ): String {
         val project = requireProject()
         val trimmedDescription = description.trim()
@@ -95,6 +101,7 @@ class ShowWalkthroughItemsToolset : McpToolset {
         val session = withContext(Dispatchers.EDT) {
             showWalkthroughSession(project, labeledItems, acceptsQuestions = true)
         } ?: mcpFail("No active editor")
+        session.persistTangents = persistTangents
 
         val record = WalkthroughHistoryService.getInstance(project)
             .save(trimmedDescription, session.snapshotItems())
@@ -136,6 +143,12 @@ class ShowWalkthroughItemsToolset : McpToolset {
                 "For PRs, pass the merge-base commit as 'leftCommit' and the PR head commit as 'rightCommit'. " +
                 "Verify every line by inspecting that exact file at that exact commit before calling.",
         ) payload: String,
+        @McpDescription(
+            "Whether tangent steps inserted later via insert_walkthrough_tangents are persisted " +
+                "into this walkthrough's stored history record. Defaults to true. Set to false for " +
+                "reusable or presentation walkthroughs that should stay pristine across replays: " +
+                "tangents are still inserted and shown live, but the stored history record is left unchanged.",
+        ) persistTangents: Boolean = true,
     ): String {
         val project = requireProject()
         val trimmedDescription = description.trim()
@@ -152,6 +165,7 @@ class ShowWalkthroughItemsToolset : McpToolset {
                 acceptsQuestions = true,
             )
         } ?: mcpFail("No diff walkthrough items to show")
+        session.persistTangents = persistTangents
 
         val record = WalkthroughHistoryService.getInstance(project).save(
             description = trimmedDescription,
@@ -232,7 +246,9 @@ class ShowWalkthroughItemsToolset : McpToolset {
             "New child labels are derived automatically by appending '.N' to the parent label: " +
             "the first tangent under '3' becomes '3.1', the next '3.2', and so on. The popup " +
             "auto-navigates to the first inserted step. Clears the inline loading spinner so " +
-            "the user can ask another question. After this tool returns, immediately call " +
+            "the user can ask another question. If the walkthrough was shown with " +
+            "persistTangents=false, the inserted steps are shown live but the stored walkthrough " +
+            "history record is left unchanged. After this tool returns, immediately call " +
             "await_walkthrough_question again with the same walkthroughId.",
     )
     suspend fun insertWalkthroughTangents(
@@ -262,8 +278,10 @@ class ShowWalkthroughItemsToolset : McpToolset {
         val inserted = withContext(Dispatchers.EDT) {
             session.insertTangents(trimmedParent, parsedItems)
         }
-        session.historyRecordId?.let { recordId ->
-            WalkthroughHistoryService.getInstance(project).updateItems(recordId, session.snapshotItems())
+        if (session.persistTangents) {
+            session.historyRecordId?.let { recordId ->
+                WalkthroughHistoryService.getInstance(project).updateItems(recordId, session.snapshotItems())
+            }
         }
         val labels = inserted.mapNotNull { it.label }.joinToString(", ")
         return "Inserted ${inserted.size} tangent step(s) under $trimmedParent: $labels"

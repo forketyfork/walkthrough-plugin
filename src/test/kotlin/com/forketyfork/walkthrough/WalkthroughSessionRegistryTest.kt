@@ -370,6 +370,34 @@ class WalkthroughSessionRegistryTest {
     }
 
     @Test
+    fun persistTangentsDefaultsToTrue() {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
+        )
+        assertTrue(session.persistTangents)
+    }
+
+    @Test
+    fun persistTangentsCanBeDisabledAfterCreation() {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
+        )
+        session.persistTangents = false
+        assertEquals(false, session.persistTangents)
+    }
+
+    @Test
+    fun createdSessionDefaultsToPersistingTangents() {
+        val registry = WalkthroughSessionRegistry()
+        val session = registry.create(
+            items = assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
+            acceptsQuestions = true,
+        )
+
+        assertTrue(session.persistTangents)
+    }
+
+    @Test
     fun removeKeepsDismissedSessionQueryableUntilConsumed() {
         val registry = WalkthroughSessionRegistry()
         val session = registry.create(

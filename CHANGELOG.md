@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- A `persistTangents` option on the walkthrough MCP tools that lets a reusable or presentation
+  walkthrough keep its stored history pristine: follow-up tangent steps are still shown live but
+  no longer written back to the saved walkthrough when disabled (#47).
+
 ### Fixed
 
 - Passing an empty or `null` items payload to the walkthrough MCP tools now returns a clear
