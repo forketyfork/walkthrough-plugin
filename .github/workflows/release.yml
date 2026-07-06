@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Validate tag matches pluginVersion
         run: |
@@ -33,7 +33,7 @@ jobs:
         run: nix flake check
 
       - name: Restore IntelliJ Platform cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: .intellijPlatform
           key: ${{ runner.os }}-intellij-platform-${{ hashFiles('build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
@@ -41,7 +41,7 @@ jobs:
             ${{ runner.os }}-intellij-platform-
 
       - name: Restore Plugin Verifier cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: ~/.cache/pluginVerifier
           key: ${{ runner.os }}-plugin-verifier-${{ hashFiles('build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
@@ -88,10 +88,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Restore IntelliJ Platform cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: .intellijPlatform
           key: ${{ runner.os }}-intellij-platform-${{ hashFiles('build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
