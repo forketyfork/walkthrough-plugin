@@ -32,8 +32,9 @@ private fun resolveFallbackTarget(
 ): ResolvedWalkthroughTarget? {
     val editor = fileEditorManager.selectedTextEditor ?: fallbackEditor ?: return null
     val popupItem = if (isResolvableWalkthroughLine(item.line, editor.document.lineCount)) {
-        moveCaretToLine(editor, item.line)
-        item
+        val resolvedItem = item.withResolvedEndLine(editor.document.lineCount)
+        moveCaretToLine(editor, resolvedItem.line, resolvedItem.endLine)
+        resolvedItem
     } else {
         item.withFallbackAnchor()
     }
@@ -47,13 +48,15 @@ private fun resolveFileTarget(
     relativePath: String,
 ): ResolvedWalkthroughTarget? {
     val virtualFile = findWalkthroughFile(project, relativePath)
-    val lineCount = virtualFile?.lineCount()
-    val editor = if (virtualFile != null && lineCount != null && isResolvableWalkthroughLine(item.line, lineCount)) {
-        openEditor(project, fileEditorManager, virtualFile, item)
+    val resolvedItem = virtualFile?.lineCount()
+        ?.takeIf { lineCount -> isResolvableWalkthroughLine(item.line, lineCount) }
+        ?.let(item::withResolvedEndLine)
+    val editor = if (virtualFile != null && resolvedItem != null) {
+        openEditor(project, fileEditorManager, virtualFile, resolvedItem)
     } else {
         null
     }
-    return editor?.let { ResolvedWalkthroughTarget(it, item) }
+    return if (editor != null && resolvedItem != null) ResolvedWalkthroughTarget(editor, resolvedItem) else null
 }
 
 private fun findWalkthroughFile(project: Project, relativePath: String) =
@@ -74,12 +77,26 @@ private fun openEditor(
     val lineIndex = (item.line ?: 1).coerceAtLeast(1) - 1
     return runCatching {
         fileEditorManager.openTextEditor(OpenFileDescriptor(project, virtualFile, lineIndex, 0), true)
-    }.getOrNull()
+    }.getOrNull()?.also { editor -> applyLineRangeSelection(editor, item.line, item.endLine) }
 }
 
-internal fun moveCaretToLine(editor: Editor, line: Int?) {
+internal fun moveCaretToLine(editor: Editor, line: Int?, endLine: Int? = null) {
     if (line == null) return
     val lineIndex = line - 1
     editor.caretModel.moveToLogicalPosition(LogicalPosition(lineIndex, 0))
+    applyLineRangeSelection(editor, line, endLine)
     editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
+}
+
+private fun applyLineRangeSelection(editor: Editor, line: Int?, endLine: Int?) {
+    if (line == null || endLine == null) return
+    val document = editor.document
+    val startOffset = document.getLineStartOffset(line - 1)
+    val endLineIndex = endLine - 1
+    val endOffset = if (endLineIndex >= document.lineCount - 1) {
+        document.getLineEndOffset(document.lineCount - 1)
+    } else {
+        document.getLineStartOffset(endLineIndex + 1)
+    }
+    editor.selectionModel.setSelection(startOffset, endOffset)
 }

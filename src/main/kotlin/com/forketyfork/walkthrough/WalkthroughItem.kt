@@ -33,6 +33,7 @@ data class WalkthroughItem(
     val text: String,
     val file: String? = null,
     val line: Int? = null,
+    val endLine: Int? = null,
     val diffId: String? = null,
     val diffFile: String? = null,
     val diffSide: DiffSide? = null,

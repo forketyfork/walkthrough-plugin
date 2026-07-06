@@ -43,6 +43,54 @@ class WalkthroughHistoryStoreTest {
     }
 
     @Test
+    fun saveListAndLoadRoundTripWalkthroughRecordWithEndLine() {
+        val store = WalkthroughHistoryStore(
+            directory = tempDir,
+            clock = Clock.fixed(Instant.parse("2026-05-09T04:34:00Z"), ZoneOffset.UTC),
+            randomSuffix = { "abc12345" },
+        )
+        val items = listOf(
+            WalkthroughItem(
+                text = "Explain popup placement",
+                file = "src/main/kotlin/com/forketyfork/walkthrough/WalkthroughPopupPlacement.kt",
+                line = 13,
+                endLine = 20,
+            ),
+        )
+
+        val saved = store.save("Explain popup placement", items)
+
+        assertEquals(items, saved.items)
+        assertEquals(20, saved.items.single().endLine)
+        assertEquals(saved, store.load(saved.id))
+    }
+
+    @Test
+    fun loadsLegacyRecordWithoutEndLineField() {
+        val store = WalkthroughHistoryStore(directory = tempDir)
+        val legacyJson = """
+            {
+              "id": "20260509-043400-000-legacy-abc12345",
+              "createdAt": "2026-05-09T04:34:00Z",
+              "description": "Legacy record",
+              "targetKind": "File",
+              "diffDescriptors": [],
+              "items": [
+                {"text": "Step", "file": "src/Foo.kt", "line": 5}
+              ]
+            }
+        """.trimIndent()
+        Files.writeString(tempDir.resolve("20260509-043400-000-legacy-abc12345.json"), legacyJson)
+
+        val loaded = store.load("20260509-043400-000-legacy-abc12345")
+
+        assertEquals(
+            listOf(WalkthroughItem(text = "Step", file = "src/Foo.kt", line = 5)),
+            loaded?.items,
+        )
+    }
+
+    @Test
     fun saveListAndLoadRoundTripDiffWalkthroughRecord() {
         val store = WalkthroughHistoryStore(
             directory = tempDir,
