@@ -49,14 +49,18 @@ fun showWalkthroughSession(
     val registry = WalkthroughSessionRegistry.getInstance(project)
     registry.swapActive(sessionDisposable)?.let(Disposer::dispose)
     val session = registry.create(items, acceptsQuestions)
-    Disposer.register(sessionDisposable) {
-        registry.remove(session.id)
-        registry.clearActive(sessionDisposable)
-    }
 
     var popupRef: WalkthroughPopupSurface? = null
     var currentEditor = firstTarget.editor
     var pendingNavigationId = 0
+
+    fun performClose() {
+        popupRef = null
+        registry.remove(session.id)
+        Disposer.dispose(sessionDisposable)
+    }
+
+    val closeController = attachTangentReviewController(project, session, sessionDisposable, registry, ::performClose)
 
     fun repaintPopup() {
         popupRef?.let { popup ->
@@ -99,9 +103,11 @@ fun showWalkthroughSession(
         project = project,
         session = session,
         paletteProvider = { paletteState.value },
+        reviewModeProvider = { closeController.reviewModeState.value },
         onItemDisplayed = ::scheduleItemNavigation,
         onNavigateToSource = ::scheduleItemNavigation,
         onClose = { popupRef?.cancel() },
+        onConfirmReview = closeController::confirmReview,
     )
     makeComponentHierarchyTransparent(panel)
 
@@ -126,11 +132,7 @@ fun showWalkthroughSession(
     val popup = WalkthroughPopupSurface(
         content = panel,
         palette = paletteState.value,
-        onCloseRequested = {
-            popupRef = null
-            registry.remove(session.id)
-            Disposer.dispose(sessionDisposable)
-        },
+        onCloseRequested = closeController::requestClose,
         onInteractionEnd = { saveCurrentGeometry(popupRef) },
     )
     popupRef = popup
@@ -187,17 +189,21 @@ internal fun createWalkthroughPanel(
     project: Project,
     session: WalkthroughSession,
     paletteProvider: () -> WalkthroughPalette,
+    reviewModeProvider: () -> Boolean,
     onItemDisplayed: (WalkthroughItem) -> Unit,
     onNavigateToSource: (WalkthroughItem) -> Unit,
     onClose: () -> Unit,
+    onConfirmReview: (Set<String>) -> Unit,
 ): JComponent = JewelComposePanel {
     WalkthroughItemContent(
         project = project,
         session = session,
         palette = paletteProvider(),
+        reviewMode = reviewModeProvider(),
         onItemDisplay = onItemDisplayed,
         onNavigateToSource = onNavigateToSource,
         onClose = onClose,
+        onConfirmReview = onConfirmReview,
     )
 }.apply {
     isOpaque = false

@@ -7,6 +7,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
@@ -97,6 +98,143 @@ class WalkthroughSessionRegistryTest {
             listOf("1", "1.1", "1.1.1"),
             session.snapshotItems().map { it.label },
         )
+    }
+
+    @Test
+    fun insertTangentsAssociatesPendingGroupWithInFlightQuestionText() = runBlocking {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
+        )
+        session.submitQuestion("what does this do?")
+        session.awaitQuestionResult(timeoutMillis = TEST_AWAIT_TIMEOUT_MILLIS)
+
+        session.insertTangents("1", listOf(WalkthroughItem(text = "answer")))
+
+        val group = session.pendingTangentGroups.single()
+        assertEquals("what does this do?", group.questionText)
+        assertEquals("1", group.parentLabel)
+        assertEquals(listOf("1.1"), group.childLabels)
+    }
+
+    @Test
+    fun insertTangentsFallsBackToParentLabelWithoutAnInFlightQuestion() {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
+        )
+
+        session.insertTangents("1", listOf(WalkthroughItem(text = "answer")))
+
+        assertEquals("1", session.pendingTangentGroups.single().questionText)
+    }
+
+    @Test
+    fun applyTangentReviewDecisionPreservesOrderAndLabelsOfSurvivingItems() {
+        val session = newSession(
+            assignTopLevelLabels(
+                listOf(WalkthroughItem(text = "one"), WalkthroughItem(text = "two"), WalkthroughItem(text = "three")),
+            ),
+        )
+        session.insertTangents("1", listOf(WalkthroughItem(text = "a1"), WalkthroughItem(text = "a2")))
+        session.insertTangents("2", listOf(WalkthroughItem(text = "b1")))
+        val groups = session.pendingTangentGroups.toList()
+        assertEquals(2, groups.size)
+
+        val shouldPersist = session.applyTangentReviewDecision(setOf(groups[0].id))
+
+        assertTrue(shouldPersist)
+        assertEquals(
+            listOf("1", "2", "2.1", "3"),
+            session.snapshotItems().map { it.label },
+        )
+        assertTrue(session.pendingTangentGroups.isEmpty())
+    }
+
+    @Test
+    fun applyTangentReviewDecisionDiscardingAllGroupsRemovesAllTangentsWithoutRequiringPersistence() {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
+        )
+        session.insertTangents("1", listOf(WalkthroughItem(text = "answer")))
+        val groupId = session.pendingTangentGroups.single().id
+
+        val shouldPersist = session.applyTangentReviewDecision(setOf(groupId))
+
+        assertFalse(shouldPersist)
+        assertEquals(listOf("1"), session.snapshotItems().map { it.label })
+        assertTrue(session.pendingTangentGroups.isEmpty())
+    }
+
+    @Test
+    fun applyTangentReviewDecisionWithNoPendingGroupsIsANoOp() {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
+        )
+
+        val shouldPersist = session.applyTangentReviewDecision(setOf("nonexistent"))
+
+        assertFalse(shouldPersist)
+        assertEquals(listOf("1"), session.snapshotItems().map { it.label })
+    }
+
+    @Test
+    fun applyTangentReviewDecisionWithUnknownGroupIdDefaultsToKeepingEverything() {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
+        )
+        session.insertTangents("1", listOf(WalkthroughItem(text = "answer")))
+
+        val shouldPersist = session.applyTangentReviewDecision(setOf("late-arrival-not-yet-visible"))
+
+        assertTrue(shouldPersist)
+        assertEquals(listOf("1", "1.1"), session.snapshotItems().map { it.label })
+        assertTrue(session.pendingTangentGroups.isEmpty())
+    }
+
+    @Test
+    fun applyTangentReviewDecisionCascadesDiscardToNestedGroupUnderDiscardedParent() {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "root"))),
+        )
+        session.insertTangents("1", listOf(WalkthroughItem(text = "child")))
+        session.insertTangents("1.1", listOf(WalkthroughItem(text = "grandchild")))
+        val parentGroup = session.pendingTangentGroups.single { it.parentLabel == "1" }
+
+        // Only the parent group is explicitly discarded; the nested group under "1.1" is not
+        // mentioned, but it must be discarded too since its parent step no longer exists.
+        val shouldPersist = session.applyTangentReviewDecision(setOf(parentGroup.id))
+
+        assertFalse(shouldPersist)
+        assertEquals(listOf("1"), session.snapshotItems().map { it.label })
+        assertTrue(session.pendingTangentGroups.isEmpty())
+    }
+
+    @Test
+    fun applyTangentReviewDecisionKeepsNestedGroupWhenParentGroupIsKept() {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "root"))),
+        )
+        session.insertTangents("1", listOf(WalkthroughItem(text = "child")))
+        session.insertTangents("1.1", listOf(WalkthroughItem(text = "grandchild")))
+
+        val shouldPersist = session.applyTangentReviewDecision(emptySet())
+
+        assertTrue(shouldPersist)
+        assertEquals(listOf("1", "1.1", "1.1.1"), session.snapshotItems().map { it.label })
+        assertTrue(session.pendingTangentGroups.isEmpty())
+    }
+
+    @Test
+    fun keepAllPendingTangentsPersistsEveryGroupAndIsIdempotent() {
+        val session = newSession(
+            assignTopLevelLabels(listOf(WalkthroughItem(text = "only"))),
+        )
+        session.insertTangents("1", listOf(WalkthroughItem(text = "answer")))
+
+        assertTrue(session.keepAllPendingTangents())
+        assertEquals(listOf("1", "1.1"), session.snapshotItems().map { it.label })
+        assertTrue(session.pendingTangentGroups.isEmpty())
+
+        assertFalse(session.keepAllPendingTangents())
     }
 
     @Test

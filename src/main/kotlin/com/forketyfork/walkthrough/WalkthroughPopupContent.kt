@@ -25,10 +25,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +41,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.intellij.openapi.project.Project
@@ -97,6 +101,9 @@ private object WalkthroughPopupContentStyle {
     val scrollbarPaddingEnd = 6.dp
     val scrollbarPaddingTop = 10.dp
     val scrollbarPaddingBottom = 10.dp
+    val reviewTitleTextSize: TextUnit = 15.sp
+    val reviewButtonRowSpacing: Dp = 10.dp
+    val reviewQuestionListSpacing: Dp = 10.dp
 }
 
 private data class WalkthroughPopupAnimationState(val gradientShift: Float, val glowShift: Float)
@@ -107,16 +114,29 @@ internal fun WalkthroughItemContent(
     project: Project,
     session: WalkthroughSession,
     palette: WalkthroughPalette,
+    reviewMode: Boolean,
     onItemDisplay: (WalkthroughItem) -> Unit,
     onNavigateToSource: (WalkthroughItem) -> Unit,
     onClose: () -> Unit,
+    onConfirmReview: (Set<String>) -> Unit,
 ) {
+    val animationState = rememberPopupAnimationState()
+    if (reviewMode) {
+        WalkthroughTangentReviewFrame(
+            session = session,
+            palette = palette,
+            animationState = animationState,
+            onClose = onClose,
+            onConfirm = onConfirmReview,
+        )
+        return
+    }
+
     val items = session.items
     var currentIndex by session.currentIndexState
     val safeIndex = currentIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
     val item = items.getOrNull(safeIndex) ?: return
     val scrollState = rememberScrollState()
-    val animationState = rememberPopupAnimationState()
     val scrollbarStyle = rememberPopupScrollbarStyle(palette)
     val showScrollbar = scrollState.maxValue > 0
     val questionStatus by session.questionStatusState
@@ -263,6 +283,114 @@ private fun WalkthroughPopupFrame(
                 )
             }
         }
+    }
+}
+
+/**
+ * Renders the tangent review screen. Reads [WalkthroughSession.pendingTangentGroups] directly
+ * (a [androidx.compose.runtime.snapshots.SnapshotStateList]) rather than a one-shot snapshot copy,
+ * so a group inserted by the agent while this screen is already open shows up as a new row instead
+ * of being silently discarded when the user confirms.
+ */
+@Composable
+private fun WalkthroughTangentReviewFrame(
+    session: WalkthroughSession,
+    palette: WalkthroughPalette,
+    animationState: WalkthroughPopupAnimationState,
+    onClose: () -> Unit,
+    onConfirm: (Set<String>) -> Unit,
+) {
+    val groups = session.pendingTangentGroups
+    // Keyed on the session, not the (live) group list, so existing checkbox choices survive a
+    // late-arriving group being appended. A group missing from this map defaults to kept.
+    val discardedGroupIds = remember(session) { mutableStateMapOf<String, Boolean>() }
+    val shape = RoundedCornerShape(WalkthroughPopupContentStyle.cornerRadius)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(shape)
+            .walkthroughPopupBackground(animationState, palette),
+    ) {
+        AiCloseButton(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(WalkthroughPopupContentStyle.closeButtonPadding),
+            onClick = onClose,
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    start = WalkthroughPopupContentStyle.contentPaddingStart,
+                    top = WalkthroughPopupContentStyle.contentPaddingTop,
+                    end = WalkthroughPopupContentStyle.contentPaddingEnd,
+                    bottom = WalkthroughPopupContentStyle.contentPaddingBottom,
+                ),
+            verticalArrangement = Arrangement.spacedBy(WalkthroughPopupContentStyle.contentSectionSpacing),
+        ) {
+            Text(
+                text = "Keep questions in this walkthrough?",
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = WalkthroughPopupContentStyle.reviewTitleTextSize,
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = true)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(WalkthroughPopupContentStyle.reviewQuestionListSpacing),
+            ) {
+                groups.forEach { group ->
+                    WalkthroughTangentReviewRow(
+                        question = group.questionText,
+                        checked = discardedGroupIds[group.id] != true,
+                        onToggle = { discardedGroupIds[group.id] = discardedGroupIds[group.id] != true },
+                    )
+                }
+            }
+            WalkthroughTangentReviewActions(
+                groups = groups,
+                discardedGroupIds = discardedGroupIds,
+                palette = palette,
+                onConfirm = onConfirm,
+            )
+        }
+    }
+}
+
+@Composable
+private fun WalkthroughTangentReviewActions(
+    groups: List<WalkthroughPendingTangentGroup>,
+    discardedGroupIds: SnapshotStateMap<String, Boolean>,
+    palette: WalkthroughPalette,
+    onConfirm: (Set<String>) -> Unit,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(WalkthroughPopupContentStyle.reviewButtonRowSpacing),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AiNavButton(
+            label = "Keep all",
+            enabled = true,
+            emphasized = false,
+            palette = palette,
+            onClick = { groups.forEach { discardedGroupIds[it.id] = false } },
+        )
+        AiNavButton(
+            label = "Discard all",
+            enabled = true,
+            emphasized = false,
+            palette = palette,
+            onClick = { groups.forEach { discardedGroupIds[it.id] = true } },
+        )
+        AiNavButton(
+            label = "Done",
+            enabled = true,
+            emphasized = true,
+            palette = palette,
+            onClick = { onConfirm(groups.filter { discardedGroupIds[it.id] == true }.map { it.id }.toSet()) },
+        )
     }
 }
 
