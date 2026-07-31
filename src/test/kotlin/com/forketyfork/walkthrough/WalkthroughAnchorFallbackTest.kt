@@ -26,10 +26,57 @@ class WalkthroughAnchorFallbackTest {
     }
 
     @Test
-    fun missingFileFallsBackToCurrentCaretAnchor() {
-        val item = WalkthroughItem(text = "Step", file = "missing/File.kt", line = 10)
+    fun nullEndLineIsResolvable() {
+        assertTrue(isResolvableWalkthroughEndLine(line = 5, endLine = null, lineCount = 20))
+    }
 
-        assertEquals(item.copy(file = null, line = null), item.withFallbackAnchor())
+    @Test
+    fun endLineWithinDocumentAtOrAfterLineResolves() {
+        assertTrue(isResolvableWalkthroughEndLine(line = 5, endLine = 5, lineCount = 20))
+        assertTrue(isResolvableWalkthroughEndLine(line = 5, endLine = 20, lineCount = 20))
+    }
+
+    @Test
+    fun endLineBeforeLineIsNotResolvable() {
+        assertFalse(isResolvableWalkthroughEndLine(line = 10, endLine = 9, lineCount = 20))
+    }
+
+    @Test
+    fun endLineOutsideDocumentIsNotResolvable() {
+        assertFalse(isResolvableWalkthroughEndLine(line = 5, endLine = 21, lineCount = 20))
+    }
+
+    @Test
+    fun endLineWithoutLineIsNotResolvable() {
+        assertFalse(isResolvableWalkthroughEndLine(line = null, endLine = 10, lineCount = 20))
+    }
+
+    @Test
+    fun validEndLineIsKept() {
+        val item = WalkthroughItem(text = "Step", file = "src/Foo.kt", line = 5, endLine = 10)
+
+        assertEquals(item, item.withResolvedEndLine(lineCount = 20))
+    }
+
+    @Test
+    fun invertedEndLineIsDroppedWhileLineSurvives() {
+        val item = WalkthroughItem(text = "Step", file = "src/Foo.kt", line = 10, endLine = 5)
+
+        assertEquals(item.copy(endLine = null), item.withResolvedEndLine(lineCount = 20))
+    }
+
+    @Test
+    fun outOfDocumentEndLineIsDroppedWhileLineSurvives() {
+        val item = WalkthroughItem(text = "Step", file = "src/Foo.kt", line = 5, endLine = 25)
+
+        assertEquals(item.copy(endLine = null), item.withResolvedEndLine(lineCount = 20))
+    }
+
+    @Test
+    fun missingFileFallsBackToCurrentCaretAnchor() {
+        val item = WalkthroughItem(text = "Step", file = "missing/File.kt", line = 10, endLine = 15)
+
+        assertEquals(item.copy(file = null, line = null, endLine = null), item.withFallbackAnchor())
     }
 
     @Test

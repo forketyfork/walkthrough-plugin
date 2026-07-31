@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Walkthrough steps anchored to a file can now select a range of consecutive lines by adding an
+  `endLine` field alongside `line`, instead of only placing the caret at a single line (#50).
+
 ### Fixed
 
 - Passing an empty or `null` items payload to the walkthrough MCP tools now returns a clear
