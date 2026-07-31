@@ -115,7 +115,9 @@ walkthrough.
 - Previous and Next navigation inside the popup for multi-step walkthroughs.
 - Users can ask follow-up questions in the popup; answers are inserted as labeled child steps.
 - Per-project walkthrough history stored under `.idea/walkthroughs/`, with a keymap-bindable
-  action for replaying previous walkthroughs.
+  action for replaying previous walkthroughs. Agents can pass a previous walkthrough's
+  `historyId` back into `show_walkthrough_items` or `show_diff_walkthrough_items` to overwrite
+  that record in place instead of creating a new one.
 - User-selectable popup color palettes under the IDE settings.
 - A Compose-based popup UI rendered through Jewel on the IntelliJ Platform.
 

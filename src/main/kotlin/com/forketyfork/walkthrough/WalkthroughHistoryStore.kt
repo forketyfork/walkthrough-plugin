@@ -57,6 +57,13 @@ private data class WalkthroughRecordItemJson(
     val parentLabel: String?,
 )
 
+internal sealed interface WalkthroughOverwriteResult {
+    data class Success(val record: WalkthroughRecord) : WalkthroughOverwriteResult
+    data object NotFound : WalkthroughOverwriteResult
+    data class TargetKindMismatch(val existingKind: WalkthroughTargetKind) : WalkthroughOverwriteResult
+    data object Failure : WalkthroughOverwriteResult
+}
+
 internal class WalkthroughHistoryStore(
     private val directory: Path,
     private val clock: Clock = Clock.systemUTC(),
@@ -107,6 +114,31 @@ internal class WalkthroughHistoryStore(
             Files.move(temporary, target, ATOMIC_MOVE, REPLACE_EXISTING)
         } catch (_: AtomicMoveNotSupportedException) {
             Files.move(temporary, target, REPLACE_EXISTING)
+        }
+    }
+
+    fun overwrite(
+        historyId: String,
+        description: String,
+        targetKind: WalkthroughTargetKind,
+        diffDescriptors: List<DiffWalkthroughDescriptor>,
+        items: List<WalkthroughItem>,
+    ): WalkthroughOverwriteResult {
+        val existing = load(historyId)
+        return when {
+            existing == null -> WalkthroughOverwriteResult.NotFound
+
+            existing.targetKind != targetKind -> WalkthroughOverwriteResult.TargetKindMismatch(existing.targetKind)
+
+            else -> {
+                val updated = existing.copy(
+                    description = description,
+                    diffDescriptors = diffDescriptors,
+                    items = items,
+                )
+                save(updated)
+                WalkthroughOverwriteResult.Success(updated)
+            }
         }
     }
 

@@ -50,6 +50,20 @@ class WalkthroughHistoryService(private val project: Project) {
             }
         }
 
+    internal fun overwrite(
+        historyId: String,
+        description: String,
+        targetKind: WalkthroughTargetKind,
+        diffDescriptors: List<DiffWalkthroughDescriptor>,
+        items: List<WalkthroughItem>,
+    ): WalkthroughOverwriteResult = runHistoryOperation(
+        operation = "overwrite walkthrough history",
+        fallback = WalkthroughOverwriteResult.Failure,
+    ) {
+        store?.overwrite(historyId, description, targetKind, diffDescriptors, items)
+            ?: WalkthroughOverwriteResult.NotFound
+    }
+
     private fun <T> runHistoryOperation(operation: String, fallback: T, block: () -> T): T =
         runCatching(block).getOrElse { exception ->
             LOG.warn("Failed to $operation", exception)
