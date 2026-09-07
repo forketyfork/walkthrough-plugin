@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-07
+
 ### Added
 
 - `show_walkthrough_items` and `show_diff_walkthrough_items` accept an optional `historyId`
