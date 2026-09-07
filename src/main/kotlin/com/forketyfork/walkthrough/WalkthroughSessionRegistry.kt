@@ -20,6 +20,13 @@ import java.util.concurrent.atomic.AtomicReference
 
 data class WalkthroughTangentQuestion(val question: String, val parentLabel: String?)
 
+data class WalkthroughPendingTangentGroup(
+    val id: String,
+    val questionText: String,
+    val parentLabel: String,
+    val childLabels: List<String>,
+)
+
 internal enum class WalkthroughQuestionStatus {
     AgentNotWaiting,
     WaitingForQuestion,
@@ -55,6 +62,7 @@ class WalkthroughSession internal constructor(
 ) {
     internal val items: SnapshotStateList<WalkthroughItem> =
         mutableStateListOf<WalkthroughItem>().apply { addAll(initialItems) }
+    internal val pendingTangentGroups: SnapshotStateList<WalkthroughPendingTangentGroup> = mutableStateListOf()
     internal val currentIndexState = mutableIntStateOf(0)
     internal val questionStatusState = mutableStateOf(WalkthroughQuestionStatus.AgentNotWaiting)
     internal val loadingState = mutableStateOf(false)
@@ -155,12 +163,72 @@ class WalkthroughSession internal constructor(
         }
         items.addAll(lastSubtreeIndex + 1, labeled)
         currentIndexState.intValue = lastSubtreeIndex + 1
-        synchronized(questionLock) {
+        val questionText = synchronized(questionLock) {
+            val text = inFlightQuestion?.question
             inFlightQuestion = null
             scheduleAgentNotWaitingLocked()
+            text
         }
+        pendingTangentGroups.add(
+            WalkthroughPendingTangentGroup(
+                id = UUID.randomUUID().toString(),
+                questionText = questionText ?: parentLabel,
+                parentLabel = parentLabel,
+                childLabels = labeled.mapNotNull { it.label },
+            ),
+        )
         return labeled
     }
+
+    /**
+     * Applies a review decision for the currently pending tangent groups: groups in
+     * [discardedGroupIds] have their child steps removed from [items], the rest stay. A pending
+     * group whose [parentLabel][WalkthroughPendingTangentGroup.parentLabel] falls under a
+     * discarded group's subtree is discarded too, even if its own id is absent from
+     * [discardedGroupIds] — this cascades the removal to nested tangents (asked on a
+     * still-pending tangent step) whose parent no longer exists. Any pending group unknown to the
+     * caller — e.g. one inserted while the review screen was already open — defaults to kept.
+     * Clears the pending groups either way.
+     * Returns whether any group was kept, i.e. whether the caller must persist [items] to history.
+     */
+    internal fun applyTangentReviewDecision(discardedGroupIds: Set<String>): Boolean {
+        val groups = pendingTangentGroups.toList()
+        if (groups.isEmpty()) return false
+
+        val resolvedDiscardedIds = mutableSetOf<String>()
+        val discardedLabels = mutableSetOf<String>()
+
+        fun isUnderDiscardedSubtree(label: String) = discardedLabels.any { label == it || label.startsWith("$it.") }
+
+        groups.filter { it.id in discardedGroupIds }.forEach { group ->
+            resolvedDiscardedIds += group.id
+            discardedLabels += group.childLabels
+        }
+
+        var cascaded = true
+        while (cascaded) {
+            cascaded = false
+            groups.forEach { group ->
+                if (group.id !in resolvedDiscardedIds && isUnderDiscardedSubtree(group.parentLabel)) {
+                    resolvedDiscardedIds += group.id
+                    discardedLabels += group.childLabels
+                    cascaded = true
+                }
+            }
+        }
+
+        if (discardedLabels.isNotEmpty()) {
+            items.removeAll { item -> item.label != null && isUnderDiscardedSubtree(item.label) }
+        }
+        pendingTangentGroups.clear()
+        return groups.any { it.id !in resolvedDiscardedIds }
+    }
+
+    /**
+     * Non-destructive fallback for when a session ends without an explicit review decision: keeps
+     * every pending tangent group. A no-op if a decision was already applied.
+     */
+    internal fun keepAllPendingTangents(): Boolean = applyTangentReviewDecision(discardedGroupIds = emptySet())
 
     internal fun dismiss() {
         if (disposed.complete(Unit)) {

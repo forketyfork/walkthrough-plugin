@@ -232,7 +232,9 @@ class ShowWalkthroughItemsToolset : McpToolset {
             "New child labels are derived automatically by appending '.N' to the parent label: " +
             "the first tangent under '3' becomes '3.1', the next '3.2', and so on. The popup " +
             "auto-navigates to the first inserted step. Clears the inline loading spinner so " +
-            "the user can ask another question. After this tool returns, immediately call " +
+            "the user can ask another question. Inserted steps are shown live but stay pending: " +
+            "the user chooses whether to keep or discard each one in a review prompt when they " +
+            "close the walkthrough. After this tool returns, immediately call " +
             "await_walkthrough_question again with the same walkthroughId.",
     )
     suspend fun insertWalkthroughTangents(
@@ -261,9 +263,6 @@ class ShowWalkthroughItemsToolset : McpToolset {
 
         val inserted = withContext(Dispatchers.EDT) {
             session.insertTangents(trimmedParent, parsedItems)
-        }
-        session.historyRecordId?.let { recordId ->
-            WalkthroughHistoryService.getInstance(project).updateItems(recordId, session.snapshotItems())
         }
         val labels = inserted.mapNotNull { it.label }.joinToString(", ")
         return "Inserted ${inserted.size} tangent step(s) under $trimmedParent: $labels"

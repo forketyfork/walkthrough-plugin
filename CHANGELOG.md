@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Answer steps inserted for an audience question now stay pending until the walkthrough is
+  closed, when a review prompt lets you keep or discard each question before it is saved to
+  history (#47).
+
 ### Fixed
 
 - Passing an empty or `null` items payload to the walkthrough MCP tools now returns a clear
