@@ -61,6 +61,50 @@ class WalkthroughMarkdownExporterTest {
     }
 
     @Test
+    fun rendersLineRangeWhenEndLineIsPresent() {
+        val record = WalkthroughRecord(
+            id = "20260509-043400-000-range-abc12345",
+            createdAt = "2026-05-09T04:34:00Z",
+            description = "Line range",
+            items = listOf(
+                WalkthroughItem(
+                    text = "This whole block matters.",
+                    file = "src/Auth.kt",
+                    line = 5,
+                    endLine = 10,
+                    label = "1",
+                ),
+            ),
+        )
+
+        val markdown = renderWalkthroughMarkdown(record)
+
+        assertTrue(markdown.contains("## Step 1\n\n`src/Auth.kt:5-10`\n\nThis whole block matters.\n"))
+    }
+
+    @Test
+    fun ignoresInvertedEndLineWhenRendering() {
+        val record = WalkthroughRecord(
+            id = "20260509-043400-000-inverted-abc12345",
+            createdAt = "2026-05-09T04:34:00Z",
+            description = "Inverted range",
+            items = listOf(
+                WalkthroughItem(
+                    text = "Stale range.",
+                    file = "src/Auth.kt",
+                    line = 10,
+                    endLine = 5,
+                    label = "1",
+                ),
+            ),
+        )
+
+        val markdown = renderWalkthroughMarkdown(record)
+
+        assertTrue(markdown.contains("## Step 1\n\n`src/Auth.kt:10`\n\nStale range.\n"))
+    }
+
+    @Test
     fun rendersDiffLocationsWithSideAndLine() {
         val record = WalkthroughRecord(
             id = "20260509-043400-000-pr-review-abc12345",
