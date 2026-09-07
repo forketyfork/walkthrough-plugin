@@ -272,6 +272,97 @@ class WalkthroughHistoryStoreTest {
     }
 
     @Test
+    fun overwritePreservesIdAndCreatedAtAndReplacesDescriptionAndItems() {
+        val store = WalkthroughHistoryStore(
+            directory = tempDir,
+            clock = Clock.fixed(Instant.parse("2026-05-09T04:34:00Z"), ZoneOffset.UTC),
+            randomSuffix = { "abc12345" },
+        )
+        val saved = store.save("Original description", listOf(WalkthroughItem(text = "step one", label = "1")))
+
+        val updatedItems = listOf(
+            WalkthroughItem(text = "step one", label = "1"),
+            WalkthroughItem(text = "step two", label = "2"),
+        )
+        val result = store.overwrite(
+            historyId = saved.id,
+            description = "Updated description",
+            targetKind = WalkthroughTargetKind.File,
+            diffDescriptors = emptyList(),
+            items = updatedItems,
+        )
+
+        check(result is WalkthroughOverwriteResult.Success)
+        assertEquals(saved.id, result.record.id)
+        assertEquals(saved.createdAt, result.record.createdAt)
+        assertEquals("Updated description", result.record.description)
+        assertEquals(updatedItems, result.record.items)
+
+        val reloaded = store.load(saved.id)
+        assertEquals(result.record, reloaded)
+    }
+
+    @Test
+    fun overwriteReturnsNotFoundForUnknownId() {
+        val store = WalkthroughHistoryStore(directory = tempDir)
+
+        val result = store.overwrite(
+            historyId = "20260509-043400-000-missing-abc12345",
+            description = "Updated description",
+            targetKind = WalkthroughTargetKind.File,
+            diffDescriptors = emptyList(),
+            items = listOf(WalkthroughItem(text = "step one")),
+        )
+
+        assertEquals(WalkthroughOverwriteResult.NotFound, result)
+    }
+
+    @Test
+    fun overwriteReturnsNotFoundForUnsafeId() {
+        val store = WalkthroughHistoryStore(directory = tempDir)
+
+        val result = store.overwrite(
+            historyId = "../other-project",
+            description = "Updated description",
+            targetKind = WalkthroughTargetKind.File,
+            diffDescriptors = emptyList(),
+            items = listOf(WalkthroughItem(text = "step one")),
+        )
+
+        assertEquals(WalkthroughOverwriteResult.NotFound, result)
+    }
+
+    @Test
+    fun overwriteReturnsTargetKindMismatchWhenKindDiffers() {
+        val store = WalkthroughHistoryStore(
+            directory = tempDir,
+            clock = Clock.fixed(Instant.parse("2026-05-09T04:34:00Z"), ZoneOffset.UTC),
+            randomSuffix = { "abc12345" },
+        )
+        val saved = store.save("File walkthrough", listOf(WalkthroughItem(text = "step one")))
+
+        val result = store.overwrite(
+            historyId = saved.id,
+            description = "Updated description",
+            targetKind = WalkthroughTargetKind.Diff,
+            diffDescriptors = listOf(
+                DiffWalkthroughDescriptor(
+                    id = "popup-change",
+                    file = "src/Foo.kt",
+                    leftCommit = "1111111111111111111111111111111111111111",
+                    rightCommit = "2222222222222222222222222222222222222222",
+                ),
+            ),
+            items = listOf(
+                WalkthroughItem(text = "step one", line = 1, diffId = "popup-change", diffSide = DiffSide.Right),
+            ),
+        )
+
+        assertEquals(WalkthroughOverwriteResult.TargetKindMismatch(WalkthroughTargetKind.File), result)
+        assertEquals(saved, store.load(saved.id))
+    }
+
+    @Test
     fun saveAcceptsDiffDescriptorWithOnlySideFiles() {
         val store = WalkthroughHistoryStore(
             directory = tempDir,
