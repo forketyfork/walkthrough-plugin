@@ -40,7 +40,7 @@ jobs:
       - name: Qodana scan
         # Keep this tag aligned with the linter image version pinned in
         # qodana.yaml so local runs and CI use the same Qodana release.
-        uses: JetBrains/qodana-action@v2026.2.0
+        uses: JetBrains/qodana-action@v2026.2.1
         with:
           # Push results to GitHub Code Scanning as SARIF.
           upload-result: true
