@@ -43,11 +43,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.delay
+import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.Text
 import kotlin.time.TimeSource
 
 private object WalkthroughPopupContentStyle {
-    val cornerRadius = 24.dp
     val textMinHeight = 180.dp
     val scrollbarMinHeight = 28.dp
     val scrollbarThickness = 6.dp
@@ -79,14 +79,12 @@ private object WalkthroughPopupContentStyle {
     val contentPaddingBottom = 16.dp
     val contentSectionSpacing = 14.dp
     val headerSpacing = 10.dp
-    val headerPillRadius = 999.dp
     const val HEADER_BACKGROUND_ALPHA = 0.06f
     val headerBorderWidth = 1.dp
     const val HEADER_BORDER_ALPHA = 0.08f
     val headerPaddingHorizontal = 8.dp
     val headerPaddingVertical = 6.dp
     val metaTextSize = 12.sp
-    val bodyCornerRadius = 18.dp
     const val BODY_BACKGROUND_ALPHA = 0.08f
     val bodyBorderWidth = 1.dp
     const val BODY_BORDER_ALPHA = 0.12f
@@ -116,8 +114,9 @@ internal fun WalkthroughItemContent(
     val safeIndex = currentIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
     val item = items.getOrNull(safeIndex) ?: return
     val scrollState = rememberScrollState()
-    val animationState = rememberPopupAnimationState()
-    val scrollbarStyle = rememberPopupScrollbarStyle(palette)
+    val popupColors = palette.popupColors()
+    val animationState = rememberPopupAnimationState(palette)
+    val scrollbarStyle = rememberPopupScrollbarStyle(popupColors)
     val showScrollbar = scrollState.maxValue > 0
     val questionStatus by session.questionStatusState
 
@@ -144,6 +143,7 @@ internal fun WalkthroughItemContent(
             acceptsQuestions = session.acceptsQuestions,
             questionStatus = questionStatus,
             palette = palette,
+            popupColors = popupColors,
             scrollState = scrollState,
             showScrollbar = showScrollbar,
             animationState = animationState,
@@ -157,8 +157,8 @@ internal fun WalkthroughItemContent(
 }
 
 @Composable
-private fun rememberPopupAnimationState(): WalkthroughPopupAnimationState {
-    if (WalkthroughDebugOptions.disablePopupContentAnimation) {
+private fun rememberPopupAnimationState(palette: WalkthroughPalette): WalkthroughPopupAnimationState {
+    if (palette.isThemeBased || WalkthroughDebugOptions.disablePopupContentAnimation) {
         return remember {
             WalkthroughPopupAnimationState(
                 gradientShift = WalkthroughPopupContentStyle.ANIMATION_START,
@@ -181,18 +181,18 @@ private fun rememberPopupAnimationState(): WalkthroughPopupAnimationState {
 }
 
 @Composable
-private fun rememberPopupScrollbarStyle(palette: WalkthroughPalette): ScrollbarStyle = remember(palette) {
+private fun rememberPopupScrollbarStyle(colors: WalkthroughPopupColors): ScrollbarStyle = remember(colors) {
     ScrollbarStyle(
         minimalHeight = WalkthroughPopupContentStyle.scrollbarMinHeight,
         thickness = WalkthroughPopupContentStyle.scrollbarThickness,
         shape = CircleShape,
         hoverDurationMillis = WalkthroughPopupContentStyle.SCROLLBAR_HOVER_DURATION_MS,
-        unhoverColor = palette.scrollbarUnhoverColor,
-        hoverColor = palette.scrollbarHoverColor,
+        unhoverColor = colors.scrollbarUnhoverColor,
+        hoverColor = colors.scrollbarHoverColor,
     )
 }
 
-@Suppress("LongParameterList")
+@Suppress("LongParameterList", "LongMethod")
 @Composable
 private fun WalkthroughPopupFrame(
     project: Project,
@@ -202,6 +202,7 @@ private fun WalkthroughPopupFrame(
     acceptsQuestions: Boolean,
     questionStatus: WalkthroughQuestionStatus,
     palette: WalkthroughPalette,
+    popupColors: WalkthroughPopupColors,
     scrollState: ScrollState,
     showScrollbar: Boolean,
     animationState: WalkthroughPopupAnimationState,
@@ -211,14 +212,15 @@ private fun WalkthroughPopupFrame(
     onSubmitQuestion: (String) -> Unit,
     onClose: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(WalkthroughPopupContentStyle.cornerRadius)
+    val shape = RoundedCornerShape(palette.popupCornerRadius())
     Box(
         modifier = Modifier
             .fillMaxSize()
             .clip(shape)
-            .walkthroughPopupBackground(animationState, palette),
+            .walkthroughPopupBackground(animationState, palette, popupColors),
     ) {
         AiCloseButton(
+            palette = palette,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(WalkthroughPopupContentStyle.closeButtonPadding),
@@ -235,10 +237,18 @@ private fun WalkthroughPopupFrame(
                 ),
             verticalArrangement = Arrangement.spacedBy(WalkthroughPopupContentStyle.contentSectionSpacing),
         ) {
-            WalkthroughPopupHeader(item = item, items = items, currentIndex = currentIndex, palette = palette)
+            WalkthroughPopupHeader(
+                item = item,
+                items = items,
+                currentIndex = currentIndex,
+                palette = palette,
+                popupColors = popupColors,
+            )
             WalkthroughPopupBody(
                 project = project,
                 item = item,
+                palette = palette,
+                popupColors = popupColors,
                 scrollState = scrollState,
                 showScrollbar = showScrollbar,
             )
@@ -259,6 +269,7 @@ private fun WalkthroughPopupFrame(
                 WalkthroughQuestionInput(
                     status = questionStatus,
                     palette = palette,
+                    popupColors = popupColors,
                     onSubmit = onSubmitQuestion,
                 )
             }
@@ -269,16 +280,22 @@ private fun WalkthroughPopupFrame(
 private fun WalkthroughItem.hasNavigationTarget(): Boolean =
     file != null || line != null || diffId != null || diffFile != null
 
+@Suppress("LongMethod")
 private fun Modifier.walkthroughPopupBackground(
     animationState: WalkthroughPopupAnimationState,
     palette: WalkthroughPalette,
+    popupColors: WalkthroughPopupColors,
 ): Modifier = drawWithCache {
     val cornerRadius = CornerRadius(
-        WalkthroughPopupContentStyle.cornerRadius.toPx(),
-        WalkthroughPopupContentStyle.cornerRadius.toPx(),
+        palette.popupCornerRadius().toPx(),
+        palette.popupCornerRadius().toPx(),
     )
     val backgroundBrush = Brush.linearGradient(
-        colors = palette.backgroundGradientColors,
+        colors = if (palette.isThemeBased) {
+            listOf(popupColors.backgroundColor, popupColors.backgroundColor)
+        } else {
+            palette.backgroundGradientColors
+        },
         start = Offset(
             size.width * (animationState.gradientShift - WalkthroughPopupContentStyle.BACKGROUND_START_X_SHIFT),
             -size.height * WalkthroughPopupContentStyle.BACKGROUND_START_Y_SHIFT,
@@ -289,7 +306,11 @@ private fun Modifier.walkthroughPopupBackground(
         ),
     )
     val glowBrush = Brush.radialGradient(
-        colors = palette.glowGradientColors,
+        colors = if (palette.isThemeBased) {
+            listOf(Color.Transparent, Color.Transparent)
+        } else {
+            palette.glowGradientColors
+        },
         center = Offset(
             size.width * (
                 WalkthroughPopupContentStyle.GLOW_CENTER_BASE_X +
@@ -300,7 +321,11 @@ private fun Modifier.walkthroughPopupBackground(
         radius = size.minDimension * WalkthroughPopupContentStyle.GLOW_RADIUS_FACTOR,
     )
     val borderBrush = Brush.linearGradient(
-        colors = palette.borderGradientColors,
+        colors = if (palette.isThemeBased) {
+            listOf(popupColors.borderColor, popupColors.borderColor)
+        } else {
+            palette.borderGradientColors
+        },
         start = Offset(
             size.width * (animationState.gradientShift - WalkthroughPopupContentStyle.BORDER_GRADIENT_START_SHIFT),
             0f,
@@ -310,12 +335,14 @@ private fun Modifier.walkthroughPopupBackground(
 
     onDrawBehind {
         drawRoundRect(brush = backgroundBrush, cornerRadius = cornerRadius)
-        drawRoundRect(brush = glowBrush, cornerRadius = cornerRadius)
-        drawRoundRect(color = palette.overlayColor, cornerRadius = cornerRadius)
+        if (!palette.isThemeBased) {
+            drawRoundRect(brush = glowBrush, cornerRadius = cornerRadius)
+            drawRoundRect(color = palette.overlayColor, cornerRadius = cornerRadius)
+        }
         drawRoundRect(
             brush = borderBrush,
             cornerRadius = cornerRadius,
-            alpha = WalkthroughPopupContentStyle.BORDER_ALPHA,
+            alpha = if (palette.isThemeBased) 1f else WalkthroughPopupContentStyle.BORDER_ALPHA,
             style = Stroke(width = WalkthroughPopupContentStyle.borderStrokeWidth.toPx()),
         )
     }
@@ -327,18 +354,29 @@ private fun WalkthroughPopupHeader(
     items: List<WalkthroughItem>,
     currentIndex: Int,
     palette: WalkthroughPalette,
+    popupColors: WalkthroughPopupColors,
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(WalkthroughPopupContentStyle.headerSpacing),
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .wrapContentWidth()
-            .clip(RoundedCornerShape(WalkthroughPopupContentStyle.headerPillRadius))
-            .background(Color.White.copy(alpha = WalkthroughPopupContentStyle.HEADER_BACKGROUND_ALPHA))
+            .clip(RoundedCornerShape(palette.headerCornerRadius()))
+            .background(
+                if (palette.isThemeBased) {
+                    popupColors.fieldBackgroundColor
+                } else {
+                    Color.White.copy(alpha = WalkthroughPopupContentStyle.HEADER_BACKGROUND_ALPHA)
+                },
+            )
             .border(
                 width = WalkthroughPopupContentStyle.headerBorderWidth,
-                color = Color.White.copy(alpha = WalkthroughPopupContentStyle.HEADER_BORDER_ALPHA),
-                shape = RoundedCornerShape(WalkthroughPopupContentStyle.headerPillRadius),
+                color = if (palette.isThemeBased) {
+                    popupColors.borderColor
+                } else {
+                    Color.White.copy(alpha = WalkthroughPopupContentStyle.HEADER_BORDER_ALPHA)
+                },
+                shape = RoundedCornerShape(palette.headerCornerRadius()),
             )
             .padding(
                 horizontal = WalkthroughPopupContentStyle.headerPaddingHorizontal,
@@ -350,9 +388,11 @@ private fun WalkthroughPopupHeader(
         if (meta != null) {
             Text(
                 text = meta,
-                color = palette.metaTextColor,
-                fontSize = WalkthroughPopupContentStyle.metaTextSize,
-                fontWeight = FontWeight.Medium,
+                color = popupColors.metaTextColor,
+                style = JewelTheme.defaultTextStyle.copy(
+                    fontSize = WalkthroughPopupContentStyle.metaTextSize,
+                    fontWeight = FontWeight.Medium,
+                ),
             )
         }
     }
@@ -372,9 +412,12 @@ private fun headerMetaText(item: WalkthroughItem, items: List<WalkthroughItem>, 
 }
 
 @Composable
+@Suppress("LongParameterList")
 private fun ColumnScope.WalkthroughPopupBody(
     project: Project,
     item: WalkthroughItem,
+    palette: WalkthroughPalette,
+    popupColors: WalkthroughPopupColors,
     scrollState: ScrollState,
     showScrollbar: Boolean,
 ) {
@@ -383,12 +426,22 @@ private fun ColumnScope.WalkthroughPopupBody(
             .fillMaxWidth()
             .weight(1f, fill = true)
             .heightIn(min = WalkthroughPopupContentStyle.textMinHeight)
-            .clip(RoundedCornerShape(WalkthroughPopupContentStyle.bodyCornerRadius))
-            .background(Color.White.copy(alpha = WalkthroughPopupContentStyle.BODY_BACKGROUND_ALPHA))
+            .clip(RoundedCornerShape(palette.bodyCornerRadius()))
+            .background(
+                if (palette.isThemeBased) {
+                    popupColors.fieldBackgroundColor
+                } else {
+                    Color.White.copy(alpha = WalkthroughPopupContentStyle.BODY_BACKGROUND_ALPHA)
+                },
+            )
             .border(
                 width = WalkthroughPopupContentStyle.bodyBorderWidth,
-                color = Color.White.copy(alpha = WalkthroughPopupContentStyle.BODY_BORDER_ALPHA),
-                shape = RoundedCornerShape(WalkthroughPopupContentStyle.bodyCornerRadius),
+                color = if (palette.isThemeBased) {
+                    popupColors.borderColor
+                } else {
+                    Color.White.copy(alpha = WalkthroughPopupContentStyle.BODY_BORDER_ALPHA)
+                },
+                shape = RoundedCornerShape(palette.bodyCornerRadius()),
             ),
     ) {
         Box(
@@ -402,7 +455,7 @@ private fun ColumnScope.WalkthroughPopupBody(
                 )
                 .verticalScroll(scrollState),
         ) {
-            MarkdownContent(project, item.text)
+            MarkdownContent(project, item.text, palette)
         }
 
         if (showScrollbar) {

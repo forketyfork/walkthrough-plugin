@@ -45,7 +45,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.jetbrains.jewel.foundation.theme.JewelTheme
+import org.jetbrains.jewel.ui.component.DefaultButton
 import org.jetbrains.jewel.ui.component.Icon
+import org.jetbrains.jewel.ui.component.IconButton
+import org.jetbrains.jewel.ui.component.OutlinedButton
 import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.icons.AllIconsKeys
 
@@ -68,7 +72,6 @@ private object WalkthroughWidgetStyle {
     val navVerticalPadding = 8.dp
     val navTextSize = 13.sp
     val questionRowSpacing = 8.dp
-    val questionFieldRadius = 18.dp
     val questionFieldPaddingHorizontal = 14.dp
     val questionFieldTextSize = 13.sp
     val questionStatusSpacing = 4.dp
@@ -118,17 +121,29 @@ internal fun WalkthroughPopupNavigation(
             )
         }
         if (onNavigateToSource != null) {
-            GoToSourceButton(onClick = onNavigateToSource)
+            GoToSourceButton(palette = palette, onClick = onNavigateToSource)
         }
     }
 }
 
 @Composable
 internal fun AiBadge(palette: WalkthroughPalette) {
+    val popupColors = palette.popupColors()
     Box(
         modifier = Modifier
-            .clip(CircleShape)
-            .background(brush = Brush.linearGradient(palette.badgeGradientColors))
+            .clip(RoundedCornerShape(palette.headerCornerRadius()))
+            .background(
+                brush = if (palette.isThemeBased) {
+                    Brush.linearGradient(
+                        listOf(
+                            popupColors.accentColor.copy(alpha = 0.16f),
+                            popupColors.accentColor.copy(alpha = 0.16f),
+                        ),
+                    )
+                } else {
+                    Brush.linearGradient(palette.badgeGradientColors)
+                },
+            )
             .padding(
                 horizontal = WalkthroughWidgetStyle.badgePaddingHorizontal,
                 vertical = WalkthroughWidgetStyle.badgePaddingVertical,
@@ -136,15 +151,36 @@ internal fun AiBadge(palette: WalkthroughPalette) {
     ) {
         Text(
             text = "Walkthrough",
-            color = Color.White,
-            fontSize = WalkthroughWidgetStyle.badgeTextSize,
-            fontWeight = FontWeight.SemiBold,
+            color = if (palette.isThemeBased) popupColors.contentColor else Color.White,
+            style = if (palette.isThemeBased) {
+                JewelTheme.defaultTextStyle.copy(
+                    fontSize = WalkthroughWidgetStyle.badgeTextSize,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            } else {
+                TextStyle(
+                    fontSize = WalkthroughWidgetStyle.badgeTextSize,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            },
         )
     }
 }
 
 @Composable
-internal fun AiCloseButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun AiCloseButton(palette: WalkthroughPalette, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    if (palette.isThemeBased) {
+        IconButton(
+            onClick = onClick,
+            modifier = modifier.size(WalkthroughWidgetStyle.closeButtonSize),
+        ) {
+            Icon(
+                key = AllIconsKeys.General.Close,
+                contentDescription = "Close walkthrough",
+            )
+        }
+        return
+    }
     Box(
         modifier = modifier
             .size(WalkthroughWidgetStyle.closeButtonSize)
@@ -168,7 +204,19 @@ internal fun AiCloseButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 }
 
 @Composable
-internal fun GoToSourceButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun GoToSourceButton(palette: WalkthroughPalette, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    if (palette.isThemeBased) {
+        IconButton(
+            onClick = onClick,
+            modifier = modifier.size(WalkthroughWidgetStyle.sendButtonSize),
+        ) {
+            Icon(
+                key = AllIconsKeys.General.Locate,
+                contentDescription = "Go to source",
+            )
+        }
+        return
+    }
     Box(
         modifier = modifier
             .size(WalkthroughWidgetStyle.sendButtonSize)
@@ -198,6 +246,18 @@ internal fun AiNavButton(
     palette: WalkthroughPalette,
     onClick: () -> Unit,
 ) {
+    if (palette.isThemeBased) {
+        if (emphasized) {
+            DefaultButton(onClick = onClick, enabled = enabled) {
+                Text(label)
+            }
+        } else {
+            OutlinedButton(onClick = onClick, enabled = enabled) {
+                Text(label)
+            }
+        }
+        return
+    }
     val backgroundBrush = if (emphasized) {
         Brush.linearGradient(palette.navPrimaryGradientColors)
     } else {
@@ -241,6 +301,7 @@ internal fun AiNavButton(
 internal fun WalkthroughQuestionInput(
     status: WalkthroughQuestionStatus,
     palette: WalkthroughPalette,
+    popupColors: WalkthroughPopupColors,
     onSubmit: (String) -> Unit,
 ) {
     var text by remember { mutableStateOf("") }
@@ -266,41 +327,59 @@ internal fun WalkthroughQuestionInput(
                 text = text,
                 enabled = canType,
                 placeholder = questionPlaceholder(status),
+                palette = palette,
+                popupColors = popupColors,
                 onTextChange = { value -> text = value },
                 onSend = submit,
                 modifier = Modifier.weight(1f),
             )
             if (status == WalkthroughQuestionStatus.ProcessingQuestion) {
-                QuestionSpinner(palette = palette)
+                QuestionSpinner(palette = palette, popupColors = popupColors)
             } else {
-                SendQuestionButton(enabled = canSubmit, palette = palette, onClick = submit)
+                SendQuestionButton(
+                    enabled = canSubmit,
+                    palette = palette,
+                    onClick = submit,
+                )
             }
         }
-        QuestionStatusText(status = status)
+        QuestionStatusText(status = status, popupColors = popupColors)
     }
 }
 
 @Composable
+@Suppress("LongParameterList", "LongMethod")
 private fun QuestionTextField(
     text: String,
     enabled: Boolean,
     placeholder: String,
     onTextChange: (String) -> Unit,
     onSend: () -> Unit,
+    palette: WalkthroughPalette,
+    popupColors: WalkthroughPopupColors,
     modifier: Modifier = Modifier,
 ) {
+    val fieldShape = RoundedCornerShape(palette.questionFieldCornerRadius())
     Box(
         modifier = modifier
             .height(WalkthroughWidgetStyle.sendButtonSize)
-            .clip(RoundedCornerShape(WalkthroughWidgetStyle.questionFieldRadius))
+            .clip(fieldShape)
             .background(
-                Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_FIELD_BACKGROUND_ALPHA),
-                RoundedCornerShape(WalkthroughWidgetStyle.questionFieldRadius),
+                if (palette.isThemeBased) {
+                    popupColors.fieldBackgroundColor
+                } else {
+                    Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_FIELD_BACKGROUND_ALPHA)
+                },
+                fieldShape,
             )
             .border(
                 WalkthroughWidgetStyle.closeButtonBorderWidth,
-                Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_FIELD_BORDER_ALPHA),
-                RoundedCornerShape(WalkthroughWidgetStyle.questionFieldRadius),
+                if (palette.isThemeBased) {
+                    popupColors.fieldBorderColor
+                } else {
+                    Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_FIELD_BORDER_ALPHA)
+                },
+                fieldShape,
             )
             .padding(horizontal = WalkthroughWidgetStyle.questionFieldPaddingHorizontal),
         contentAlignment = Alignment.CenterStart,
@@ -310,12 +389,20 @@ private fun QuestionTextField(
             onValueChange = onTextChange,
             enabled = enabled,
             singleLine = true,
-            textStyle = TextStyle(
-                color = Color.White,
-                fontSize = WalkthroughWidgetStyle.questionFieldTextSize,
-                fontWeight = FontWeight.Normal,
-            ),
-            cursorBrush = SolidColor(Color.White),
+            textStyle = if (palette.isThemeBased) {
+                JewelTheme.defaultTextStyle.copy(
+                    color = popupColors.contentColor,
+                    fontSize = WalkthroughWidgetStyle.questionFieldTextSize,
+                    fontWeight = FontWeight.Normal,
+                )
+            } else {
+                TextStyle(
+                    color = Color.White,
+                    fontSize = WalkthroughWidgetStyle.questionFieldTextSize,
+                    fontWeight = FontWeight.Normal,
+                )
+            },
+            cursorBrush = SolidColor(if (palette.isThemeBased) popupColors.accentColor else Color.White),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(onSend = { onSend() }),
             modifier = Modifier.fillMaxWidth(),
@@ -323,8 +410,16 @@ private fun QuestionTextField(
                 if (text.isEmpty()) {
                     Text(
                         text = placeholder,
-                        color = Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_PLACEHOLDER_ALPHA),
-                        fontSize = WalkthroughWidgetStyle.questionFieldTextSize,
+                        color = if (palette.isThemeBased) {
+                            popupColors.disabledContentColor
+                        } else {
+                            Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_PLACEHOLDER_ALPHA)
+                        },
+                        style = if (palette.isThemeBased) {
+                            JewelTheme.defaultTextStyle.copy(fontSize = WalkthroughWidgetStyle.questionFieldTextSize)
+                        } else {
+                            TextStyle(fontSize = WalkthroughWidgetStyle.questionFieldTextSize)
+                        },
                     )
                 }
                 innerTextField()
@@ -334,12 +429,12 @@ private fun QuestionTextField(
 }
 
 @Composable
-private fun QuestionStatusText(status: WalkthroughQuestionStatus) {
+private fun QuestionStatusText(status: WalkthroughQuestionStatus, popupColors: WalkthroughPopupColors) {
     val text = questionStatusText(status) ?: return
     Text(
         text = text,
-        color = Color.White.copy(alpha = WalkthroughWidgetStyle.QUESTION_STATUS_ALPHA),
-        fontSize = WalkthroughWidgetStyle.questionStatusTextSize,
+        color = popupColors.disabledContentColor.copy(alpha = WalkthroughWidgetStyle.QUESTION_STATUS_ALPHA),
+        style = JewelTheme.defaultTextStyle.copy(fontSize = WalkthroughWidgetStyle.questionStatusTextSize),
     )
 }
 
@@ -366,6 +461,19 @@ private fun questionStatusText(status: WalkthroughQuestionStatus): String? = whe
 
 @Composable
 private fun SendQuestionButton(enabled: Boolean, palette: WalkthroughPalette, onClick: () -> Unit) {
+    if (palette.isThemeBased) {
+        IconButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.size(WalkthroughWidgetStyle.sendButtonSize),
+        ) {
+            Icon(
+                key = AllIconsKeys.Actions.Forward,
+                contentDescription = "Send question",
+            )
+        }
+        return
+    }
     val backgroundBrush = Brush.linearGradient(palette.navPrimaryGradientColors)
     Box(
         modifier = Modifier
@@ -387,7 +495,7 @@ private fun SendQuestionButton(enabled: Boolean, palette: WalkthroughPalette, on
 }
 
 @Composable
-private fun QuestionSpinner(palette: WalkthroughPalette) {
+private fun QuestionSpinner(palette: WalkthroughPalette, popupColors: WalkthroughPopupColors) {
     val transition = rememberInfiniteTransition(label = "walkthrough-question-spinner")
     val rotation by transition.animateFloat(
         initialValue = 0f,
@@ -406,12 +514,12 @@ private fun QuestionSpinner(palette: WalkthroughPalette) {
         contentAlignment = Alignment.Center,
     ) {
         Canvas(modifier = Modifier.size(WalkthroughWidgetStyle.spinnerSize).rotate(rotation)) {
-            drawSpinnerArc(palette = palette)
+            drawSpinnerArc(palette = palette, popupColors = popupColors)
         }
     }
 }
 
-private fun DrawScope.drawSpinnerArc(palette: WalkthroughPalette) {
+private fun DrawScope.drawSpinnerArc(palette: WalkthroughPalette, popupColors: WalkthroughPopupColors) {
     val strokeWidthPx = WalkthroughWidgetStyle.spinnerStrokeWidth.toPx()
     val arcSize = Size(
         size.width - strokeWidthPx,
@@ -428,7 +536,7 @@ private fun DrawScope.drawSpinnerArc(palette: WalkthroughPalette) {
         style = Stroke(width = strokeWidthPx),
     )
     drawArc(
-        color = palette.navPrimaryBorderColor,
+        color = if (palette.isThemeBased) popupColors.accentColor else palette.navPrimaryBorderColor,
         startAngle = 0f,
         sweepAngle = WalkthroughWidgetStyle.SPINNER_SWEEP_DEGREES,
         useCenter = false,

@@ -3,6 +3,7 @@ package com.forketyfork.walkthrough
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.awt.geom.Point2D
 
 class WalkthroughPopupGeometryTest {
 
@@ -49,5 +50,16 @@ class WalkthroughPopupGeometryTest {
             val nextCycle = reverseLinearShift((t + period).toLong(), halfPeriod)
             assertEquals(first, nextCycle, 0.001f, "Expected periodicity at t=$t")
         }
+    }
+
+    @Test
+    fun connectorLineEndsAtArrowHeadBase() {
+        val arrowTip = Point2D.Float(100f, 50f)
+        val endControl = Point2D.Float(60f, 50f)
+
+        val lineEnd = connectorLineEnd(arrowTip, endControl)
+
+        assertEquals(87f, lineEnd.x, 0.001f)
+        assertEquals(50f, lineEnd.y, 0.001f)
     }
 }

@@ -1,6 +1,7 @@
 package com.forketyfork.walkthrough
 
 import androidx.compose.ui.graphics.Color
+import com.intellij.ui.JBColor
 import java.awt.Color as AwtColor
 
 internal data class WalkthroughPalette(
@@ -18,11 +19,30 @@ internal data class WalkthroughPalette(
     val navPrimaryBorderColor: Color,
     val connectorStrokeColor: AwtColor,
     val connectorArrowFillColor: AwtColor,
+    val isThemeBased: Boolean = false,
 ) {
     val swatchGradientColors: List<Color> = borderGradientColors
 }
 
 internal object WalkthroughPalettes {
+    val IDEA = WalkthroughPalette(
+        id = "idea",
+        displayName = "IDEA",
+        backgroundGradientColors = listOf(Color.Transparent),
+        glowGradientColors = listOf(Color.Transparent, Color.Transparent),
+        overlayColor = Color.Transparent,
+        borderGradientColors = listOf(Color.Transparent),
+        scrollbarUnhoverColor = Color.Transparent,
+        scrollbarHoverColor = Color.Transparent,
+        metaTextColor = Color.Transparent,
+        badgeGradientColors = listOf(Color.Transparent),
+        navPrimaryGradientColors = listOf(Color.Transparent),
+        navPrimaryBorderColor = Color.Transparent,
+        connectorStrokeColor = JBColor.namedColor("Component.focusColor", AwtColor(76, 131, 230)),
+        connectorArrowFillColor = JBColor.namedColor("Component.focusColor", AwtColor(76, 131, 230)),
+        isThemeBased = true,
+    )
+
     val PURPLE = WalkthroughPalette(
         id = "purple",
         displayName = "Purple",
@@ -146,8 +166,8 @@ internal object WalkthroughPalettes {
         connectorArrow = AwtColor(236, 72, 153, 215),
     )
 
-    val all: List<WalkthroughPalette> = listOf(PURPLE, GREEN, BLUE, RED, ORANGE, TEAL, PINK)
-    val default: WalkthroughPalette = PURPLE
+    val all: List<WalkthroughPalette> = listOf(IDEA, PURPLE, GREEN, BLUE, RED, ORANGE, TEAL, PINK)
+    val default: WalkthroughPalette = IDEA
 
     private val byId = all.associateBy(WalkthroughPalette::id)
 

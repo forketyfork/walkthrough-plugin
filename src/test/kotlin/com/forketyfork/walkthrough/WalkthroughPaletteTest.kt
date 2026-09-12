@@ -11,7 +11,7 @@ class WalkthroughPaletteTest {
     @Test
     fun allPresetsAreAvailable() {
         assertEquals(
-            listOf("purple", "green", "blue", "red", "orange", "teal", "pink"),
+            listOf("idea", "purple", "green", "blue", "red", "orange", "teal", "pink"),
             WalkthroughPalettes.all.map(WalkthroughPalette::id),
         )
     }
@@ -24,8 +24,8 @@ class WalkthroughPaletteTest {
     }
 
     @Test
-    fun defaultPaletteIsPurple() {
-        assertSame(WalkthroughPalettes.PURPLE, WalkthroughPalettes.default)
+    fun defaultPaletteUsesIdeaStyling() {
+        assertSame(WalkthroughPalettes.IDEA, WalkthroughPalettes.default)
     }
 
     @Test
@@ -35,12 +35,12 @@ class WalkthroughPaletteTest {
 
     @Test
     fun lookupFallsBackToDefaultForUnknownId() {
-        assertSame(WalkthroughPalettes.PURPLE, WalkthroughPalettes.byId("unknown"))
+        assertSame(WalkthroughPalettes.IDEA, WalkthroughPalettes.byId("unknown"))
     }
 
     @Test
     fun lookupFallsBackToDefaultForMissingId() {
-        assertSame(WalkthroughPalettes.PURPLE, WalkthroughPalettes.byId(null))
+        assertSame(WalkthroughPalettes.IDEA, WalkthroughPalettes.byId(null))
     }
 
     @Test
@@ -84,5 +84,10 @@ class WalkthroughPaletteTest {
     @Test
     fun everyPresetHasSwatchColors() {
         assertTrue(WalkthroughPalettes.all.all { it.swatchGradientColors.isNotEmpty() })
+    }
+
+    @Test
+    fun ideaPaletteUsesTheCurrentIdeaTheme() {
+        assertTrue(WalkthroughPalettes.IDEA.isThemeBased)
     }
 }

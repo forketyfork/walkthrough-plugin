@@ -41,7 +41,7 @@ internal object WalkthroughConnectorStyle {
     const val DEFAULT_SIGN = 1f
     const val ARROW_SPREAD_DEGREES = 24.0
     const val ARROW_HEAD_LENGTH = 13.0
-    const val STROKE_WIDTH = 3.5f
+    const val STROKE_WIDTH = 2.45f
 }
 
 private data class ConnectorPaintContext(
@@ -343,16 +343,25 @@ private fun buildConnector(anchor: ConnectorAnchor, end: Point2D.Float): Connect
     }
     val path = Path2D.Float().apply {
         moveTo(anchor.point.x.toDouble(), anchor.point.y.toDouble())
+        val lineEnd = connectorLineEnd(end, endControl)
         curveTo(
             startControl.x.toDouble(),
             startControl.y.toDouble(),
             endControl.x.toDouble(),
             endControl.y.toDouble(),
-            end.x.toDouble(),
-            end.y.toDouble(),
+            lineEnd.x.toDouble(),
+            lineEnd.y.toDouble(),
         )
     }
     return ConnectorPath(path, end, endControl)
+}
+
+internal fun connectorLineEnd(end: Point2D.Float, endControl: Point2D.Float): Point2D.Float {
+    val angle = atan2((end.y - endControl.y).toDouble(), (end.x - endControl.x).toDouble())
+    return Point2D.Float(
+        end.x - (WalkthroughConnectorStyle.ARROW_HEAD_LENGTH * cos(angle)).toFloat(),
+        end.y - (WalkthroughConnectorStyle.ARROW_HEAD_LENGTH * sin(angle)).toFloat(),
+    )
 }
 
 private fun drawArrowHead(
