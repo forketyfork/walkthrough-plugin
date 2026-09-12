@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-12
+
 ### Changed
 
 - The walkthrough popup now uses IDEA styling by default, including the active appearance theme's
