@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- The walkthrough popup now uses IDEA styling by default, including the active appearance theme's
+  colors, typography, native controls, and rounded corners; the animated background is disabled for
+  this style. (PR #79)
+- The walkthrough connector is thinner and now meets the arrowhead at its base for a cleaner arrow.
+  (PR #79)
+
 ## [0.6.0] - 2026-09-07
 
 ### Added

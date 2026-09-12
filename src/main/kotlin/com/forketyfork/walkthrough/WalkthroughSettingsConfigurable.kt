@@ -117,14 +117,15 @@ internal class WalkthroughSettingsConfigurable : Configurable {
     }
 }
 
-private fun settingsHeading(): JLabel = JLabel("Walkthrough popup colors").apply {
+private fun settingsHeading(): JLabel = JLabel("Walkthrough popup style").apply {
     font = font.deriveFont(Font.BOLD)
 }
 
-private fun settingsDescription(): JLabel =
-    JLabel("These palettes style the popup background, border, controls, scrollbar, and source connector.").apply {
-        foreground = JBColor.GRAY
-    }
+private fun settingsDescription(): JLabel = JLabel(
+    "IDEA follows the current appearance theme; other palettes customize the popup colors and connector.",
+).apply {
+    foreground = JBColor.GRAY
+}
 
 private fun fullWidthConstraints(gridRow: Int, bottomInset: Int): GridBagConstraints = GridBagConstraints().apply {
     gridx = 0
@@ -223,25 +224,38 @@ private class PaletteSwatch(private val palette: WalkthroughPalette) : JComponen
 
     private fun swatchPaint(): Paint {
         val colors = palette.swatchGradientColors.map { AwtColor(it.toArgb(), true) }
-        if (
+        return when {
+            palette.isThemeBased -> themeSwatchPaint()
+
             colors.size < WalkthroughSettingsStyle.MIN_GRADIENT_COLOR_COUNT ||
-            width < WalkthroughSettingsStyle.MIN_PAINT_SIZE ||
-            height < WalkthroughSettingsStyle.MIN_PAINT_SIZE
-        ) {
-            return colors.firstOrNull() ?: JBColor.GRAY
-        }
+                width < WalkthroughSettingsStyle.MIN_PAINT_SIZE ||
+                height < WalkthroughSettingsStyle.MIN_PAINT_SIZE -> colors.firstOrNull() ?: JBColor.GRAY
 
-        val fractions = FloatArray(colors.size) { index ->
-            index.toFloat() / colors.lastIndex.toFloat()
+            else -> {
+                val fractions = FloatArray(colors.size) { index ->
+                    index.toFloat() / colors.lastIndex.toFloat()
+                }
+                LinearGradientPaint(
+                    0f,
+                    0f,
+                    width.toFloat(),
+                    height.toFloat(),
+                    fractions,
+                    colors.toTypedArray(),
+                )
+            }
         }
-
-        return LinearGradientPaint(
-            0f,
-            0f,
-            width.toFloat(),
-            height.toFloat(),
-            fractions,
-            colors.toTypedArray(),
-        )
     }
+
+    private fun themeSwatchPaint(): Paint = LinearGradientPaint(
+        0f,
+        0f,
+        width.toFloat(),
+        height.toFloat(),
+        floatArrayOf(0f, 1f),
+        arrayOf(
+            JBColor.PanelBackground,
+            JBColor.namedColor("Component.focusColor", JBColor.GRAY),
+        ),
+    )
 }

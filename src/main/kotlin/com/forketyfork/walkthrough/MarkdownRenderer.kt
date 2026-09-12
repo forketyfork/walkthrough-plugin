@@ -45,18 +45,17 @@ import org.jetbrains.jewel.markdown.rendering.InlinesStyling
 import org.jetbrains.jewel.markdown.rendering.MarkdownBlockRenderer
 import org.jetbrains.jewel.markdown.rendering.MarkdownStyling
 
-private val PopupMarkdownTextColor = WalkthroughColors.textPrimary
-private val PopupMarkdownCodeTextColor = WalkthroughColors.textCode
-private val PopupMarkdownInlineCodeBackground = WalkthroughColors.pink.copy(alpha = 0.2f)
-private val PopupMarkdownLinkColor = WalkthroughColors.blue
-private val PopupMarkdownBlockBackground = WalkthroughColors.blockBackground
-private val PopupMarkdownDividerColor = WalkthroughColors.divider
-
 @Composable
-internal fun MarkdownContent(project: Project, markdown: String, modifier: Modifier = Modifier) {
-    val baseTextStyle = rememberPopupBaseTextStyle()
-    val editorTextStyle = rememberPopupEditorTextStyle()
-    val markdownStyling = rememberPopupMarkdownStyling(baseTextStyle, editorTextStyle)
+internal fun MarkdownContent(
+    project: Project,
+    markdown: String,
+    palette: WalkthroughPalette,
+    modifier: Modifier = Modifier,
+) {
+    val popupColors = palette.popupColors()
+    val baseTextStyle = rememberPopupBaseTextStyle(popupColors)
+    val editorTextStyle = rememberPopupEditorTextStyle(popupColors)
+    val markdownStyling = rememberPopupMarkdownStyling(baseTextStyle, editorTextStyle, popupColors)
     val processor = rememberPopupMarkdownProcessor()
     val blockRenderer = rememberPopupMarkdownBlockRenderer(markdownStyling)
     val codeHighlighter = rememberPopupCodeHighlighter(project)
@@ -80,28 +79,37 @@ internal fun MarkdownContent(project: Project, markdown: String, modifier: Modif
 }
 
 @Composable
-private fun rememberPopupBaseTextStyle(): TextStyle = remember(JewelTheme.instanceUuid) {
+private fun rememberPopupBaseTextStyle(colors: WalkthroughPopupColors): TextStyle = remember(
+    JewelTheme.instanceUuid,
+    colors,
+) {
     retrieveDefaultTextStyle().copy(
-        color = PopupMarkdownTextColor,
+        color = colors.contentColor,
         fontSize = 15.sp,
         lineHeight = 22.sp,
     )
 }
 
 @Composable
-private fun rememberPopupEditorTextStyle(): TextStyle = remember(JewelTheme.instanceUuid) {
+private fun rememberPopupEditorTextStyle(colors: WalkthroughPopupColors): TextStyle = remember(
+    JewelTheme.instanceUuid,
+    colors,
+) {
     retrieveEditorTextStyle().copy(
-        color = PopupMarkdownCodeTextColor,
+        color = colors.markdownCodeTextColor,
         fontSize = 13.sp,
         lineHeight = 20.sp,
     )
 }
 
 @Composable
-private fun rememberPopupMarkdownStyling(baseTextStyle: TextStyle, editorTextStyle: TextStyle): MarkdownStyling =
-    remember(JewelTheme.instanceUuid) {
-        createPopupMarkdownStyling(baseTextStyle, editorTextStyle)
-    }
+private fun rememberPopupMarkdownStyling(
+    baseTextStyle: TextStyle,
+    editorTextStyle: TextStyle,
+    colors: WalkthroughPopupColors,
+): MarkdownStyling = remember(JewelTheme.instanceUuid, colors) {
+    createPopupMarkdownStyling(baseTextStyle, editorTextStyle, colors)
+}
 
 @Composable
 private fun rememberPopupMarkdownProcessor(): MarkdownProcessor = remember {
@@ -142,18 +150,22 @@ private fun rememberPopupCodeHighlighter(project: Project) =
         project.service<CodeHighlighterFactory>().createHighlighter()
     }
 
-private fun createPopupMarkdownStyling(baseTextStyle: TextStyle, editorTextStyle: TextStyle): MarkdownStyling {
-    val inlinesStyling = createPopupInlinesStyling(baseTextStyle, editorTextStyle)
+private fun createPopupMarkdownStyling(
+    baseTextStyle: TextStyle,
+    editorTextStyle: TextStyle,
+    colors: WalkthroughPopupColors,
+): MarkdownStyling {
+    val inlinesStyling = createPopupInlinesStyling(baseTextStyle, editorTextStyle, colors)
     return MarkdownStyling.create(
         baseTextStyle = baseTextStyle,
         editorTextStyle = editorTextStyle,
         inlinesStyling = inlinesStyling,
         blockVerticalSpacing = 10.dp,
         paragraph = MarkdownStyling.Paragraph.create(inlinesStyling),
-        heading = createPopupHeadingStyling(baseTextStyle, editorTextStyle),
+        heading = createPopupHeadingStyling(baseTextStyle, editorTextStyle, colors),
         blockQuote = MarkdownStyling.BlockQuote.create(
-            textColor = PopupMarkdownTextColor.copy(alpha = 0.88f),
-            lineColor = PopupMarkdownLinkColor.copy(alpha = 0.45f),
+            textColor = colors.contentColor.copy(alpha = 0.88f),
+            lineColor = colors.markdownLinkColor.copy(alpha = 0.45f),
         ),
         code = MarkdownStyling.Code.create(
             editorTextStyle = editorTextStyle,
@@ -161,15 +173,15 @@ private fun createPopupMarkdownStyling(baseTextStyle: TextStyle, editorTextStyle
                 textStyle = editorTextStyle,
                 padding = PaddingValues(12.dp),
                 shape = RoundedCornerShape(12.dp),
-                background = PopupMarkdownBlockBackground,
+                background = colors.markdownBlockBackground,
             ),
             fenced = MarkdownStyling.Code.Fenced.create(
                 textStyle = editorTextStyle,
                 padding = PaddingValues(12.dp),
                 shape = RoundedCornerShape(12.dp),
-                background = PopupMarkdownBlockBackground,
+                background = colors.markdownBlockBackground,
                 infoTextStyle = editorTextStyle.copy(
-                    color = PopupMarkdownLinkColor,
+                    color = colors.markdownLinkColor,
                     fontSize = 12.sp,
                 ),
             ),
@@ -189,19 +201,23 @@ private fun createPopupMarkdownStyling(baseTextStyle: TextStyle, editorTextStyle
         ),
         thematicBreak = MarkdownStyling.ThematicBreak.create(
             lineWidth = 1.dp,
-            lineColor = PopupMarkdownDividerColor,
+            lineColor = colors.markdownDividerColor,
         ),
         htmlBlock = MarkdownStyling.HtmlBlock.create(
             textStyle = editorTextStyle,
             padding = PaddingValues(12.dp),
             shape = RoundedCornerShape(12.dp),
-            background = PopupMarkdownBlockBackground,
-            borderColor = PopupMarkdownDividerColor,
+            background = colors.markdownBlockBackground,
+            borderColor = colors.markdownDividerColor,
         ),
     )
 }
 
-private fun createPopupHeadingStyling(baseTextStyle: TextStyle, editorTextStyle: TextStyle): MarkdownStyling.Heading {
+private fun createPopupHeadingStyling(
+    baseTextStyle: TextStyle,
+    editorTextStyle: TextStyle,
+    colors: WalkthroughPopupColors,
+): MarkdownStyling.Heading {
     val headerPadding = PaddingValues(top = 12.dp)
     val h1 = baseTextStyle.copy(fontSize = 22.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold)
     val h2 = baseTextStyle.copy(fontSize = 19.sp, lineHeight = 27.sp, fontWeight = FontWeight.Bold)
@@ -213,42 +229,42 @@ private fun createPopupHeadingStyling(baseTextStyle: TextStyle, editorTextStyle:
         baseTextStyle = baseTextStyle,
         h1 = MarkdownStyling.Heading.H1.create(
             baseTextStyle = h1,
-            inlinesStyling = createPopupInlinesStyling(h1, editorTextStyle),
+            inlinesStyling = createPopupInlinesStyling(h1, editorTextStyle, colors),
             underlineWidth = 0.dp,
             underlineGap = 0.dp,
             padding = headerPadding,
         ),
         h2 = MarkdownStyling.Heading.H2.create(
             baseTextStyle = h2,
-            inlinesStyling = createPopupInlinesStyling(h2, editorTextStyle),
+            inlinesStyling = createPopupInlinesStyling(h2, editorTextStyle, colors),
             underlineWidth = 0.dp,
             underlineGap = 0.dp,
             padding = headerPadding,
         ),
         h3 = MarkdownStyling.Heading.H3.create(
             baseTextStyle = h3,
-            inlinesStyling = createPopupInlinesStyling(h3, editorTextStyle),
+            inlinesStyling = createPopupInlinesStyling(h3, editorTextStyle, colors),
             underlineWidth = 0.dp,
             underlineGap = 0.dp,
             padding = headerPadding,
         ),
         h4 = MarkdownStyling.Heading.H4.create(
             baseTextStyle = h4,
-            inlinesStyling = createPopupInlinesStyling(h4, editorTextStyle),
+            inlinesStyling = createPopupInlinesStyling(h4, editorTextStyle, colors),
             underlineWidth = 0.dp,
             underlineGap = 0.dp,
             padding = headerPadding,
         ),
         h5 = MarkdownStyling.Heading.H5.create(
             baseTextStyle = h5,
-            inlinesStyling = createPopupInlinesStyling(h5, editorTextStyle),
+            inlinesStyling = createPopupInlinesStyling(h5, editorTextStyle, colors),
             underlineWidth = 0.dp,
             underlineGap = 0.dp,
             padding = headerPadding,
         ),
         h6 = MarkdownStyling.Heading.H6.create(
             baseTextStyle = h6,
-            inlinesStyling = createPopupInlinesStyling(h6, editorTextStyle),
+            inlinesStyling = createPopupInlinesStyling(h6, editorTextStyle, colors),
             underlineWidth = 0.dp,
             underlineGap = 0.dp,
             padding = headerPadding,
@@ -256,28 +272,31 @@ private fun createPopupHeadingStyling(baseTextStyle: TextStyle, editorTextStyle:
     )
 }
 
-private fun createPopupInlinesStyling(textStyle: TextStyle, editorTextStyle: TextStyle): InlinesStyling =
-    InlinesStyling.create(
-        textStyle = textStyle,
-        editorTextStyle = editorTextStyle,
-        inlineCode = editorTextStyle.copy(
-            color = PopupMarkdownTextColor,
-            fontSize = textStyle.fontSize * 0.92f,
-            background = PopupMarkdownInlineCodeBackground,
-        ).toSpanStyle(),
-        link = SpanStyle(color = PopupMarkdownLinkColor),
-        linkDisabled = SpanStyle(color = PopupMarkdownLinkColor.copy(alpha = 0.5f)),
-        linkHovered = SpanStyle(
-            color = PopupMarkdownLinkColor,
-            textDecoration = TextDecoration.Underline,
-        ),
-        linkFocused = SpanStyle(
-            color = PopupMarkdownLinkColor,
-            textDecoration = TextDecoration.Underline,
-        ),
-        linkPressed = SpanStyle(
-            color = PopupMarkdownLinkColor.copy(alpha = 0.8f),
-            textDecoration = TextDecoration.Underline,
-        ),
-        linkVisited = SpanStyle(color = PopupMarkdownLinkColor.copy(alpha = 0.85f)),
-    )
+private fun createPopupInlinesStyling(
+    textStyle: TextStyle,
+    editorTextStyle: TextStyle,
+    colors: WalkthroughPopupColors,
+): InlinesStyling = InlinesStyling.create(
+    textStyle = textStyle,
+    editorTextStyle = editorTextStyle,
+    inlineCode = editorTextStyle.copy(
+        color = colors.contentColor,
+        fontSize = textStyle.fontSize * 0.92f,
+        background = colors.markdownInlineCodeBackground,
+    ).toSpanStyle(),
+    link = SpanStyle(color = colors.markdownLinkColor),
+    linkDisabled = SpanStyle(color = colors.markdownLinkColor.copy(alpha = 0.5f)),
+    linkHovered = SpanStyle(
+        color = colors.markdownLinkColor,
+        textDecoration = TextDecoration.Underline,
+    ),
+    linkFocused = SpanStyle(
+        color = colors.markdownLinkColor,
+        textDecoration = TextDecoration.Underline,
+    ),
+    linkPressed = SpanStyle(
+        color = colors.markdownLinkColor.copy(alpha = 0.8f),
+        textDecoration = TextDecoration.Underline,
+    ),
+    linkVisited = SpanStyle(color = colors.markdownLinkColor.copy(alpha = 0.85f)),
+)
