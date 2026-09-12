@@ -527,7 +527,11 @@ private fun DrawScope.drawSpinnerArc(palette: WalkthroughPalette, popupColors: W
     )
     val topLeft = Offset(strokeWidthPx / 2f, strokeWidthPx / 2f)
     drawArc(
-        color = Color.White.copy(alpha = WalkthroughWidgetStyle.SPINNER_TRACK_ALPHA),
+        color = if (palette.isThemeBased) {
+            popupColors.disabledContentColor.copy(alpha = WalkthroughWidgetStyle.SPINNER_TRACK_ALPHA)
+        } else {
+            Color.White.copy(alpha = WalkthroughWidgetStyle.SPINNER_TRACK_ALPHA)
+        },
         startAngle = 0f,
         sweepAngle = 360f,
         useCenter = false,
