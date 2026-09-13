@@ -3,10 +3,18 @@ package com.forketyfork.walkthrough
 import com.intellij.openapi.editor.Editor
 import java.awt.Dimension
 import java.awt.Point
+import java.awt.geom.Point2D
 import javax.swing.SwingUtilities
 import kotlin.math.roundToInt
 
 private const val ARROW_VIEWPORT_INSET_PX = 12f
+
+internal data class CurlyBraceGeometry(val leftX: Float, val topY: Float, val bottomY: Float, val width: Float) {
+    val arrowPoint: Point2D.Float
+        get() = Point2D.Float(leftX + width, (topY + bottomY) / 2f)
+}
+
+internal data class WalkthroughTargetScreenGeometry(val arrowPoint: Point2D.Float, val brace: CurlyBraceGeometry?)
 
 private data class LineScreenGeometry(
     val anchorX: Float,
@@ -168,6 +176,71 @@ internal fun calculateLineScreenPoint(editor: Editor, line: Int?): Point {
         lineGeometry.centerY.coerceIn(minY, maxY).roundToInt(),
     )
 }
+
+internal fun calculateWalkthroughTargetScreenGeometry(
+    editor: Editor,
+    item: WalkthroughItem,
+): WalkthroughTargetScreenGeometry {
+    val line = item.line
+    val endLine = item.endLine
+    val brace = if (line != null && endLine != null && hasBraceRange(editor, line, endLine)) {
+        calculateRangeBraceGeometry(editor, line, endLine)
+    } else {
+        null
+    }
+    return WalkthroughTargetScreenGeometry(
+        arrowPoint = brace?.arrowPoint ?: calculateLineScreenPoint(editor, item.line).toPoint2D(),
+        brace = brace,
+    )
+}
+
+private fun hasBraceRange(editor: Editor, line: Int, endLine: Int): Boolean =
+    endLine >= line && isResolvableWalkthroughEndLine(line, endLine, editor.document.lineCount)
+
+private fun calculateRangeBraceGeometry(editor: Editor, line: Int, endLine: Int): CurlyBraceGeometry? {
+    val firstLine = resolveTargetLine(editor, line)
+    val lastLine = resolveTargetLine(editor, endLine)
+    return if (lastLine < firstLine) {
+        null
+    } else {
+        val document = editor.document
+        val visibleArea = editor.scrollingModel.visibleArea
+        val firstLineTop = editor.offsetToXY(document.getLineStartOffset(firstLine)).y.toFloat()
+        val lastLineBottom = (
+            editor.offsetToXY(document.getLineStartOffset(lastLine)).y + editor.lineHeight
+            ).toFloat()
+        val visibleTop = visibleArea.y.toFloat()
+        val visibleBottom = (visibleArea.y + visibleArea.height).toFloat()
+        val topY = firstLineTop.coerceAtLeast(visibleTop)
+        val bottomY = lastLineBottom.coerceAtMost(visibleBottom)
+        if (bottomY <= topY) {
+            null
+        } else {
+            val rangeRightX = maxOf(
+                editor.offsetToXY(document.getLineEndOffset(firstLine)).x,
+                editor.offsetToXY(document.getLineEndOffset(lastLine)).x,
+            ).toFloat()
+            val minX = visibleArea.x.toFloat() + WalkthroughConnectorStyle.BRACE_VIEWPORT_INSET
+            val maxX = (
+                visibleArea.x + visibleArea.width - WalkthroughConnectorStyle.BRACE_VIEWPORT_INSET -
+                    WalkthroughConnectorStyle.BRACE_WIDTH
+                ).coerceAtLeast(minX)
+            val braceLeftX = (rangeRightX + WalkthroughConnectorStyle.BRACE_GAP)
+                .coerceIn(minX, maxX)
+            val contentOrigin = Point(0, 0).also {
+                SwingUtilities.convertPointToScreen(it, editor.contentComponent)
+            }
+            CurlyBraceGeometry(
+                leftX = contentOrigin.x + braceLeftX,
+                topY = contentOrigin.y + topY,
+                bottomY = contentOrigin.y + bottomY,
+                width = WalkthroughConnectorStyle.BRACE_WIDTH,
+            )
+        }
+    }
+}
+
+private fun Point.toPoint2D() = Point2D.Float(x.toFloat(), y.toFloat())
 
 internal fun reverseLinearShift(elapsedMs: Long, halfPeriodMs: Int): Float {
     val period = 2L * halfPeriodMs

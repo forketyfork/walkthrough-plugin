@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Walkthrough steps anchored to a file can now identify a range of consecutive lines by adding an
+  `endLine` field alongside `line`, instead of only pointing at a single line (#50).
+
+### Changed
+
+- Ranged file walkthrough steps now mark the mentioned code with a curly brace and point the
+  connector at that brace, without changing the editor's text selection (#55).
+
 ## [0.7.0] - 2026-09-12
 
 ### Changed

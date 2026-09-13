@@ -38,6 +38,9 @@ internal object WalkthroughConnectorStyle {
     const val END_HORIZONTAL_PULL_MINIMUM = 48f
     const val END_VERTICAL_PULL_MINIMUM = 42f
     const val END_CURVE_FACTOR = 0.12f
+    const val BRACE_GAP = 8f
+    const val BRACE_WIDTH = 12f
+    const val BRACE_VIEWPORT_INSET = 12f
     const val DEFAULT_SIGN = 1f
     const val ARROW_SPREAD_DEGREES = 24.0
     const val ARROW_HEAD_LENGTH = 13.0
@@ -159,10 +162,8 @@ internal class WalkthroughPopupSurface(
         super.paintComponent(graphics)
         if (connectorHidden) return
         val context = currentPaintContext() ?: return
-        val targetPoint = Point(calculateLineScreenPoint(context.editor, context.item.line)).also {
-            SwingUtilities.convertPointFromScreen(it, this)
-        }
-        val arrowTarget = Point2D.Float(targetPoint.x.toFloat(), targetPoint.y.toFloat())
+        val targetGeometry = calculateWalkthroughTargetScreenGeometry(context.editor, context.item)
+        val arrowTarget = targetGeometry.arrowPoint.toComponentCoordinates(this)
         val connector = buildConnector(
             nearestBorderAnchor(context.popupBounds, arrowTarget),
             arrowTarget,
@@ -180,6 +181,9 @@ internal class WalkthroughPopupSurface(
                 BasicStroke.CAP_ROUND,
                 BasicStroke.JOIN_ROUND,
             )
+            targetGeometry.brace
+                ?.toComponentCoordinates(this)
+                ?.let { graphics2D.draw(buildCurlyBracePath(it)) }
             graphics2D.draw(connector.path)
             drawArrowHead(graphics2D, connector.end, connector.endControl, palette)
         } finally {
@@ -282,6 +286,30 @@ private data class ConnectorAnchor(val point: Point2D.Float, val side: Connector
 
 private data class ConnectorPath(val path: Path2D.Float, val end: Point2D.Float, val endControl: Point2D.Float)
 
+internal fun buildCurlyBracePath(brace: CurlyBraceGeometry): Path2D.Float {
+    val centerY = (brace.topY + brace.bottomY) / 2f
+    val centerPull = ((brace.bottomY - brace.topY) / 2f * 0.62f).coerceAtLeast(4f)
+    return Path2D.Float().apply {
+        moveTo(brace.leftX.toDouble(), brace.topY.toDouble())
+        curveTo(
+            (brace.leftX + brace.width).toDouble(),
+            brace.topY.toDouble(),
+            (brace.leftX + brace.width).toDouble(),
+            (centerY - centerPull).toDouble(),
+            (brace.leftX + brace.width).toDouble(),
+            centerY.toDouble(),
+        )
+        curveTo(
+            (brace.leftX + brace.width).toDouble(),
+            (centerY + centerPull).toDouble(),
+            (brace.leftX + brace.width).toDouble(),
+            brace.bottomY.toDouble(),
+            brace.leftX.toDouble(),
+            brace.bottomY.toDouble(),
+        )
+    }
+}
+
 private fun nearestBorderAnchor(popupRect: Rectangle2D.Float, target: Point2D.Float): ConnectorAnchor {
     val inset = WalkthroughConnectorStyle.BORDER_INSET
     val minY = popupRect.y + inset
@@ -361,6 +389,20 @@ internal fun connectorLineEnd(end: Point2D.Float, endControl: Point2D.Float): Po
     return Point2D.Float(
         end.x - (WalkthroughConnectorStyle.ARROW_HEAD_LENGTH * cos(angle)).toFloat(),
         end.y - (WalkthroughConnectorStyle.ARROW_HEAD_LENGTH * sin(angle)).toFloat(),
+    )
+}
+
+private fun Point2D.Float.toComponentCoordinates(component: JComponent): Point2D.Float {
+    val componentOrigin = Point(0, 0).also { SwingUtilities.convertPointToScreen(it, component) }
+    return Point2D.Float(x - componentOrigin.x, y - componentOrigin.y)
+}
+
+private fun CurlyBraceGeometry.toComponentCoordinates(component: JComponent): CurlyBraceGeometry {
+    val componentOrigin = Point(0, 0).also { SwingUtilities.convertPointToScreen(it, component) }
+    return copy(
+        leftX = leftX - componentOrigin.x,
+        topY = topY - componentOrigin.y,
+        bottomY = bottomY - componentOrigin.y,
     )
 }
 

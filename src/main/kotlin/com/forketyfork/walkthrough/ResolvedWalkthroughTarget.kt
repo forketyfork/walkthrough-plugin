@@ -2,8 +2,6 @@ package com.forketyfork.walkthrough
 
 import com.intellij.openapi.application.WriteIntentReadAction
 import com.intellij.openapi.editor.Editor
-import com.intellij.openapi.editor.LogicalPosition
-import com.intellij.openapi.editor.ScrollType
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
@@ -29,15 +27,14 @@ private fun resolveFallbackTarget(
     fileEditorManager: FileEditorManager,
     fallbackEditor: Editor?,
     item: WalkthroughItem,
-): ResolvedWalkthroughTarget? {
-    val editor = fileEditorManager.selectedTextEditor ?: fallbackEditor ?: return null
-    val popupItem = if (isResolvableWalkthroughLine(item.line, editor.document.lineCount)) {
-        moveCaretToLine(editor, item.line)
-        item
-    } else {
-        item.withFallbackAnchor()
+): ResolvedWalkthroughTarget? = run {
+    val editor = fileEditorManager.selectedTextEditor ?: fallbackEditor ?: return@run null
+    if (!isResolvableWalkthroughLine(item.line, editor.document.lineCount)) {
+        return@run ResolvedWalkthroughTarget(editor, item.withFallbackAnchor())
     }
-    return ResolvedWalkthroughTarget(editor, popupItem)
+    val resolvedItem = item.withResolvedEndLine(editor.document.lineCount)
+    moveEditorCaretToLine(editor, resolvedItem.line)
+    ResolvedWalkthroughTarget(editor, resolvedItem)
 }
 
 private fun resolveFileTarget(
@@ -45,15 +42,14 @@ private fun resolveFileTarget(
     fileEditorManager: FileEditorManager,
     item: WalkthroughItem,
     relativePath: String,
-): ResolvedWalkthroughTarget? {
-    val virtualFile = findWalkthroughFile(project, relativePath)
-    val lineCount = virtualFile?.lineCount()
-    val editor = if (virtualFile != null && lineCount != null && isResolvableWalkthroughLine(item.line, lineCount)) {
-        openEditor(project, fileEditorManager, virtualFile, item)
-    } else {
-        null
-    }
-    return editor?.let { ResolvedWalkthroughTarget(it, item) }
+): ResolvedWalkthroughTarget? = run {
+    val virtualFile = findWalkthroughFile(project, relativePath) ?: return@run null
+    val lineCount = virtualFile.lineCount() ?: return@run null
+    if (!isResolvableWalkthroughLine(item.line, lineCount)) return@run null
+    val resolvedItem = item.withResolvedEndLine(lineCount)
+    val editor = openEditor(project, fileEditorManager, virtualFile, resolvedItem)
+        ?: return@run null
+    ResolvedWalkthroughTarget(editor, resolvedItem)
 }
 
 private fun findWalkthroughFile(project: Project, relativePath: String) =
@@ -74,12 +70,5 @@ private fun openEditor(
     val lineIndex = (item.line ?: 1).coerceAtLeast(1) - 1
     return runCatching {
         fileEditorManager.openTextEditor(OpenFileDescriptor(project, virtualFile, lineIndex, 0), true)
-    }.getOrNull()
-}
-
-internal fun moveCaretToLine(editor: Editor, line: Int?) {
-    if (line == null) return
-    val lineIndex = line - 1
-    editor.caretModel.moveToLogicalPosition(LogicalPosition(lineIndex, 0))
-    editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
+    }.getOrNull()?.also { editor -> moveEditorCaretToLine(editor, item.line) }
 }

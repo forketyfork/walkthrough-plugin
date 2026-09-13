@@ -27,27 +27,35 @@ fun showWalkthroughSession(
     acceptsQuestions: Boolean,
 ): WalkthroughSession? {
     val fallbackEditor = FileEditorManager.getInstance(project).selectedTextEditor
-    val target = items.firstOrNull()
-        ?.let { item -> resolveWalkthroughTarget(project, fallbackEditor, item) }
-    return target?.let { resolved -> showWalkthroughSession(project, resolved.editor, items, acceptsQuestions) }
+    return createWalkthroughSession(project, fallbackEditor, items, acceptsQuestions)
 }
 
-@Suppress("LongMethod")
 fun showWalkthroughSession(
     project: Project,
     editor: Editor,
     items: List<WalkthroughItem>,
     acceptsQuestions: Boolean,
+): WalkthroughSession? = createWalkthroughSession(project, editor, items, acceptsQuestions)
+
+@Suppress("LongMethod")
+private fun createWalkthroughSession(
+    project: Project,
+    fallbackEditor: Editor?,
+    items: List<WalkthroughItem>,
+    acceptsQuestions: Boolean,
 ): WalkthroughSession? {
-    val firstTarget = items.firstOrNull()
-        ?.let { item -> resolveWalkthroughTarget(project, editor, item) }
-        ?: return null
     val paletteState = mutableStateOf(WalkthroughSettings.getInstance().selectedPalette)
     val sessionDisposable = Disposer.newCheckedDisposable("WalkthroughPopupSession")
     Disposer.register(project, sessionDisposable)
 
     val registry = WalkthroughSessionRegistry.getInstance(project)
     registry.swapActive(sessionDisposable)?.let(Disposer::dispose)
+    val firstTarget = items.firstOrNull()
+        ?.let { item -> resolveWalkthroughTarget(project, fallbackEditor, item) }
+        ?: run {
+            Disposer.dispose(sessionDisposable)
+            return null
+        }
     val session = registry.create(items, acceptsQuestions)
     Disposer.register(sessionDisposable) {
         registry.remove(session.id)
