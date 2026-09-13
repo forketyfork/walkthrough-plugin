@@ -27,27 +27,37 @@ fun showWalkthroughSession(
     acceptsQuestions: Boolean,
 ): WalkthroughSession? {
     val fallbackEditor = FileEditorManager.getInstance(project).selectedTextEditor
-    val target = items.firstOrNull()
-        ?.let { item -> resolveWalkthroughTarget(project, fallbackEditor, item) }
-    return target?.let { resolved -> showWalkthroughSession(project, resolved.editor, items, acceptsQuestions) }
+    return createWalkthroughSession(project, fallbackEditor, items, acceptsQuestions)
 }
 
-@Suppress("LongMethod")
 fun showWalkthroughSession(
     project: Project,
     editor: Editor,
     items: List<WalkthroughItem>,
     acceptsQuestions: Boolean,
+): WalkthroughSession? = createWalkthroughSession(project, editor, items, acceptsQuestions)
+
+@Suppress("LongMethod")
+private fun createWalkthroughSession(
+    project: Project,
+    fallbackEditor: Editor?,
+    items: List<WalkthroughItem>,
+    acceptsQuestions: Boolean,
 ): WalkthroughSession? {
-    val firstTarget = items.firstOrNull()
-        ?.let { item -> resolveWalkthroughTarget(project, editor, item) }
-        ?: return null
+    val selectionState = WalkthroughSelectionState()
     val paletteState = mutableStateOf(WalkthroughSettings.getInstance().selectedPalette)
     val sessionDisposable = Disposer.newCheckedDisposable("WalkthroughPopupSession")
     Disposer.register(project, sessionDisposable)
+    Disposer.register(sessionDisposable) { selectionState.clearOwnedSelection() }
 
     val registry = WalkthroughSessionRegistry.getInstance(project)
     registry.swapActive(sessionDisposable)?.let(Disposer::dispose)
+    val firstTarget = items.firstOrNull()
+        ?.let { item -> resolveWalkthroughTarget(project, fallbackEditor, item, selectionState) }
+        ?: run {
+            Disposer.dispose(sessionDisposable)
+            return null
+        }
     val session = registry.create(items, acceptsQuestions)
     Disposer.register(sessionDisposable) {
         registry.remove(session.id)
@@ -77,7 +87,7 @@ fun showWalkthroughSession(
 
     fun showItem(item: WalkthroughItem) {
         val popup = popupRef ?: return
-        val target = resolveWalkthroughTarget(project, currentEditor, item) ?: return
+        val target = resolveWalkthroughTarget(project, currentEditor, item, selectionState) ?: return
         currentEditor = target.editor
         popup.update(currentEditor, target.popupItem)
         popup.connectorHidden = false

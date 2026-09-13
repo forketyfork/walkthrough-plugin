@@ -2,8 +2,6 @@ package com.forketyfork.walkthrough
 
 import com.intellij.openapi.application.WriteIntentReadAction
 import com.intellij.openapi.editor.Editor
-import com.intellij.openapi.editor.LogicalPosition
-import com.intellij.openapi.editor.ScrollType
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
@@ -17,25 +15,28 @@ internal fun resolveWalkthroughTarget(
     project: Project,
     fallbackEditor: Editor?,
     item: WalkthroughItem,
+    selectionState: WalkthroughSelectionState,
 ): ResolvedWalkthroughTarget? {
+    selectionState.clearOwnedSelection()
     val fileEditorManager = FileEditorManager.getInstance(project)
     val fileTarget = item.file
-        ?.let { relativePath -> resolveFileTarget(project, fileEditorManager, item, relativePath) }
+        ?.let { relativePath -> resolveFileTarget(project, fileEditorManager, item, relativePath, selectionState) }
     val fallbackItem = if (item.file != null && fileTarget == null) item.withFallbackAnchor() else item
-    return fileTarget ?: resolveFallbackTarget(fileEditorManager, fallbackEditor, fallbackItem)
+    return fileTarget ?: resolveFallbackTarget(fileEditorManager, fallbackEditor, fallbackItem, selectionState)
 }
 
 private fun resolveFallbackTarget(
     fileEditorManager: FileEditorManager,
     fallbackEditor: Editor?,
     item: WalkthroughItem,
+    selectionState: WalkthroughSelectionState,
 ): ResolvedWalkthroughTarget? = run {
     val editor = fileEditorManager.selectedTextEditor ?: fallbackEditor ?: return@run null
     if (!isResolvableWalkthroughLine(item.line, editor.document.lineCount)) {
         return@run ResolvedWalkthroughTarget(editor, item.withFallbackAnchor())
     }
     val resolvedItem = item.withResolvedEndLine(editor.document.lineCount)
-    moveCaretToLine(editor, resolvedItem.line, resolvedItem.endLine)
+    selectionState.moveCaretToLine(editor, resolvedItem.line, resolvedItem.endLine)
     ResolvedWalkthroughTarget(editor, resolvedItem)
 }
 
@@ -44,12 +45,14 @@ private fun resolveFileTarget(
     fileEditorManager: FileEditorManager,
     item: WalkthroughItem,
     relativePath: String,
+    selectionState: WalkthroughSelectionState,
 ): ResolvedWalkthroughTarget? = run {
     val virtualFile = findWalkthroughFile(project, relativePath) ?: return@run null
     val lineCount = virtualFile.lineCount() ?: return@run null
     if (!isResolvableWalkthroughLine(item.line, lineCount)) return@run null
     val resolvedItem = item.withResolvedEndLine(lineCount)
-    val editor = openEditor(project, fileEditorManager, virtualFile, resolvedItem) ?: return@run null
+    val editor = openEditor(project, fileEditorManager, virtualFile, resolvedItem, selectionState)
+        ?: return@run null
     ResolvedWalkthroughTarget(editor, resolvedItem)
 }
 
@@ -67,33 +70,10 @@ private fun openEditor(
     fileEditorManager: FileEditorManager,
     virtualFile: VirtualFile,
     item: WalkthroughItem,
+    selectionState: WalkthroughSelectionState,
 ): Editor? {
     val lineIndex = (item.line ?: 1).coerceAtLeast(1) - 1
     return runCatching {
         fileEditorManager.openTextEditor(OpenFileDescriptor(project, virtualFile, lineIndex, 0), true)
-    }.getOrNull()?.also { editor -> applyLineRangeSelection(editor, item.line, item.endLine) }
-}
-
-internal fun moveCaretToLine(editor: Editor, line: Int?, endLine: Int? = null) {
-    if (line == null) return
-    val lineIndex = line - 1
-    editor.caretModel.moveToLogicalPosition(LogicalPosition(lineIndex, 0))
-    applyLineRangeSelection(editor, line, endLine)
-    editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
-}
-
-private fun applyLineRangeSelection(editor: Editor, line: Int?, endLine: Int?) {
-    if (line == null || endLine == null) {
-        editor.selectionModel.removeSelection()
-        return
-    }
-    val document = editor.document
-    val startOffset = document.getLineStartOffset(line - 1)
-    val endLineIndex = endLine - 1
-    val endOffset = if (endLineIndex >= document.lineCount - 1) {
-        document.getLineEndOffset(document.lineCount - 1)
-    } else {
-        document.getLineStartOffset(endLineIndex + 1)
-    }
-    editor.selectionModel.setSelection(startOffset, endOffset)
+    }.getOrNull()?.also { editor -> selectionState.applyLineRangeSelection(editor, item.line, item.endLine) }
 }
