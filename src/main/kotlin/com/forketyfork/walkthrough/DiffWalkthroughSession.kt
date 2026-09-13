@@ -140,7 +140,6 @@ private class DiffWalkthroughController(
     private var pendingNavigationId = 0
     private var activeViewer: FrameDiffTool.DiffViewer? = null
     private var activeDescriptorId: String? = null
-    private val selectionState = WalkthroughSelectionState()
 
     fun scheduleItemNavigation(item: WalkthroughItem) {
         pendingNavigationId += 1
@@ -203,10 +202,9 @@ private class DiffWalkthroughController(
 
     private fun attachPopupToEditor(popup: WalkthroughPopupSurface, editor: Editor, item: WalkthroughItem) {
         val popupItem = if (isResolvableWalkthroughLine(item.line, editor.document.lineCount)) {
-            selectionState.moveCaretToLine(editor, item.line)
+            moveEditorCaretToLine(editor, item.line)
             item
         } else {
-            selectionState.clearOwnedSelection()
             item.copy(line = null)
         }
         popup.update(editor, popupItem)

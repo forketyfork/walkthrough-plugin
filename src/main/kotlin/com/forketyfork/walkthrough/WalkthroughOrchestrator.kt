@@ -44,16 +44,14 @@ private fun createWalkthroughSession(
     items: List<WalkthroughItem>,
     acceptsQuestions: Boolean,
 ): WalkthroughSession? {
-    val selectionState = WalkthroughSelectionState()
     val paletteState = mutableStateOf(WalkthroughSettings.getInstance().selectedPalette)
     val sessionDisposable = Disposer.newCheckedDisposable("WalkthroughPopupSession")
     Disposer.register(project, sessionDisposable)
-    Disposer.register(sessionDisposable) { selectionState.clearOwnedSelection() }
 
     val registry = WalkthroughSessionRegistry.getInstance(project)
     registry.swapActive(sessionDisposable)?.let(Disposer::dispose)
     val firstTarget = items.firstOrNull()
-        ?.let { item -> resolveWalkthroughTarget(project, fallbackEditor, item, selectionState) }
+        ?.let { item -> resolveWalkthroughTarget(project, fallbackEditor, item) }
         ?: run {
             Disposer.dispose(sessionDisposable)
             return null
@@ -87,7 +85,7 @@ private fun createWalkthroughSession(
 
     fun showItem(item: WalkthroughItem) {
         val popup = popupRef ?: return
-        val target = resolveWalkthroughTarget(project, currentEditor, item, selectionState) ?: return
+        val target = resolveWalkthroughTarget(project, currentEditor, item) ?: return
         currentEditor = target.editor
         popup.update(currentEditor, target.popupItem)
         popup.connectorHidden = false

@@ -62,4 +62,24 @@ class WalkthroughPopupGeometryTest {
         assertEquals(87f, lineEnd.x, 0.001f)
         assertEquals(50f, lineEnd.y, 0.001f)
     }
+
+    @Test
+    fun curlyBraceArrowTargetsItsOuterCenter() {
+        val brace = CurlyBraceGeometry(leftX = 100f, topY = 20f, bottomY = 140f, width = 12f)
+
+        assertEquals(112f, brace.arrowPoint.x, 0.001f)
+        assertEquals(80f, brace.arrowPoint.y, 0.001f)
+    }
+
+    @Test
+    fun curlyBracePathSpansTheMentionedRange() {
+        val brace = CurlyBraceGeometry(leftX = 100f, topY = 20f, bottomY = 140f, width = 12f)
+
+        val bounds = buildCurlyBracePath(brace).bounds2D
+
+        assertEquals(100.0, bounds.minX, 0.001)
+        assertEquals(112.0, bounds.maxX, 0.001)
+        assertEquals(20.0, bounds.minY, 0.001)
+        assertEquals(140.0, bounds.maxY, 0.001)
+    }
 }

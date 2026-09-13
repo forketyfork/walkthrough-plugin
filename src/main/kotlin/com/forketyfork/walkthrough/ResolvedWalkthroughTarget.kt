@@ -15,28 +15,25 @@ internal fun resolveWalkthroughTarget(
     project: Project,
     fallbackEditor: Editor?,
     item: WalkthroughItem,
-    selectionState: WalkthroughSelectionState,
 ): ResolvedWalkthroughTarget? {
-    selectionState.clearOwnedSelection()
     val fileEditorManager = FileEditorManager.getInstance(project)
     val fileTarget = item.file
-        ?.let { relativePath -> resolveFileTarget(project, fileEditorManager, item, relativePath, selectionState) }
+        ?.let { relativePath -> resolveFileTarget(project, fileEditorManager, item, relativePath) }
     val fallbackItem = if (item.file != null && fileTarget == null) item.withFallbackAnchor() else item
-    return fileTarget ?: resolveFallbackTarget(fileEditorManager, fallbackEditor, fallbackItem, selectionState)
+    return fileTarget ?: resolveFallbackTarget(fileEditorManager, fallbackEditor, fallbackItem)
 }
 
 private fun resolveFallbackTarget(
     fileEditorManager: FileEditorManager,
     fallbackEditor: Editor?,
     item: WalkthroughItem,
-    selectionState: WalkthroughSelectionState,
 ): ResolvedWalkthroughTarget? = run {
     val editor = fileEditorManager.selectedTextEditor ?: fallbackEditor ?: return@run null
     if (!isResolvableWalkthroughLine(item.line, editor.document.lineCount)) {
         return@run ResolvedWalkthroughTarget(editor, item.withFallbackAnchor())
     }
     val resolvedItem = item.withResolvedEndLine(editor.document.lineCount)
-    selectionState.moveCaretToLine(editor, resolvedItem.line, resolvedItem.endLine)
+    moveEditorCaretToLine(editor, resolvedItem.line)
     ResolvedWalkthroughTarget(editor, resolvedItem)
 }
 
@@ -45,13 +42,12 @@ private fun resolveFileTarget(
     fileEditorManager: FileEditorManager,
     item: WalkthroughItem,
     relativePath: String,
-    selectionState: WalkthroughSelectionState,
 ): ResolvedWalkthroughTarget? = run {
     val virtualFile = findWalkthroughFile(project, relativePath) ?: return@run null
     val lineCount = virtualFile.lineCount() ?: return@run null
     if (!isResolvableWalkthroughLine(item.line, lineCount)) return@run null
     val resolvedItem = item.withResolvedEndLine(lineCount)
-    val editor = openEditor(project, fileEditorManager, virtualFile, resolvedItem, selectionState)
+    val editor = openEditor(project, fileEditorManager, virtualFile, resolvedItem)
         ?: return@run null
     ResolvedWalkthroughTarget(editor, resolvedItem)
 }
@@ -70,10 +66,9 @@ private fun openEditor(
     fileEditorManager: FileEditorManager,
     virtualFile: VirtualFile,
     item: WalkthroughItem,
-    selectionState: WalkthroughSelectionState,
 ): Editor? {
     val lineIndex = (item.line ?: 1).coerceAtLeast(1) - 1
     return runCatching {
         fileEditorManager.openTextEditor(OpenFileDescriptor(project, virtualFile, lineIndex, 0), true)
-    }.getOrNull()?.also { editor -> selectionState.applyLineRangeSelection(editor, item.line, item.endLine) }
+    }.getOrNull()?.also { editor -> moveEditorCaretToLine(editor, item.line) }
 }

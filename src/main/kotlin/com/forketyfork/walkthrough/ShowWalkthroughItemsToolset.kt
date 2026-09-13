@@ -80,8 +80,8 @@ class ShowWalkthroughItemsToolset : McpToolset {
                 "'line' (1-based), and 'endLine' (1-based) are optional. " +
                 "The 'line' and 'endLine' values are lines in the current full file, not diff hunk lines, " +
                 "so they must be accurate. " +
-                "When 'endLine' is present and at least 'line', the step selects lines 'line'..'endLine' " +
-                "in the editor instead of only placing the caret at 'line'. " +
+                "When 'endLine' is present and at least 'line', the step marks lines 'line'..'endLine' " +
+                "with a curly brace in the editor instead of only pointing at 'line'. " +
                 "Verify line numbers by reading the actual file before calling this tool — " +
                 "do not estimate from diffs or memory.",
         ) items: String,

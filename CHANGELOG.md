@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- Walkthrough steps anchored to a file can now select a range of consecutive lines by adding an
-  `endLine` field alongside `line`, instead of only placing the caret at a single line (#50).
+- Walkthrough steps anchored to a file can now identify a range of consecutive lines by adding an
+  `endLine` field alongside `line`, instead of only pointing at a single line (#50).
 
-### Fixed
+### Changed
 
-- Walkthrough-owned line selections are now cleared when moving to a step without a valid range
-  anchor, so stale selections do not remain highlighted between steps (#55).
+- Ranged file walkthrough steps now mark the mentioned code with a curly brace and point the
+  connector at that brace, without changing the editor's text selection (#55).
 
 ## [0.7.0] - 2026-09-12
 
