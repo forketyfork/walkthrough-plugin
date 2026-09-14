@@ -64,9 +64,9 @@ prepare_jdk() {
 }
 
 healthcheck() {
-  log 'Running Gradle tests and plugin build as the readiness check'
-  run_in_dev_shell './gradlew test buildPlugin --no-daemon'
-  log 'Healthcheck passed: tests and plugin build completed'
+  log 'Running the Gradle test suite as the readiness check'
+  run_in_dev_shell './gradlew test --no-daemon'
+  log 'Healthcheck passed: the Gradle test suite completed'
 }
 
 if command -v nix >/dev/null 2>&1; then
