@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package com.forketyfork.walkthrough
 
 import com.intellij.openapi.editor.Editor
@@ -38,18 +40,29 @@ private data class LineScreenGeometry(
     val viewportBottomY: Float,
 )
 
-internal fun calculatePopupScreenPoint(editor: Editor, popupSize: Dimension, line: Int?): Point {
+internal fun calculatePopupScreenPoint(editor: Editor, popupSize: Dimension, line: Int?, endLine: Int? = null): Point {
     val visibleArea = editor.scrollingModel.visibleArea
     val targetLine = resolveTargetLine(editor, line)
+    val targetEndLine = if (endLine != null && isResolvableWalkthroughEndLine(line, endLine, editor.document.lineCount)) {
+        resolveTargetLine(editor, endLine)
+    } else {
+        targetLine
+    }
     val lineStartOffset = editor.document.getLineStartOffset(targetLine)
     val linePoint = editor.visualPositionToXY(editor.offsetToVisualPosition(lineStartOffset))
+    val rangeBottomPoint = editor.offsetToXY(editor.document.getLineStartOffset(targetEndLine))
 
     val viewportLineY = linePoint.y - visibleArea.y
+    val viewportRangeBottomY = if (targetEndLine == targetLine) {
+        viewportLineY + editor.lineHeight
+    } else {
+        rangeBottomPoint.y - visibleArea.y + editor.lineHeight
+    }
     val minY = WalkthroughPopupLayout.VIEWPORT_PADDING
     val maxY = (
         visibleArea.height - popupSize.height - WalkthroughPopupLayout.VIEWPORT_PADDING
         ).coerceAtLeast(minY)
-    val belowY = viewportLineY + editor.lineHeight + WalkthroughPopupLayout.LINE_SPACING
+    val belowY = viewportRangeBottomY + WalkthroughPopupLayout.LINE_SPACING
     val aboveY = viewportLineY - popupSize.height - WalkthroughPopupLayout.LINE_SPACING
     val belowFits = belowY in minY..maxY
     val aboveFits = aboveY in minY..maxY
@@ -60,7 +73,7 @@ internal fun calculatePopupScreenPoint(editor: Editor, popupSize: Dimension, lin
         aboveFits -> aboveY
 
         else -> {
-            val belowSpace = visibleArea.height - (viewportLineY + editor.lineHeight)
+            val belowSpace = visibleArea.height - viewportRangeBottomY
             val aboveSpace = viewportLineY
             if (belowSpace >= aboveSpace) belowY else aboveY
         }
@@ -80,12 +93,19 @@ private fun resolveTargetLine(editor: Editor, line: Int?): Int {
     return targetLine.coerceIn(0, lineCount - 1)
 }
 
-private fun calculateLineScreenGeometry(editor: Editor, line: Int?): LineScreenGeometry {
+private fun calculateLineScreenGeometry(editor: Editor, line: Int?, endLine: Int? = null): LineScreenGeometry {
     val targetLine = resolveTargetLine(editor, line)
-    val lineStartOffset = editor.document.getLineStartOffset(targetLine)
-    val lineEndOffset = editor.document.getLineEndOffset(targetLine)
+    val document = editor.document
+    val targetEndLine = if (endLine != null && isResolvableWalkthroughEndLine(line, endLine, document.lineCount)) {
+        resolveTargetLine(editor, endLine)
+    } else {
+        targetLine
+    }
+    val lineStartOffset = document.getLineStartOffset(targetLine)
+    val lineEndOffset = document.getLineEndOffset(targetLine)
     val lineStartPoint = editor.offsetToXY(lineStartOffset)
     val lineEndPoint = editor.offsetToXY(lineEndOffset)
+    val rangeEndPoint = editor.offsetToXY(document.getLineStartOffset(targetEndLine))
     val visibleArea = editor.scrollingModel.visibleArea
     val visibleLeft = visibleArea.x.toFloat()
     val visibleRight = (visibleArea.x + visibleArea.width).toFloat()
@@ -111,8 +131,16 @@ private fun calculateLineScreenGeometry(editor: Editor, line: Int?): LineScreenG
     }
     val viewportLeftX = contentOrigin.x + visibleArea.x.toFloat()
     val viewportRightX = viewportLeftX + visibleArea.width
-    val lineTopY = contentOrigin.y + lineEndPoint.y.toFloat()
-    val lineBottomY = lineTopY + editor.lineHeight
+    val lineTopY = contentOrigin.y + if (targetEndLine == targetLine) {
+        lineEndPoint.y.toFloat()
+    } else {
+        lineStartPoint.y.toFloat()
+    }
+    val lineBottomY = if (targetEndLine == targetLine) {
+        lineTopY + editor.lineHeight
+    } else {
+        contentOrigin.y + rangeEndPoint.y.toFloat() + editor.lineHeight
+    }
     return LineScreenGeometry(
         anchorX = contentOrigin.x + anchorX,
         lineStartX = contentOrigin.x + lineStartPoint.x.toFloat(),
@@ -126,8 +154,14 @@ private fun calculateLineScreenGeometry(editor: Editor, line: Int?): LineScreenG
     )
 }
 
-internal fun avoidLineOverlap(popupLocation: Point, popupSize: Dimension, editor: Editor, line: Int?): Point {
-    val lineGeometry = calculateLineScreenGeometry(editor, line)
+internal fun avoidLineOverlap(
+    popupLocation: Point,
+    popupSize: Dimension,
+    editor: Editor,
+    line: Int?,
+    endLine: Int? = null,
+): Point {
+    val lineGeometry = calculateLineScreenGeometry(editor, line, endLine)
     val popupTop = popupLocation.y.toFloat()
     val popupBottom = popupTop + popupSize.height
     val overlapsLine = popupBottom > lineGeometry.topY && popupTop < lineGeometry.bottomY
@@ -173,11 +207,7 @@ private fun calculatePopupYBounds(editor: Editor, lineGeometry: LineScreenGeomet
     }
 }
 
-internal fun calculateLineScreenPoint(
-    editor: Editor,
-    line: Int?,
-    popupBounds: Rectangle2D? = null,
-): Point {
+internal fun calculateLineScreenPoint(editor: Editor, line: Int?, popupBounds: Rectangle2D? = null): Point {
     val lineGeometry = calculateLineScreenGeometry(editor, line)
     val minX = lineGeometry.viewportLeftX + ARROW_VIEWPORT_INSET_PX
     val maxX = (
@@ -195,8 +225,13 @@ internal fun calculateLineScreenPoint(
     )
 }
 
-private fun LineScreenGeometry.anchorXForPopup(popupBounds: Rectangle2D?): Float =
-    if (popupBounds != null && isPopupToLeftOfLine(popupBounds, lineStartX)) lineStartX else anchorX
+private fun LineScreenGeometry.anchorXForPopup(popupBounds: Rectangle2D?): Float {
+    return if (popupBounds != null && isPopupToLeftOfLine(popupBounds, lineStartX)) {
+        lineStartX
+    } else {
+        anchorX
+    }
+}
 
 internal fun isPopupToLeftOfLine(popupBounds: Rectangle2D, lineStartX: Float): Boolean =
     popupBounds.maxX <= lineStartX

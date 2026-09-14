@@ -175,9 +175,15 @@ internal fun applyPopupGeometryForItem(popup: WalkthroughPopupSurface, editor: E
             maxHeight = maxHeight,
         )
         popup.popupSize = clampedSize
-        val avoided = avoidLineOverlap(Point(persisted.x, persisted.y), clampedSize, editor, item.line)
+        val avoided = avoidLineOverlap(
+            Point(persisted.x, persisted.y),
+            clampedSize,
+            editor,
+            item.line,
+            item.endLine,
+        )
         val constrained = constrainPopupScreenLocation(editor, avoided, clampedSize)
-        val reAvoided = avoidLineOverlap(constrained, clampedSize, editor, item.line)
+        val reAvoided = avoidLineOverlap(constrained, clampedSize, editor, item.line, item.endLine)
         val finalPoint = constrainPopupScreenLocation(editor, reAvoided, clampedSize)
         popup.show(editor, finalPoint)
     }
