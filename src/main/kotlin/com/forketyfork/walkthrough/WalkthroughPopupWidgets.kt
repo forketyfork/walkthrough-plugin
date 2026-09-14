@@ -402,7 +402,7 @@ private fun QuestionTextField(
                     fontWeight = FontWeight.Normal,
                 )
             },
-            cursorBrush = SolidColor(if (palette.isThemeBased) popupColors.accentColor else Color.White),
+            cursorBrush = SolidColor(if (palette.isThemeBased) popupColors.contentColor else Color.White),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(onSend = { onSend() }),
             modifier = Modifier.fillMaxWidth(),

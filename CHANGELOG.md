@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Diff walkthrough steps now support `endLine` ranges and point their connector at the beginning
   of a line when the popup is positioned to its left. (PR #80)
 
+### Fixed
+
+- The question input cursor is visible when using the IDEA color scheme. (PR #80)
+
 ## [0.8.0] - 2026-09-13
 
 ### Added
