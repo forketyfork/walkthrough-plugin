@@ -1,9 +1,9 @@
 package com.forketyfork.walkthrough
 
-import java.awt.geom.Point2D
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.awt.geom.Point2D
 
 class WalkthroughPopupGeometryTest {
 
