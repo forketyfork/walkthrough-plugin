@@ -203,9 +203,9 @@ private class DiffWalkthroughController(
     private fun attachPopupToEditor(popup: WalkthroughPopupSurface, editor: Editor, item: WalkthroughItem) {
         val popupItem = if (isResolvableWalkthroughLine(item.line, editor.document.lineCount)) {
             moveEditorCaretToLine(editor, item.line)
-            item
+            item.withResolvedEndLine(editor.document.lineCount)
         } else {
-            item.copy(line = null)
+            item.copy(line = null, endLine = null)
         }
         popup.update(editor, popupItem)
         popup.connectorHidden = false

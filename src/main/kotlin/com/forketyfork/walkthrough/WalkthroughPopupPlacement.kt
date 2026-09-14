@@ -16,10 +16,10 @@ internal fun movePopupNearItem(popup: WalkthroughPopupSurface, editor: Editor, i
 
     popup.popupSize = popupSize
 
-    val initialPoint = calculatePopupScreenPoint(editor, popupSize, item.line)
-    val avoidedPoint = avoidLineOverlap(initialPoint, popupSize, editor, item.line)
+    val initialPoint = calculatePopupScreenPoint(editor, popupSize, item.line, item.endLine)
+    val avoidedPoint = avoidLineOverlap(initialPoint, popupSize, editor, item.line, item.endLine)
     val constrainedPoint = constrainPopupScreenLocation(editor, avoidedPoint, popupSize)
-    val reAvoidedPoint = avoidLineOverlap(constrainedPoint, popupSize, editor, item.line)
+    val reAvoidedPoint = avoidLineOverlap(constrainedPoint, popupSize, editor, item.line, item.endLine)
     val finalPoint = constrainPopupScreenLocation(editor, reAvoidedPoint, popupSize)
     popup.show(editor, finalPoint)
 }

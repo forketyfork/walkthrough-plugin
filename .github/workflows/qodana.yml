@@ -30,6 +30,7 @@ jobs:
         with:
           # Qodana needs the full history to attribute findings to commits.
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up JDK
         uses: actions/setup-java@v6.0.0
