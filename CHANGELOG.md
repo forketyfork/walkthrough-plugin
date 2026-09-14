@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-09-14
+
 ### Added
 
 - Diff walkthrough steps now support `endLine` ranges and point their connector at the beginning
