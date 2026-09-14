@@ -149,9 +149,10 @@ class ShowWalkthroughItemsToolset : McpToolset {
             "JSON object with 'diffs' and 'items'. 'diffs' supplies Git revisions to compare: " +
                 "'id', 'file', 'leftCommit', and 'rightCommit'; for renames, use 'leftFile' and 'rightFile' " +
                 "instead of 'file'. 'items' is an array with 'text', 'diffId', 'diffFile', " +
-                "'diffSide', and 'line'. " +
+                "'diffSide', 'line', and the optional 'endLine'. " +
                 "'diffSide' is 'left' or 'right'. 'line' is 1-based in that side's full file text " +
-                "at that commit, not the patch hunk line. " +
+                "at that commit, not the patch hunk line. When 'endLine' is present and at least " +
+                "'line', the step marks the full line range with a curly brace. " +
                 "Use 'right' for added or modified new code and 'left' for removed old code. " +
                 "For PRs, pass the merge-base commit as 'leftCommit' and the PR head commit as 'rightCommit'. " +
                 "Verify every line by inspecting that exact file at that exact commit before calling.",
@@ -396,6 +397,7 @@ class ShowWalkthroughItemsToolset : McpToolset {
         WalkthroughItem(
             text = entry.text ?: mcpFail("Each item must have a 'text' field"),
             line = entry.line ?: mcpFail("Each diff item must have a 'line' field"),
+            endLine = entry.endLine,
             diffId = diffId,
             diffFile = entry.diffFile?.trim()?.takeIf { it.isNotBlank() }
                 ?: descriptor.file

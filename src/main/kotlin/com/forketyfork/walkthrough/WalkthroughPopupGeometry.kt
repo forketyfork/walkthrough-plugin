@@ -4,20 +4,31 @@ import com.intellij.openapi.editor.Editor
 import java.awt.Dimension
 import java.awt.Point
 import java.awt.geom.Point2D
+import java.awt.geom.Rectangle2D
 import javax.swing.SwingUtilities
 import kotlin.math.roundToInt
 
 private const val ARROW_VIEWPORT_INSET_PX = 12f
 
-internal data class CurlyBraceGeometry(val leftX: Float, val topY: Float, val bottomY: Float, val width: Float) {
+internal data class CurlyBraceGeometry(
+    val leftX: Float,
+    val topY: Float,
+    val bottomY: Float,
+    val width: Float,
+    val opensRight: Boolean = true,
+) {
     val arrowPoint: Point2D.Float
-        get() = Point2D.Float(leftX + width, (topY + bottomY) / 2f)
+        get() = Point2D.Float(
+            if (opensRight) leftX + width else leftX,
+            (topY + bottomY) / 2f,
+        )
 }
 
 internal data class WalkthroughTargetScreenGeometry(val arrowPoint: Point2D.Float, val brace: CurlyBraceGeometry?)
 
 private data class LineScreenGeometry(
     val anchorX: Float,
+    val lineStartX: Float,
     val topY: Float,
     val bottomY: Float,
     val centerY: Float,
@@ -104,6 +115,7 @@ private fun calculateLineScreenGeometry(editor: Editor, line: Int?): LineScreenG
     val lineBottomY = lineTopY + editor.lineHeight
     return LineScreenGeometry(
         anchorX = contentOrigin.x + anchorX,
+        lineStartX = contentOrigin.x + lineStartPoint.x.toFloat(),
         topY = lineTopY,
         bottomY = lineBottomY,
         centerY = lineTopY + editor.lineHeight / 2f,
@@ -161,7 +173,11 @@ private fun calculatePopupYBounds(editor: Editor, lineGeometry: LineScreenGeomet
     }
 }
 
-internal fun calculateLineScreenPoint(editor: Editor, line: Int?): Point {
+internal fun calculateLineScreenPoint(
+    editor: Editor,
+    line: Int?,
+    popupBounds: Rectangle2D? = null,
+): Point {
     val lineGeometry = calculateLineScreenGeometry(editor, line)
     val minX = lineGeometry.viewportLeftX + ARROW_VIEWPORT_INSET_PX
     val maxX = (
@@ -172,24 +188,33 @@ internal fun calculateLineScreenPoint(editor: Editor, line: Int?): Point {
         lineGeometry.viewportBottomY - ARROW_VIEWPORT_INSET_PX
         ).coerceAtLeast(minY)
     return Point(
-        lineGeometry.anchorX.coerceIn(minX, maxX).roundToInt(),
+        lineGeometry.anchorXForPopup(popupBounds)
+            .coerceIn(minX, maxX)
+            .roundToInt(),
         lineGeometry.centerY.coerceIn(minY, maxY).roundToInt(),
     )
 }
 
+private fun LineScreenGeometry.anchorXForPopup(popupBounds: Rectangle2D?): Float =
+    if (popupBounds != null && isPopupToLeftOfLine(popupBounds, lineStartX)) lineStartX else anchorX
+
+internal fun isPopupToLeftOfLine(popupBounds: Rectangle2D, lineStartX: Float): Boolean =
+    popupBounds.maxX <= lineStartX
+
 internal fun calculateWalkthroughTargetScreenGeometry(
     editor: Editor,
     item: WalkthroughItem,
+    popupBounds: Rectangle2D? = null,
 ): WalkthroughTargetScreenGeometry {
     val line = item.line
     val endLine = item.endLine
     val brace = if (line != null && endLine != null && hasBraceRange(editor, line, endLine)) {
-        calculateRangeBraceGeometry(editor, line, endLine)
+        calculateRangeBraceGeometry(editor, line, endLine, popupBounds)
     } else {
         null
     }
     return WalkthroughTargetScreenGeometry(
-        arrowPoint = brace?.arrowPoint ?: calculateLineScreenPoint(editor, item.line).toPoint2D(),
+        arrowPoint = brace?.arrowPoint ?: calculateLineScreenPoint(editor, item.line, popupBounds).toPoint2D(),
         brace = brace,
     )
 }
@@ -197,7 +222,12 @@ internal fun calculateWalkthroughTargetScreenGeometry(
 private fun hasBraceRange(editor: Editor, line: Int, endLine: Int): Boolean =
     endLine >= line && isResolvableWalkthroughEndLine(line, endLine, editor.document.lineCount)
 
-private fun calculateRangeBraceGeometry(editor: Editor, line: Int, endLine: Int): CurlyBraceGeometry? {
+private fun calculateRangeBraceGeometry(
+    editor: Editor,
+    line: Int,
+    endLine: Int,
+    popupBounds: Rectangle2D?,
+): CurlyBraceGeometry? {
     val firstLine = resolveTargetLine(editor, line)
     val lastLine = resolveTargetLine(editor, endLine)
     return if (lastLine < firstLine) {
@@ -216,6 +246,13 @@ private fun calculateRangeBraceGeometry(editor: Editor, line: Int, endLine: Int)
         if (bottomY <= topY) {
             null
         } else {
+            val contentOrigin = Point(0, 0).also {
+                SwingUtilities.convertPointToScreen(it, editor.contentComponent)
+            }
+            val rangeLeftX = minOf(
+                editor.offsetToXY(document.getLineStartOffset(firstLine)).x,
+                editor.offsetToXY(document.getLineStartOffset(lastLine)).x,
+            ).toFloat()
             val rangeRightX = maxOf(
                 editor.offsetToXY(document.getLineEndOffset(firstLine)).x,
                 editor.offsetToXY(document.getLineEndOffset(lastLine)).x,
@@ -225,16 +262,23 @@ private fun calculateRangeBraceGeometry(editor: Editor, line: Int, endLine: Int)
                 visibleArea.x + visibleArea.width - WalkthroughConnectorStyle.BRACE_VIEWPORT_INSET -
                     WalkthroughConnectorStyle.BRACE_WIDTH
                 ).coerceAtLeast(minX)
-            val braceLeftX = (rangeRightX + WalkthroughConnectorStyle.BRACE_GAP)
-                .coerceIn(minX, maxX)
-            val contentOrigin = Point(0, 0).also {
-                SwingUtilities.convertPointToScreen(it, editor.contentComponent)
+            val popupIsToLeft = popupBounds != null && isPopupToLeftOfLine(
+                popupBounds,
+                contentOrigin.x + rangeLeftX,
+            )
+            val braceLeftX = if (popupIsToLeft) {
+                (rangeLeftX - WalkthroughConnectorStyle.BRACE_GAP - WalkthroughConnectorStyle.BRACE_WIDTH)
+                    .coerceIn(minX, maxX)
+            } else {
+                (rangeRightX + WalkthroughConnectorStyle.BRACE_GAP)
+                    .coerceIn(minX, maxX)
             }
             CurlyBraceGeometry(
                 leftX = contentOrigin.x + braceLeftX,
                 topY = contentOrigin.y + topY,
                 bottomY = contentOrigin.y + bottomY,
                 width = WalkthroughConnectorStyle.BRACE_WIDTH,
+                opensRight = !popupIsToLeft,
             )
         }
     }

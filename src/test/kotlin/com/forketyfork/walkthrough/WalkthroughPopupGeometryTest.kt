@@ -1,8 +1,10 @@
 package com.forketyfork.walkthrough
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.awt.geom.Rectangle2D
 import java.awt.geom.Point2D
 
 class WalkthroughPopupGeometryTest {
@@ -72,6 +74,20 @@ class WalkthroughPopupGeometryTest {
     }
 
     @Test
+    fun leftOpeningCurlyBraceArrowTargetsItsOuterCenter() {
+        val brace = CurlyBraceGeometry(
+            leftX = 100f,
+            topY = 20f,
+            bottomY = 140f,
+            width = 12f,
+            opensRight = false,
+        )
+
+        assertEquals(100f, brace.arrowPoint.x, 0.001f)
+        assertEquals(80f, brace.arrowPoint.y, 0.001f)
+    }
+
+    @Test
     fun curlyBracePathSpansTheMentionedRange() {
         val brace = CurlyBraceGeometry(leftX = 100f, topY = 20f, bottomY = 140f, width = 12f)
 
@@ -81,5 +97,19 @@ class WalkthroughPopupGeometryTest {
         assertEquals(112.0, bounds.maxX, 0.001)
         assertEquals(20.0, bounds.minY, 0.001)
         assertEquals(140.0, bounds.maxY, 0.001)
+    }
+
+    @Test
+    fun popupToLeftOfLineUsesLineStartAsArrowTarget() {
+        val popup = Rectangle2D.Float(100f, 20f, 200f, 120f)
+
+        assertTrue(isPopupToLeftOfLine(popup, lineStartX = 300f))
+    }
+
+    @Test
+    fun popupAtOrToRightOfLineDoesNotUseLineStartAsArrowTarget() {
+        val popup = Rectangle2D.Float(300f, 20f, 200f, 120f)
+
+        assertFalse(isPopupToLeftOfLine(popup, lineStartX = 300f))
     }
 }

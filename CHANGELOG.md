@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Diff walkthrough steps now support `endLine` ranges and point their connector at the beginning
+  of a line when the popup is positioned to its left.
+
 ## [0.8.0] - 2026-09-13
 
 ### Added

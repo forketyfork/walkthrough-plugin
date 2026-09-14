@@ -51,6 +51,7 @@ private data class ConnectorPaintContext(
     val editor: Editor,
     val item: WalkthroughItem,
     val popupBounds: Rectangle2D.Float,
+    val popupScreenBounds: Rectangle2D.Float,
 )
 
 internal class WalkthroughPopupSurface(
@@ -162,7 +163,11 @@ internal class WalkthroughPopupSurface(
         super.paintComponent(graphics)
         if (connectorHidden) return
         val context = currentPaintContext() ?: return
-        val targetGeometry = calculateWalkthroughTargetScreenGeometry(context.editor, context.item)
+        val targetGeometry = calculateWalkthroughTargetScreenGeometry(
+            editor = context.editor,
+            item = context.item,
+            popupBounds = context.popupScreenBounds,
+        )
         val arrowTarget = targetGeometry.arrowPoint.toComponentCoordinates(this)
         val connector = buildConnector(
             nearestBorderAnchor(context.popupBounds, arrowTarget),
@@ -211,12 +216,21 @@ internal class WalkthroughPopupSurface(
             content.isVisible && bounds.width > 0 && bounds.height > 0
         }
         return if (currentEditor != null && currentItem != null && popupBounds != null) {
+            val popupScreenOrigin = Point(0, 0).also {
+                SwingUtilities.convertPointToScreen(it, content)
+            }
             ConnectorPaintContext(
                 editor = currentEditor,
                 item = currentItem,
                 popupBounds = Rectangle2D.Float(
                     popupBounds.x.toFloat(),
                     popupBounds.y.toFloat(),
+                    popupBounds.width.toFloat(),
+                    popupBounds.height.toFloat(),
+                ),
+                popupScreenBounds = Rectangle2D.Float(
+                    popupScreenOrigin.x.toFloat(),
+                    popupScreenOrigin.y.toFloat(),
                     popupBounds.width.toFloat(),
                     popupBounds.height.toFloat(),
                 ),
@@ -289,22 +303,24 @@ private data class ConnectorPath(val path: Path2D.Float, val end: Point2D.Float,
 internal fun buildCurlyBracePath(brace: CurlyBraceGeometry): Path2D.Float {
     val centerY = (brace.topY + brace.bottomY) / 2f
     val centerPull = ((brace.bottomY - brace.topY) / 2f * 0.62f).coerceAtLeast(4f)
+    val outerX = if (brace.opensRight) brace.leftX + brace.width else brace.leftX
+    val edgeX = if (brace.opensRight) brace.leftX else brace.leftX + brace.width
     return Path2D.Float().apply {
-        moveTo(brace.leftX.toDouble(), brace.topY.toDouble())
+        moveTo(edgeX.toDouble(), brace.topY.toDouble())
         curveTo(
-            (brace.leftX + brace.width).toDouble(),
+            outerX.toDouble(),
             brace.topY.toDouble(),
-            (brace.leftX + brace.width).toDouble(),
+            outerX.toDouble(),
             (centerY - centerPull).toDouble(),
-            (brace.leftX + brace.width).toDouble(),
+            outerX.toDouble(),
             centerY.toDouble(),
         )
         curveTo(
-            (brace.leftX + brace.width).toDouble(),
+            outerX.toDouble(),
             (centerY + centerPull).toDouble(),
-            (brace.leftX + brace.width).toDouble(),
+            outerX.toDouble(),
             brace.bottomY.toDouble(),
-            brace.leftX.toDouble(),
+            edgeX.toDouble(),
             brace.bottomY.toDouble(),
         )
     }
