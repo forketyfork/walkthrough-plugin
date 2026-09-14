@@ -41,7 +41,10 @@ private data class LineScreenGeometry(
 internal fun calculatePopupScreenPoint(editor: Editor, popupSize: Dimension, line: Int?, endLine: Int? = null): Point {
     val visibleArea = editor.scrollingModel.visibleArea
     val targetLine = resolveTargetLine(editor, line)
-    val targetEndLine = if (endLine != null && isResolvableWalkthroughEndLine(line, endLine, editor.document.lineCount)) {
+    val targetEndLine = if (
+        endLine != null &&
+        isResolvableWalkthroughEndLine(line, endLine, editor.document.lineCount)
+    ) {
         resolveTargetLine(editor, endLine)
     } else {
         targetLine
