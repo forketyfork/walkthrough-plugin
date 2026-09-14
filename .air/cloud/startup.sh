@@ -56,10 +56,10 @@ prepare_jdk() {
 		fi
 	done
 	if ! grep -Fq '# walkthrough-plugin Java 21' "$profile" 2>/dev/null; then
-		printf '\n# walkthrough-plugin Java 21\nexport JAVA_HOME="$HOME/.cache/walkthrough-plugin/jdk-21"\nexport PATH="$JAVA_HOME/bin:$PATH"\n' >>"$profile"
+		printf "\n# walkthrough-plugin Java 21\nexport JAVA_HOME=\"\$HOME/.cache/walkthrough-plugin/jdk-21\"\nexport PATH=\"\$JAVA_HOME/bin:\$PATH\"\n" >>"$profile"
 	fi
 	if ! grep -Fq '# walkthrough-plugin Java 21' "$HOME/.bashrc" 2>/dev/null; then
-		printf '\n# walkthrough-plugin Java 21\nexport JAVA_HOME="$HOME/.cache/walkthrough-plugin/jdk-21"\nexport PATH="$JAVA_HOME/bin:$PATH"\n' >>"$HOME/.bashrc"
+		printf "\n# walkthrough-plugin Java 21\nexport JAVA_HOME=\"\$HOME/.cache/walkthrough-plugin/jdk-21\"\nexport PATH=\"\$JAVA_HOME/bin:\$PATH\"\n" >>"$HOME/.bashrc"
 	fi
 }
 
