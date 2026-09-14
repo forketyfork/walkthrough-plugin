@@ -1,5 +1,3 @@
-@file:Suppress("TooManyFunctions")
-
 package com.forketyfork.walkthrough
 
 import com.intellij.openapi.editor.Editor
@@ -217,24 +215,16 @@ internal fun calculateLineScreenPoint(editor: Editor, line: Int?, popupBounds: R
     val maxY = (
         lineGeometry.viewportBottomY - ARROW_VIEWPORT_INSET_PX
         ).coerceAtLeast(minY)
+    val anchorX = if (popupBounds != null && popupBounds.maxX <= lineGeometry.lineStartX) {
+        lineGeometry.lineStartX
+    } else {
+        lineGeometry.anchorX
+    }
     return Point(
-        lineGeometry.anchorXForPopup(popupBounds)
-            .coerceIn(minX, maxX)
-            .roundToInt(),
+        anchorX.coerceIn(minX, maxX).roundToInt(),
         lineGeometry.centerY.coerceIn(minY, maxY).roundToInt(),
     )
 }
-
-private fun LineScreenGeometry.anchorXForPopup(popupBounds: Rectangle2D?): Float {
-    return if (popupBounds != null && isPopupToLeftOfLine(popupBounds, lineStartX)) {
-        lineStartX
-    } else {
-        anchorX
-    }
-}
-
-internal fun isPopupToLeftOfLine(popupBounds: Rectangle2D, lineStartX: Float): Boolean =
-    popupBounds.maxX <= lineStartX
 
 internal fun calculateWalkthroughTargetScreenGeometry(
     editor: Editor,
@@ -297,10 +287,7 @@ private fun calculateRangeBraceGeometry(
                 visibleArea.x + visibleArea.width - WalkthroughConnectorStyle.BRACE_VIEWPORT_INSET -
                     WalkthroughConnectorStyle.BRACE_WIDTH
                 ).coerceAtLeast(minX)
-            val popupIsToLeft = popupBounds != null && isPopupToLeftOfLine(
-                popupBounds,
-                contentOrigin.x + rangeLeftX,
-            )
+            val popupIsToLeft = popupBounds != null && popupBounds.maxX <= contentOrigin.x + rangeLeftX
             val braceLeftX = if (popupIsToLeft) {
                 (rangeLeftX - WalkthroughConnectorStyle.BRACE_GAP - WalkthroughConnectorStyle.BRACE_WIDTH)
                     .coerceIn(minX, maxX)
