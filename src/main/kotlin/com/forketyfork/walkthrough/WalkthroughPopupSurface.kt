@@ -63,6 +63,13 @@ internal class WalkthroughPopupSurface(
     VisibleAreaListener,
     Disposable {
     private var editor: Editor? = null
+
+    /**
+     * The anchor editor, or `null` once it has been disposed (e.g. its diff tab was closed). Painting
+     * against a disposed editor throws, which aborts painting of the whole layered pane.
+     */
+    private val liveEditor: Editor?
+        get() = editor?.takeUnless { it.isDisposed }
     private var item: WalkthroughItem? = null
     private var layeredPane: JLayeredPane? = null
     private var interactionGlassPane: IdeGlassPane? = null
@@ -75,7 +82,7 @@ internal class WalkthroughPopupSurface(
     private val layeredPaneResizeListener = object : ComponentAdapter() {
         override fun componentResized(event: ComponentEvent) {
             refreshBounds()
-            editor?.let(::moveToFitScreen)
+            liveEditor?.let(::moveToFitScreen)
             repaint()
         }
     }
@@ -133,7 +140,7 @@ internal class WalkthroughPopupSurface(
             glassPane = targetGlassPane,
             parentDisposable = handlerDisposable,
             popupProvider = { this },
-            editorProvider = { this.editor },
+            editorProvider = { liveEditor },
             onInteractionEnd = onInteractionEnd,
         )
         interactionHandlerDisposable = handlerDisposable
@@ -210,7 +217,7 @@ internal class WalkthroughPopupSurface(
     }
 
     private fun currentPaintContext(): ConnectorPaintContext? {
-        val currentEditor = editor
+        val currentEditor = liveEditor
         val currentItem = item
         val popupBounds = content.bounds.takeIf { bounds ->
             content.isVisible && bounds.width > 0 && bounds.height > 0

@@ -141,6 +141,9 @@ private class DiffWalkthroughController(
     private var activeViewer: FrameDiffTool.DiffViewer? = null
     private var activeDescriptorId: String? = null
 
+    // True between asking DiffManager to open a diff and its viewer attaching to this controller.
+    private var diffOpening = false
+
     fun scheduleItemNavigation(item: WalkthroughItem) {
         pendingNavigationId += 1
         val navigationId = pendingNavigationId
@@ -154,6 +157,7 @@ private class DiffWalkthroughController(
 
     fun attachToViewer(viewer: FrameDiffTool.DiffViewer, item: WalkthroughItem) {
         if (sessionDisposable.isDisposed || viewer !is EditorDiffViewer) return
+        diffOpening = false
         trackActiveViewer(viewer, resolveDescriptor(item)?.id)
         val editor = selectEditor(viewer, item.diffSide ?: DiffSide.Right)
         val popup = popupProvider()
@@ -169,11 +173,9 @@ private class DiffWalkthroughController(
         // Avoid capturing `this` strongly inside the viewer-owned disposable: the diff viewer may
         // outlive the walkthrough session, and a strong reference would keep the whole controller
         // graph (session disposable, popup state, etc.) reachable until the diff tab is closed.
-        val cleanup = createActiveViewerCleanup(WeakReference(this), viewer)
-        Disposer.register(viewer, cleanup)
-        // Also dispose the cleanup when the session ends so the references held by the cleanup
-        // disposable itself are released even if the diff viewer remains open.
-        Disposer.register(sessionDisposable, cleanup)
+        // Register it under the viewer only: a Disposable has a single parent, and registering it
+        // under the session as well would move it there, so closing the diff tab would never reach it.
+        Disposer.register(viewer, createActiveViewerCleanup(WeakReference(this), viewer))
     }
 
     private fun attachWhenShowing(popup: WalkthroughPopupSurface, editor: Editor, item: WalkthroughItem) {
@@ -217,9 +219,17 @@ private class DiffWalkthroughController(
     // (the generic is erased to `Object?`), so it flags the function as unused — suppress here.
     @Suppress("unused")
     fun clearActiveViewerIfMatches(viewer: FrameDiffTool.DiffViewer) {
-        if (activeViewer === viewer) {
-            activeViewer = null
-            activeDescriptorId = null
+        if (activeViewer !== viewer) return
+        activeViewer = null
+        activeDescriptorId = null
+        // The popup belongs to the diff tab it is anchored in, so closing that tab ends the
+        // walkthrough. A viewer is also disposed when the diff is re-rendered in the same tab (e.g.
+        // switching side-by-side/unified); the replacement attaches synchronously, so check one EDT
+        // turn later and keep the popup if a new viewer attached or another diff is being opened.
+        SwingUtilities.invokeLater {
+            if (!sessionDisposable.isDisposed && activeViewer == null && !diffOpening) {
+                popupProvider()?.cancel()
+            }
         }
     }
 
@@ -230,6 +240,7 @@ private class DiffWalkthroughController(
             attachToViewer(existing, item)
             return
         }
+        diffOpening = true
         DiffManager.getInstance().showDiff(
             project,
             SimpleDiffRequestChain.fromProducer(
@@ -264,9 +275,9 @@ private class DiffWalkthroughController(
 }
 
 /**
- * Creates a [Disposable] that clears the controller's reference to [viewer] when either the viewer
- * or the walkthrough session is disposed. The controller is held weakly so a still-open diff viewer
- * cannot keep the walkthrough session graph reachable after the session itself has been closed.
+ * Creates a [Disposable] (to be registered under [viewer]) that tells the controller when [viewer] is
+ * disposed, e.g. because its diff tab was closed. The controller is held weakly so a still-open diff
+ * viewer cannot keep the walkthrough session graph reachable after the session itself has been closed.
  */
 private fun createActiveViewerCleanup(
     controllerRef: WeakReference<DiffWalkthroughController>,

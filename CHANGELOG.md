@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Closing a diff tab that a diff walkthrough popup is attached to now closes the popup, instead of
+  leaving it over the editor where it broke window repaints and reported an "Editor is already
+  disposed" error.
+
 ## [0.8.1] - 2026-09-14
 
 ### Added
