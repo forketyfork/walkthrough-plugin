@@ -41,7 +41,7 @@ jobs:
       - name: Qodana scan
         # Keep this tag aligned with the linter image version pinned in
         # qodana.yaml so local runs and CI use the same Qodana release.
-        uses: JetBrains/qodana-action@v2026.2.1
+        uses: JetBrains/qodana-action@v2026.2.2
         with:
           # Push results to GitHub Code Scanning as SARIF.
           upload-result: true
@@ -50,6 +50,6 @@ jobs:
 
       - name: Upload SARIF to GitHub Code Scanning
         if: always()
-        uses: github/codeql-action/upload-sarif@v4.38.2
+        uses: github/codeql-action/upload-sarif@v4.38.3
         with:
           sarif_file: ${{ runner.temp }}/qodana/results/qodana.sarif.json
