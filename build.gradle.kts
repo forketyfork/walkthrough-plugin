@@ -3,9 +3,9 @@ import dev.detekt.gradle.DetektCreateBaselineTask
 
 plugins {
     id("java")
-    id("org.jetbrains.kotlin.jvm") version "2.4.20"
+    id("org.jetbrains.kotlin.jvm") version "2.4.21"
     id("org.jetbrains.intellij.platform") version "2.19.0"
-    id("org.jetbrains.kotlin.plugin.compose") version "2.4.20"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.4.21"
     alias(libs.plugins.detekt)
 }
 
